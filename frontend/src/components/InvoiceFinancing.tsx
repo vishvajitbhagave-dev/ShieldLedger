@@ -23,6 +23,21 @@ const initialForm: FormState = {
   settleDue: '',
 };
 
+const SAMPLE_NULLIFIER = 'aa11bb22cc33dd44ee55ff66aa77bb88cc99dd00ee11ff22aa33bb44cc55dd66';
+const SAMPLE_AMOUNT = '1000';
+const SAMPLE_DUE = '4102444800';
+
+const sampleForm: FormState = {
+  registerNullifier: SAMPLE_NULLIFIER,
+  bidNullifier: SAMPLE_NULLIFIER,
+  bidAmount: SAMPLE_AMOUNT,
+  bidDue: SAMPLE_DUE,
+  settleNullifier: SAMPLE_NULLIFIER,
+  settleLender: '',
+  settleAmount: SAMPLE_AMOUNT,
+  settleDue: SAMPLE_DUE,
+};
+
 const Field: React.FC<{ label: string; value: string; placeholder?: string; onChange: (v: string) => void; disabled?: boolean }> = ({
   label,
   value,
@@ -51,17 +66,21 @@ export const InvoiceFinancing: React.FC = () => {
 
   const [form, setForm] = useState<FormState>(initialForm);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [working, setWorking] = useState(false);
 
   const set = (k: keyof FormState) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   const run = async (label: string, op: () => Promise<void>) => {
     if (!api) return;
     setMessage(null);
+    setWorking(true);
     try {
       await op();
       setMessage({ ok: true, text: `${label} succeeded` });
     } catch (e) {
       setMessage({ ok: false, text: `${label} failed: ${e instanceof Error ? e.message : String(e)}` });
+    } finally {
+      setWorking(false);
     }
   };
 
@@ -72,6 +91,12 @@ export const InvoiceFinancing: React.FC = () => {
         All three operations run the contract circuit locally, prove it in zero knowledge, then balance and sign the
         transaction with your wallet. Private inputs never appear in this UI.
       </p>
+      <div className="sl-row">
+        <button className="sl-button sl-button-secondary" type="button" onClick={() => setForm(sampleForm)} disabled={busy || working}>
+          Use sample values
+        </button>
+        <span className="sl-meta">Fills the forms with a valid nullifier / amount / due date.</span>
+      </div>
 
       <form
         onSubmit={(e) => {
@@ -82,9 +107,9 @@ export const InvoiceFinancing: React.FC = () => {
         }}
       >
         <h3 style={{ fontSize: 14, margin: '14px 0 8px', color: '#93b4e4' }}>1 · Register invoice (SME)</h3>
-        <Field label="Nullifier" value={form.registerNullifier} placeholder="64 hex chars" onChange={set('registerNullifier')} disabled={busy} />
-        <button className="sl-button" type="submit" disabled={busy || form.registerNullifier.trim().length === 0}>
-          Register
+        <Field label="Nullifier" value={form.registerNullifier} placeholder="64 hex chars" onChange={set('registerNullifier')} disabled={busy || working} />
+        <button className="sl-button" type="submit" disabled={busy || working || form.registerNullifier.trim().length === 0}>
+          {working ? 'Working…' : 'Register'}
         </button>
       </form>
 
@@ -103,9 +128,9 @@ export const InvoiceFinancing: React.FC = () => {
         <button
           className="sl-button"
           type="submit"
-          disabled={busy || form.bidNullifier.trim().length === 0 || form.bidAmount.trim().length === 0 || form.bidDue.trim().length === 0}
+          disabled={busy || working || form.bidNullifier.trim().length === 0 || form.bidAmount.trim().length === 0 || form.bidDue.trim().length === 0}
         >
-          Submit bid
+          {working ? 'Working…' : 'Submit bid'}
         </button>
       </form>
 
@@ -129,15 +154,22 @@ export const InvoiceFinancing: React.FC = () => {
           type="submit"
           disabled={
             busy ||
+            working ||
             form.settleNullifier.trim().length === 0 ||
             form.settleLender.trim().length === 0 ||
             form.settleAmount.trim().length === 0 ||
             form.settleDue.trim().length === 0
           }
         >
-          Settle
+          {working ? 'Working…' : 'Settle'}
         </button>
       </form>
+
+      {working && (
+        <div className="sl-meta" style={{ marginBottom: 0 }}>
+          Working… (proof generation can take 30–60s) — when ready, approve in Lace.
+        </div>
+      )}
 
       {message && (
         <div className={message.ok ? 'sl-success' : 'sl-error'} style={{ marginBottom: 0 }}>

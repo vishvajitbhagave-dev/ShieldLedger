@@ -58,6 +58,19 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      // The compiled contract lives in the repo root, so bare imports from it
+      // (compact-runtime / compact-js) resolve to the ROOT tree's copies —
+      // while midnight-js-protocol uses the FRONTEND tree's copies. Two
+      // physical instances of compact-js mean two `Symbol()` contract-context
+      // registries, so createContract() reads `compiledContract[Symbol]` as
+      // undefined ("Cannot read properties of undefined (reading 'ctor')").
+      // Alias both to the frontend copies so everything shares one instance.
+      '@midnight-ntwrk/compact-js': fileURLToPath(
+        new URL('./node_modules/@midnight-ntwrk/compact-js', import.meta.url),
+      ),
+      '@midnight-ntwrk/compact-runtime': fileURLToPath(
+        new URL('./node_modules/@midnight-ntwrk/compact-runtime', import.meta.url),
+      ),
       // `isomorphic-ws` exposes no statically-resolvable named `WebSocket`
       // export from its browser build; the indexer provider needs it.
       'isomorphic-ws': fileURLToPath(new URL('./src/shims/isomorphic-ws.ts', import.meta.url)),
