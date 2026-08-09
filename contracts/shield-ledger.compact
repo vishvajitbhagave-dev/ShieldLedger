@@ -1,0 +1,112 @@
+// ShieldLedger — confidential invoice-financing on the Midnight Network.
+//
+// ─────────────────────────────────────────────────────────────────────────────
+//  PUBLIC vs PRIVATE SPLIT
+// ─────────────────────────────────────────────────────────────────────────────
+//  PUBLIC (disclosed to the ledger, verifiable by anyone):
+//    • invoices      — Map<Bytes<32>, Invoice>: a registry of *nullifiers*
+//                       (opaque 32-byte hashes of invoices, e.g. the
+//                       hash of invoice id + issue date) plus, once
+//                       financed, a public receipt (winning lender
+//                       pseudonym, financed amount, financed due date).
+//                       Invoice contents themselves stay private.
+//    • bids          — Map<Bytes<32>, Bid>: one entry per (invoice, lender)
+//                       pair, keyed by a *derived bid key*
+//                       (hash of nullifier + lender pseudonym). Each bid
+//                       carries its public nullifier, the lender's
+//                       *pseudonym* (a hash of the lender secret), and the
+//                       disclosed terms (amount, due date). The lender's
+//                       true identity is never public. Single-level map so
+//                       that every lookup is guarded by a member check (the
+//                       runtime rejects member/lookup on absent nested-map
+//                       keys — see the flat-key note in the README).
+//    • invoiceCount  — Counter: number of ledger transitions, for UI/replay.
+//    • The nullifier registry proves "this invoice exists and is being
+//      financed" without revealing what the invoice is.
+//
+//  PRIVATE (never leaves the proposer's wallet, never disclosed):
+//    • Invoice contents: buyer identity, line items, counterparties — only
+//      the nullifier hash and the SME's commitment (a hash of the SME
+//      secret + nullifier) touch the ledger.
+//    • SME secret (witness smeSecret) — proves SME ownership of an invoice
+//      via deriveCommitment without revealing the secret.
+//    • Lender secret (witness lenderSecret) — pseudonymous bidding; a lender
+//      proves "I own bid X" (used for settlement) without revealing identity.
+//    • lenderCreditScore  — a private, verifier-checked credential: the
+//      circuit asserts score >= 700 without ever disclosing the score.
+//    • lenderExposureCap  — a private lending limit: bids are rejected
+//      circuit-side when they would exceed the cap.
+// ─────────────────────────────────────────────────────────────────────────────
+
+pragma language_version 0.23;
+import CompactStandardLibrary;
+
+export enum InvoiceStatus { BIDDING, FINANCED }
+
+export struct Invoice {
+  smeCommitment: Bytes<32>,
+  lender: Maybe<Bytes<32>>,
+  amount: Uint<64>,
+  dueDate: Uint<64>,
+}
+
+export struct Bid {
+  nullifier: Bytes<32>,
+  lender: Bytes<32>,
+  amount: Uint<64>,
+  dueDate: Uint<64>,
+}
+
+export ledger invoices: Map<Bytes<32>, Invoice>;
+export ledger bids: Map<Bytes<32>, Bid>;
+export ledger invoiceCount: Counter;
+
+witness smeSecret(): Bytes<32>;
+witness lenderSecret(): Bytes<32>;
+witness lenderCreditScore(): Uint<64>;
+witness lenderExposureCap(): Uint<64>;
+
+export circuit registerInvoice(nullifier: Bytes<32>): [] {
+  assert(!invoices.member(disclose(nullifier)), "invoice already registered");
+  const commitment = disclose(deriveCommitment(smeSecret(), disclose(nullifier)));
+  invoices.insert(disclose(nullifier), Invoice { smeCommitment: commitment, lender: none<Bytes<32>>(), amount: 0, dueDate: 0 });
+  invoiceCount.increment(1);
+}
+
+export circuit submitBid(nullifier: Bytes<32>, bidAmount: Uint<64>, bidDueDate: Uint<64>): [] {
+  assert(lenderCreditScore() >= 700, "not creditworthy");
+  assert(disclose(bidAmount) <= lenderExposureCap(), "bid exceeds exposure cap");
+  assert(invoices.member(disclose(nullifier)), "unknown invoice");
+  assert(!invoices.lookup(disclose(nullifier)).lender.is_some, "invoice not in bidding");
+  const pseudonym = disclose(derivePseudonym(lenderSecret()));
+  const bidKey = disclose(deriveBidKey(disclose(nullifier), pseudonym));
+  assert(!bids.member(bidKey), "already bid");
+  bids.insert(bidKey, Bid { nullifier: disclose(nullifier), lender: pseudonym, amount: disclose(bidAmount), dueDate: disclose(bidDueDate) });
+  invoiceCount.increment(1);
+}
+
+export circuit settleInvoice(nullifier: Bytes<32>, winningLender: Bytes<32>, financedAmount: Uint<64>, financedDueDate: Uint<64>): [] {
+  assert(invoices.member(disclose(nullifier)), "unknown invoice");
+  assert(deriveCommitment(smeSecret(), disclose(nullifier)) == invoices.lookup(disclose(nullifier)).smeCommitment, "not the SME");
+  assert(!invoices.lookup(disclose(nullifier)).lender.is_some, "already financed");
+  const bidKey = disclose(deriveBidKey(disclose(nullifier), disclose(winningLender)));
+  assert(bids.member(bidKey), "no such bid");
+  assert(disclose(financedAmount) <= bids.lookup(bidKey).amount, "amount exceeds winning bid");
+  const receiptLender = disclose(winningLender);
+  const receiptAmount = disclose(financedAmount);
+  const receiptDueDate = disclose(financedDueDate);
+  invoices.insert(disclose(nullifier), Invoice { smeCommitment: invoices.lookup(disclose(nullifier)).smeCommitment, lender: some<Bytes<32>>(receiptLender), amount: receiptAmount, dueDate: receiptDueDate });
+  invoiceCount.increment(1);
+}
+
+export circuit deriveCommitment(secret: Bytes<32>, nullifier: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([nullifier, secret]);
+}
+
+export circuit derivePseudonym(secret: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([pad(32, "shieldledger:lender"), secret]);
+}
+
+export circuit deriveBidKey(nullifier: Bytes<32>, pseudonym: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([nullifier, pseudonym]);
+}
