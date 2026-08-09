@@ -1,0 +1,42 @@
+{
+  "name": "shieldledger-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ShieldLedger browser DApp: confidential invoice-financing marketplace on the Midnight Network.",
+  "scripts": {
+    "predev": "node scripts/copy-zk-assets.mjs",
+    "dev": "vite",
+    "prebuild": "node scripts/copy-zk-assets.mjs",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "0.16.0",
+    "@midnight-ntwrk/dapp-connector-api": "4.0.1",
+    "@midnight-ntwrk/midnight-js-contracts": "4.1.1",
+    "@midnight-ntwrk/midnight-js-fetch-zk-config-provider": "4.1.1",
+    "@midnight-ntwrk/midnight-js-http-client-proof-provider": "4.1.1",
+    "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "4.1.1",
+    "@midnight-ntwrk/midnight-js-network-id": "4.1.1",
+    "@midnight-ntwrk/midnight-js-protocol": "4.1.1",
+    "@midnight-ntwrk/midnight-js-types": "4.1.1",
+    "buffer": "^6.0.3",
+    "fp-ts": "^2.16.9",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "rxjs": "^7.8.2",
+    "semver": "^7.7.2"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/semver": "^7.7.0",
+    "@vitejs/plugin-react": "^5.0.4",
+    "typescript": "^6.0.3",
+    "vite": "^7.1.0",
+    "vite-plugin-top-level-await": "^1.5.0",
+    "vite-plugin-wasm": "^3.4.1"
+  }
+}
