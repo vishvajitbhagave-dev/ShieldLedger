@@ -29,7 +29,9 @@ jobs:
           compact-version: '0.31.1'
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm install -g npm@11
+          npm ci
 
       - name: Compile contract
         run: npm run compile
@@ -58,13 +60,17 @@ jobs:
           compact-version: '0.31.1'
 
       - name: Install root dependencies (compile tooling)
-        run: npm ci
+        run: |
+          npm install -g npm@11
+          npm ci
 
       - name: Compile contract (ZK assets for the DApp)
         run: npm run compile
 
       - name: Install frontend dependencies
-        run: npm --prefix frontend ci
+        run: |
+          npm install -g npm@11
+          npm --prefix frontend ci
 
       - name: Build browser DApp
         run: npm --prefix frontend run build
