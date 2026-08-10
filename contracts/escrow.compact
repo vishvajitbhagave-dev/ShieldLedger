@@ -1,0 +1,75 @@
+// Escrow — holds a lender's financing commitment for an invoice until the
+// ShieldLedger auction settles, then releases it to the SME.
+//
+// ─────────────────────────────────────────────────────────────────────────────
+//  INTER-CONTRACT COMMUNICATION
+// ─────────────────────────────────────────────────────────────────────────────
+//  The current Compact compiler reserves the `contract` keyword for future
+//  cross-contract calls but does not yet implement them (see the Compact
+//  reference: "Compact 1.0 does not fully implement declarations of contracts
+//  and the cross-contract calls they support"). So there is no on-chain
+//  `Escrow.something()` call from ShieldLedger.
+//
+//  Instead the two contracts are coordinated OFF-CHAIN by a communication
+//  layer — frontend/src/escrow-orchestrator.ts — that subscribes to the
+//  ShieldLedger ledger and issues the corresponding Escrow transactions:
+//
+//    ShieldLedger settles invoice            ─┐
+//    (orchestrator reads ledger + bestBids)   ├─►  communication layer
+//    Escrow deposit / release is authorized   ─┘
+//
+//  Ownership is carried ACROSS the contract boundary by a *shared commitment*:
+//  this contract stores the same smeCommitment = hash(smeSecret, nullifier)
+//  that ShieldLedger stores, so the identical private secret that settles an
+//  invoice on ShieldLedger is what unlocks the funds here. Both contracts
+//  assert the same commitment derivation, which proves — without disclosing
+//  anything — that the actor releasing the escrow is the same party that
+//  owns the invoice. tests/inter-contract.test.ts drives this whole flow.
+//
+//  FLOW
+//    1. deposit(nullifier, amount)  — lender locks funds; once per invoice,
+//                                     for exactly the winning bid amount.
+//    2. release(nullifier)          — SME proves the shared commitment; once.
+// ─────────────────────────────────────────────────────────────────────────────
+
+pragma language_version 0.23;
+import CompactStandardLibrary;
+
+export struct Escrow {
+  lender: Bytes<32>,
+  smeCommitment: Bytes<32>,
+  amount: Uint<64>,
+  released: Boolean,
+}
+
+export ledger escrows: Map<Bytes<32>, Escrow>;
+export ledger escrowCount: Counter;
+
+witness smeSecret(): Bytes<32>;
+witness lenderSecret(): Bytes<32>;
+
+export circuit deposit(nullifier: Bytes<32>, amount: Uint<64>): [] {
+  assert(!escrows.member(disclose(nullifier)), "escrow already exists");
+  assert(disclose(amount) > 0, "amount must be positive");
+  const lender = disclose(derivePseudonym(lenderSecret()));
+  const smeCommitment = disclose(deriveCommitment(smeSecret(), disclose(nullifier)));
+  escrows.insert(disclose(nullifier), Escrow { lender, smeCommitment, amount: disclose(amount), released: false });
+  escrowCount.increment(1);
+}
+
+export circuit release(nullifier: Bytes<32>): [] {
+  assert(escrows.member(disclose(nullifier)), "no escrow for this invoice");
+  const escrow = escrows.lookup(disclose(nullifier));
+  assert(!escrow.released, "already released");
+  assert(escrow.smeCommitment == deriveCommitment(smeSecret(), disclose(nullifier)), "not the SME");
+  escrows.insert(disclose(nullifier), Escrow { lender: escrow.lender, smeCommitment: escrow.smeCommitment, amount: escrow.amount, released: true });
+  escrowCount.increment(1);
+}
+
+export circuit deriveCommitment(secret: Bytes<32>, nullifier: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([nullifier, secret]);
+}
+
+export circuit derivePseudonym(secret: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([pad(32, "shieldledger:lender"), secret]);
+}

@@ -59,6 +59,12 @@
   font-size: 13px;
 }
 
+.sl-live {
+  background: #0c2f1f;
+  border-color: #14532d;
+  color: #6ee7b7;
+}
+
 .sl-panel {
   background: #0f1a2c;
   border: 1px solid #24324a;
@@ -235,4 +241,70 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 20px;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ *  Responsive / mobile layout
+ *  ────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 760px) {
+  .sl-app {
+    padding: 14px;
+  }
+
+  .sl-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .sl-header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .sl-panel {
+    padding: 14px;
+  }
+
+  .sl-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sl-input,
+  .sl-input[type='text'],
+  .sl-input[type='password'],
+  select.sl-input {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .sl-tabs {
+    flex-direction: column;
+  }
+
+  .sl-tab {
+    width: 100%;
+  }
+
+  .sl-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Keep wide tables usable on narrow screens: scroll instead of overflow. */
+  .sl-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .sl-title {
+    font-size: 21px;
+  }
+
+  .sl-button {
+    width: 100%;
+  }
 }

@@ -10,8 +10,10 @@
 import { spawnSync } from 'node:child_process';
 import * as path from 'node:path';
 
-const DEFAULT_INPUT = 'contracts/shield-ledger.compact';
-const DEFAULT_OUTPUT = 'contracts/managed/shield-ledger';
+const CONTRACTS: ReadonlyArray<readonly [string, string]> = [
+  ['contracts/shield-ledger.compact', 'contracts/managed/shield-ledger'],
+  ['contracts/escrow.compact', 'contracts/managed/escrow'],
+];
 
 function toWslPath(p: string): string {
   const abs = path.resolve(p).replace(/\\/g, '/');
@@ -33,16 +35,18 @@ function findCompactBinary(): string {
 }
 
 function main(): number {
-  const [input = DEFAULT_INPUT, output = DEFAULT_OUTPUT] = process.argv.slice(2);
+  const args = process.argv.slice(2);
+  const pairs = args.length >= 2 ? [[args[0], args[1]] as const] : CONTRACTS;
   const isWin = process.platform === 'win32';
   const compact = findCompactBinary();
 
-  if (!isWin) {
-    return spawnSync(compact, ['compile', input, output], { stdio: 'inherit' }).status ?? 1;
+  for (const [input, output] of pairs) {
+    const status = isWin
+      ? (spawnSync('wsl', ['-e', 'bash', '-lc', `'${compact}' compile '${toWslPath(input)}' '${toWslPath(output)}'`], { stdio: 'inherit' }).status ?? 1)
+      : (spawnSync(compact, ['compile', input, output], { stdio: 'inherit' }).status ?? 1);
+    if (status !== 0) return status;
   }
-
-  const cmd = `'${compact}' compile '${toWslPath(input)}' '${toWslPath(output)}'`;
-  return spawnSync('wsl', ['-e', 'bash', '-lc', cmd], { stdio: 'inherit' }).status ?? 1;
+  return 0;
 }
 
 process.exit(main());

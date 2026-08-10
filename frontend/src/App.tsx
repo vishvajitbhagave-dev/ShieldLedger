@@ -1,11 +1,26 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { ShieldLedgerProvider, useShieldLedger } from './context.js';
 import { WalletConnect } from './components/WalletConnect.js';
 import { InvoiceFinancing } from './components/InvoiceFinancing.js';
 import { LedgerView } from './components/LedgerView.js';
+import { ErrorBoundary } from './components/ErrorBoundary.js';
+import { useLedgerState } from './use-ledger-state.js';
 
 const Body: React.FC = () => {
   const { networkId, connected, disconnect, deployment, error, clearError } = useShieldLedger();
+  const { state: ledgerState, error: ledgerError } = useLedgerState();
+  const [lastUpdate, setLastUpdate] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (ledgerState) setLastUpdate(Date.now());
+  }, [ledgerState]);
+
+  const streamStatus =
+    ledgerError != null
+      ? 'stream error'
+      : ledgerState != null
+        ? `● live · ${new Date(lastUpdate ?? Date.now()).toLocaleTimeString()}`
+        : '● connecting…';
 
   return (
     <div className="sl-app">
@@ -17,6 +32,9 @@ const Body: React.FC = () => {
           </p>
         </div>
         <div className="sl-header-actions">
+          {deployment.status === 'deployed' && (
+            <span className={ledgerError != null ? 'sl-network-badge' : 'sl-network-badge sl-live'}>{streamStatus}</span>
+          )}
           <span className="sl-network-badge">network: {networkId}</span>
           {connected && (
             <button className="sl-button sl-button-secondary sl-header-action" onClick={disconnect}>
@@ -58,9 +76,11 @@ const Body: React.FC = () => {
 };
 
 const App: React.FC<{ networkId: string }> = ({ networkId }) => (
-  <ShieldLedgerProvider networkId={networkId}>
-    <Body />
-  </ShieldLedgerProvider>
+  <ErrorBoundary>
+    <ShieldLedgerProvider networkId={networkId}>
+      <Body />
+    </ShieldLedgerProvider>
+  </ErrorBoundary>
 );
 
 export default App;

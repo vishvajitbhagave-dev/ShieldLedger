@@ -6,6 +6,7 @@ import {
   type RegisteredInvoice,
 } from '../invoice-registry.js';
 import { useLedgerState } from '../use-ledger-state.js';
+import { invoiceStatusOf, isOpenInvoice } from '../invoice-status.js';
 
 type FormState = {
   registerReference: string;
@@ -190,13 +191,9 @@ export const InvoiceFinancing: React.FC = () => {
     }
   };
 
-  const openInvoices = ledgerState?.invoices.filter((inv) => !inv.lender) ?? [];
+  const openInvoices = (ledgerState?.invoices ?? []).filter(isOpenInvoice);
 
-  const statusOf = (inv: RegisteredInvoice): string => {
-    const onLedger = ledgerState?.invoices.find((i) => i.nullifier === inv.nullifier);
-    if (!onLedger) return 'Registered';
-    return onLedger.lender ? 'Settled' : 'Bidding';
-  };
+  const statusOf = (inv: RegisteredInvoice): string => invoiceStatusOf(inv, ledgerState?.invoices ?? []);
 
   return (
     <div className="sl-panel">
