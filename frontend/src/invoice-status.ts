@@ -24,3 +24,21 @@ export function invoiceStatusOf(
 export function isOpenInvoice(invoice: InvoiceSnapshot): boolean {
   return invoice.lender === null;
 }
+
+/** Minimal view of one running best bid (matches BestBidView). */
+export interface BestBidSnapshot {
+  readonly nullifier: string;
+}
+
+/**
+ * True when a lender has revealed a leading bid for this invoice — the
+ * precondition for `settleInvoice`, which asserts "auction not resolved"
+ * otherwise. The UI gates the Settle action on this instead of surfacing the
+ * raw contract error.
+ */
+export function isAuctionResolved(
+  nullifier: string,
+  bestBids: ReadonlyArray<BestBidSnapshot>,
+): boolean {
+  return bestBids.some((b) => b.nullifier === nullifier);
+}

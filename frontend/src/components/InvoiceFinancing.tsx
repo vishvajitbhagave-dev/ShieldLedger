@@ -6,7 +6,7 @@ import {
   type RegisteredInvoice,
 } from '../invoice-registry.js';
 import { useLedgerState } from '../use-ledger-state.js';
-import { invoiceStatusOf, isOpenInvoice } from '../invoice-status.js';
+import { invoiceStatusOf, isAuctionResolved, isOpenInvoice } from '../invoice-status.js';
 
 type FormState = {
   registerReference: string;
@@ -195,6 +195,12 @@ export const InvoiceFinancing: React.FC = () => {
 
   const statusOf = (inv: RegisteredInvoice): string => invoiceStatusOf(inv, ledgerState?.invoices ?? []);
 
+  const bestBids = ledgerState?.bestBids ?? [];
+  const resolved = (nullifier: string): boolean => isAuctionResolved(nullifier, bestBids);
+
+  const settleNullifier = form.settleNullifier.trim();
+  const settleReady = settleNullifier !== '' && resolved(settleNullifier);
+
   return (
     <div className="sl-panel">
       <h2>Invoice financing</h2>
@@ -269,23 +275,26 @@ export const InvoiceFinancing: React.FC = () => {
                     <td>{formatDate(BigInt(inv.dueDate))}</td>
                     <td>{statusOf(inv)}</td>
                     <td>
-                      {statusOf(inv) === 'Bidding' && (
-                        <button
-                          className="sl-button sl-button-secondary"
-                          type="button"
-                          disabled={busy || working !== null}
-                          onClick={() => {
-                            setForm((f) => ({
-                              ...f,
-                              settleNullifier: inv.nullifier,
-                              settleAmount: inv.amount,
-                              settleDue: inv.dueDate,
-                            }));
-                          }}
-                        >
-                          Settle ↓
-                        </button>
-                      )}
+                      {statusOf(inv) === 'Bidding' &&
+                        (resolved(inv.nullifier) ? (
+                          <button
+                            className="sl-button sl-button-secondary"
+                            type="button"
+                            disabled={busy || working !== null}
+                            onClick={() => {
+                              setForm((f) => ({
+                                ...f,
+                                settleNullifier: inv.nullifier,
+                                settleAmount: inv.amount,
+                                settleDue: inv.dueDate,
+                              }));
+                            }}
+                          >
+                            Settle ↓
+                          </button>
+                        ) : (
+                          <span className="sl-meta">awaiting winning bid</span>
+                        ))}
                     </td>
                   </tr>
                 ))}
@@ -312,12 +321,18 @@ export const InvoiceFinancing: React.FC = () => {
               The contract pays the lowest-rate winner automatically — you cannot pick a different lender. You can
               settle as soon as a lender has revealed a winning bid.
             </p>
+            {settleNullifier !== '' && !settleReady && (
+              <p className="sl-info" style={{ marginBottom: 0 }}>
+                No winning bid yet for this invoice — the auction is still open. Settlement is possible only once a
+                lender has revealed the lowest-rate bid (see <strong>Public ledger → Leading bids</strong>).
+              </p>
+            )}
             <button
               className="sl-button"
               type="submit"
-              disabled={busy || working !== null || form.settleNullifier.trim().length === 0 || form.settleAmount.trim().length === 0 || form.settleDue.trim().length === 0}
+              disabled={busy || working !== null || form.settleNullifier.trim().length === 0 || form.settleAmount.trim().length === 0 || form.settleDue.trim().length === 0 || !settleReady}
             >
-              {working === 'settleInvoice' ? 'Working…' : 'Settle'}
+              {working === 'settleInvoice' ? 'Working…' : settleNullifier !== '' && !settleReady ? 'Awaiting winning bid' : 'Settle'}
             </button>
           </form>
         </>

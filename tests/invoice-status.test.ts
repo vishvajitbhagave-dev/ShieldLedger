@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   invoiceStatusOf,
+  isAuctionResolved,
   isOpenInvoice,
 } from '../frontend/src/invoice-status';
 
@@ -35,5 +36,24 @@ describe('isOpenInvoice', () => {
   it('returns true only for on-chain invoices without a lender', () => {
     expect(isOpenInvoice(OPEN)).toBe(true);
     expect(isOpenInvoice(SETTLED)).toBe(false);
+  });
+});
+
+describe('isAuctionResolved', () => {
+  const bestBids = [
+    { nullifier: 'b'.repeat(64) },
+    { nullifier: 'c'.repeat(64) },
+  ];
+
+  it('is true when a leading bid exists for the invoice', () => {
+    expect(isAuctionResolved('b'.repeat(64), bestBids)).toBe(true);
+  });
+
+  it('is false when no leading bid exists for the invoice', () => {
+    expect(isAuctionResolved('a'.repeat(64), bestBids)).toBe(false);
+  });
+
+  it('is false when there are no best bids at all', () => {
+    expect(isAuctionResolved('b'.repeat(64), [])).toBe(false);
   });
 });
