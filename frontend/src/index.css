@@ -47,6 +47,18 @@
   font-weight: 600;
 }
 
+.sl-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sl-header-action {
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 13px;
+}
+
 .sl-panel {
   background: #0f1a2c;
   border: 1px solid #24324a;

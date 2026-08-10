@@ -5,7 +5,7 @@ import { InvoiceFinancing } from './components/InvoiceFinancing.js';
 import { LedgerView } from './components/LedgerView.js';
 
 const Body: React.FC = () => {
-  const { networkId, deployment, error, clearError } = useShieldLedger();
+  const { networkId, connected, disconnect, deployment, error, clearError } = useShieldLedger();
 
   return (
     <div className="sl-app">
@@ -16,7 +16,14 @@ const Body: React.FC = () => {
             Confidential invoice financing on the Midnight Network — commitments on-chain, invoice details private.
           </p>
         </div>
-        <span className="sl-network-badge">network: {networkId}</span>
+        <div className="sl-header-actions">
+          <span className="sl-network-badge">network: {networkId}</span>
+          {connected && (
+            <button className="sl-button sl-button-secondary sl-header-action" onClick={disconnect}>
+              Disconnect
+            </button>
+          )}
+        </div>
       </header>
 
       {error && (
