@@ -1,8 +1,15 @@
 import React, { useState } from 'react';
 import { useShieldLedger } from '../context.js';
+import {
+  loadRegisteredInvoices,
+  registerInvoiceLocally,
+  type RegisteredInvoice,
+} from '../invoice-registry.js';
 
 type FormState = {
-  registerNullifier: string;
+  registerReference: string;
+  registerAmount: string;
+  registerDue: string;
   bidNullifier: string;
   bidAmount: string;
   bidDue: string;
@@ -17,7 +24,9 @@ type FormState = {
 };
 
 const initialForm: FormState = {
-  registerNullifier: '',
+  registerReference: '',
+  registerAmount: '',
+  registerDue: '',
   bidNullifier: '',
   bidAmount: '',
   bidDue: '',
@@ -31,13 +40,16 @@ const initialForm: FormState = {
   settleDue: '',
 };
 
+const SAMPLE_REFERENCE = 'Sample invoice';
 const SAMPLE_NULLIFIER = 'aa11bb22cc33dd44ee55ff66aa77bb88cc99dd00ee11ff22aa33bb44cc55dd66';
 const SAMPLE_AMOUNT = '1000';
 const SAMPLE_DUE = '4102444800';
 const SAMPLE_RATE = '400';
 
 const sampleForm: FormState = {
-  registerNullifier: SAMPLE_NULLIFIER,
+  registerReference: SAMPLE_REFERENCE,
+  registerAmount: SAMPLE_AMOUNT,
+  registerDue: SAMPLE_DUE,
   bidNullifier: SAMPLE_NULLIFIER,
   bidAmount: SAMPLE_AMOUNT,
   bidDue: SAMPLE_DUE,
@@ -50,6 +62,8 @@ const sampleForm: FormState = {
   settleAmount: SAMPLE_AMOUNT,
   settleDue: SAMPLE_DUE,
 };
+
+const isDigits = (s: string): boolean => /^\d+$/.test(s.trim());
 
 const Field: React.FC<{ label: string; value: string; placeholder?: string; onChange: (v: string) => void; disabled?: boolean }> = ({
   label,
@@ -72,6 +86,36 @@ const Field: React.FC<{ label: string; value: string; placeholder?: string; onCh
   </div>
 );
 
+const InvoicePicker: React.FC<{
+  invoices: RegisteredInvoice[];
+  disabled?: boolean;
+  onPick: (inv: RegisteredInvoice) => void;
+}> = ({ invoices, disabled, onPick }) => (
+  <div className="sl-row">
+    <label className="sl-meta" style={{ minWidth: 90 }}>
+      Your invoice
+    </label>
+    <select
+      className="sl-input"
+      value=""
+      disabled={disabled}
+      onChange={(e) => {
+        const inv = invoices.find((i) => i.nullifier === e.target.value);
+        if (inv) onPick(inv);
+      }}
+    >
+      <option value="" disabled>
+        {invoices.length > 0 ? 'Pick a registered invoice…' : 'No invoices registered in this browser'}
+      </option>
+      {invoices.map((inv) => (
+        <option key={inv.nullifier} value={inv.nullifier}>
+          {inv.reference || '(no reference)'} · {inv.amount} tNight · {inv.nullifier.slice(0, 10)}…
+        </option>
+      ))}
+    </select>
+  </div>
+);
+
 export const InvoiceFinancing: React.FC = () => {
   const { deployment, connected } = useShieldLedger();
   const api = deployment.status === 'deployed' ? deployment.api : null;
@@ -80,8 +124,16 @@ export const InvoiceFinancing: React.FC = () => {
   const [form, setForm] = useState<FormState>(initialForm);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [working, setWorking] = useState(false);
+  const [invoices, setInvoices] = useState<RegisteredInvoice[]>(() => loadRegisteredInvoices());
 
   const set = (k: keyof FormState) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const pick = (kind: 'bid' | 'reveal' | 'settle') => (inv: RegisteredInvoice) => {
+    setForm((f) => {
+      const prefix = kind === 'bid' ? 'bid' : kind === 'reveal' ? 'reveal' : 'settle';
+      return { ...f, [`${prefix}Nullifier`]: inv.nullifier, [`${prefix}Amount`]: inv.amount, [`${prefix}Due`]: inv.dueDate } as FormState;
+    });
+  };
 
   const run = async (label: string, op: () => Promise<void>) => {
     if (!api) return;
@@ -108,7 +160,7 @@ export const InvoiceFinancing: React.FC = () => {
         <button className="sl-button sl-button-secondary" type="button" onClick={() => setForm(sampleForm)} disabled={busy || working}>
           Use sample values
         </button>
-        <span className="sl-meta">Fills the forms with a valid nullifier / amount / due date / rate.</span>
+        <span className="sl-meta">Fills the forms with sample values.</span>
       </div>
 
       <form
@@ -116,12 +168,29 @@ export const InvoiceFinancing: React.FC = () => {
           e.preventDefault();
           if (!api) return;
           const a = api;
-          void run('registerInvoice', () => a.registerInvoice(form.registerNullifier));
+          const reference = form.registerReference.trim();
+          const amount = BigInt(form.registerAmount.trim());
+          const dueDate = BigInt(form.registerDue.trim());
+          void run('registerInvoice', async () => {
+            const record = await registerInvoiceLocally({ reference, amount, dueDate });
+            setInvoices(loadRegisteredInvoices());
+            await a.registerInvoice(record.nullifier);
+          });
         }}
       >
         <h3 style={{ fontSize: 14, margin: '14px 0 8px', color: '#93b4e4' }}>1 · Register invoice (SME)</h3>
-        <Field label="Nullifier" value={form.registerNullifier} placeholder="64 hex chars" onChange={set('registerNullifier')} disabled={busy || working} />
-        <button className="sl-button" type="submit" disabled={busy || working || form.registerNullifier.trim().length === 0}>
+        <Field label="Reference" value={form.registerReference} placeholder="optional, private — e.g. INV-001" onChange={set('registerReference')} disabled={busy || working} />
+        <Field label="Amount" value={form.registerAmount} placeholder="tNight units" onChange={set('registerAmount')} disabled={busy || working} />
+        <Field label="Due date" value={form.registerDue} placeholder="unix seconds" onChange={set('registerDue')} disabled={busy || working} />
+        <p className="sl-meta" style={{ marginBottom: 0 }}>
+          Only a <em>nullifier</em> — a blinded hash of these details plus a random secret — is posted on-chain. The
+          invoice details never leave this browser; the nullifier is saved locally so you can reuse it later.
+        </p>
+        <button
+          className="sl-button"
+          type="submit"
+          disabled={busy || working || !isDigits(form.registerAmount) || !isDigits(form.registerDue)}
+        >
           {working ? 'Working…' : 'Register'}
         </button>
       </form>
@@ -137,6 +206,7 @@ export const InvoiceFinancing: React.FC = () => {
         }}
       >
         <h3 style={{ fontSize: 14, margin: '18px 0 8px', color: '#93b4e4' }}>2 · Submit sealed bid (Lender)</h3>
+        <InvoicePicker invoices={invoices} disabled={busy || working} onPick={pick('bid')} />
         <Field label="Nullifier" value={form.bidNullifier} placeholder="64 hex chars" onChange={set('bidNullifier')} disabled={busy || working} />
         <Field label="Amount" value={form.bidAmount} placeholder="tNight units" onChange={set('bidAmount')} disabled={busy || working} />
         <Field label="Due date" value={form.bidDue} placeholder="unix seconds" onChange={set('bidDue')} disabled={busy || working} />
@@ -164,6 +234,7 @@ export const InvoiceFinancing: React.FC = () => {
         }}
       >
         <h3 style={{ fontSize: 14, margin: '18px 0 8px', color: '#93b4e4' }}>3 · Reveal bid (Lender)</h3>
+        <InvoicePicker invoices={invoices} disabled={busy || working} onPick={pick('reveal')} />
         <Field label="Nullifier" value={form.revealNullifier} placeholder="64 hex chars" onChange={set('revealNullifier')} disabled={busy || working} />
         <Field label="Amount" value={form.revealAmount} placeholder="must match your sealed bid" onChange={set('revealAmount')} disabled={busy || working} />
         <Field label="Due date" value={form.revealDue} placeholder="must match your sealed bid" onChange={set('revealDue')} disabled={busy || working} />
@@ -192,6 +263,7 @@ export const InvoiceFinancing: React.FC = () => {
         }}
       >
         <h3 style={{ fontSize: 14, margin: '18px 0 8px', color: '#93b4e4' }}>4 · Settle invoice (SME)</h3>
+        <InvoicePicker invoices={invoices} disabled={busy || working} onPick={pick('settle')} />
         <Field label="Nullifier" value={form.settleNullifier} placeholder="64 hex chars" onChange={set('settleNullifier')} disabled={busy || working} />
         <Field label="Amount" value={form.settleAmount} placeholder="financed amount (≤ winning bid)" onChange={set('settleAmount')} disabled={busy || working} />
         <Field label="Due date" value={form.settleDue} placeholder="unix seconds" onChange={set('settleDue')} disabled={busy || working} />
