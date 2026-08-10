@@ -1,0 +1,68 @@
+name: Deploy DApp to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Compact compiler
+        uses: midnightntwrk/setup-compact-action@v1
+        with:
+          compact-version: '0.31.1'
+
+      - name: Install root dependencies (compile tooling)
+        run: |
+          npm install -g npm@11
+          npm ci
+
+      - name: Compile contract (ZK assets for the DApp)
+        run: npm run compile
+
+      - name: Install frontend dependencies
+        run: |
+          npm install -g npm@11
+          npm --prefix frontend ci
+
+      - name: Build browser DApp
+        run: npm --prefix frontend run build
+        env:
+          VITE_BASE_PATH: /ShieldLedger/
+          VITE_NETWORK_ID: preview
+          VITE_PROOF_SERVER_URL: http://localhost:6300
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

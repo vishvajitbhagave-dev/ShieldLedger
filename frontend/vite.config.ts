@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url';
 // https://vitejs.dev/config/
 export default defineConfig({
   cacheDir: './.vite',
+  // Deployment subpath (e.g. GitHub Pages: "/ShieldLedger/"). Defaults to "/".
+  base: process.env.VITE_BASE_PATH || '/',
   build: {
     target: 'esnext',
     minify: false,
