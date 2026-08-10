@@ -37,19 +37,27 @@ function toDerivedState(state: Parameters<typeof ShieldLedger.ledger>[0]): Shiel
     lender: invoice.lender.is_some ? toHex(invoice.lender.value) : null,
     amount: invoice.amount,
     dueDate: invoice.dueDate,
+    rateBps: invoice.rateBps,
   }));
   const bids = Array.from(lg.bids, ([bidKey, bid]) => ({
     bidKey: toHex(bidKey),
     nullifier: toHex(bid.nullifier),
     lender: toHex(bid.lender),
-    amount: bid.amount,
-    dueDate: bid.dueDate,
+    commitment: toHex(bid.commitment),
+  }));
+  const bestBids = Array.from(lg.bestBids, ([nullifier, best]) => ({
+    nullifier: toHex(nullifier),
+    lender: toHex(best.lender),
+    amount: best.amount,
+    dueDate: best.dueDate,
+    rateBps: best.rateBps,
   }));
   return {
     ledger: lg,
     invoiceCount: lg.invoiceCount,
     invoices,
     bids,
+    bestBids,
   };
 }
 
@@ -72,12 +80,23 @@ export class ShieldLedgerAPI {
     await this.deployedContract.callTx.registerInvoice(fromHex(nullifierHex));
   }
 
-  async submitBid(nullifierHex: string, amount: bigint, dueDate: bigint): Promise<void> {
-    await this.deployedContract.callTx.submitBid(fromHex(nullifierHex), amount, dueDate);
+  /** Seals a bid with the wallet's lender secret; only the commitment goes on-chain. */
+  async submitBid(nullifierHex: string, amount: bigint, dueDate: bigint, rateBps: bigint): Promise<void> {
+    const privateState = await this.providers.privateStateProvider.get(shieldLedgerPrivateStateKey);
+    const secret = privateState?.lenderSecret;
+    if (!secret) throw new Error('No private state available to seal the bid.');
+    const nullifier = fromHex(nullifierHex);
+    const commitment = ShieldLedger.pureCircuits.deriveBidCommitment(secret, nullifier, amount, dueDate, rateBps);
+    await this.deployedContract.callTx.submitBid(nullifier, commitment);
   }
 
-  async settleInvoice(nullifierHex: string, lenderHex: string, amount: bigint, dueDate: bigint): Promise<void> {
-    await this.deployedContract.callTx.settleInvoice(fromHex(nullifierHex), fromHex(lenderHex), amount, dueDate);
+  async revealBid(nullifierHex: string, amount: bigint, dueDate: bigint, rateBps: bigint): Promise<void> {
+    await this.deployedContract.callTx.revealBid(fromHex(nullifierHex), amount, dueDate, rateBps);
+  }
+
+  /** Settles to the contract's chosen winner (lowest interest rate). */
+  async settleInvoice(nullifierHex: string, amount: bigint, dueDate: bigint): Promise<void> {
+    await this.deployedContract.callTx.settleInvoice(fromHex(nullifierHex), amount, dueDate);
   }
 
   static async deploy(providers: ShieldLedgerProviders): Promise<ShieldLedgerAPI> {

@@ -1,7 +1,7 @@
 /**
  * CLI for interacting with the ShieldLedger contract: register invoices as an
- * SME, submit financing bids as a lender, settle the winning bid, and inspect
- * the public ledger.
+ * SME, submit *sealed* financing bids as a lender, reveal your bid to compete,
+ * settle with the lowest-rate winner, and inspect the public ledger.
  */
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
@@ -20,6 +20,7 @@ import { resolveNetwork, getOrCreateWallet, formatWalletBackupNotice, getDeploym
 import { createWallet, persistWalletState, unshieldedToken, type WalletContext } from './wallet';
 import { loadOrCreatePrivateState } from './private-state';
 import { compiledShieldLedgerContract } from './compiled';
+import { pureCircuits } from '../contracts/managed/shield-ledger/contract/index.js';
 
 // Enable WebSocket for GraphQL subscriptions
 // @ts-expect-error Required for wallet sync
@@ -157,13 +158,17 @@ async function main() {
       const lg = ledger(contractState.data);
       const rows: string[] = [];
       for (const [nullifier, invoice] of lg.invoices) {
-        rows.push(`    nullifier=${toHex(nullifier)}  lender=${invoice.lender.is_some ? toHex(invoice.lender.value) : '(none)'}  amount=${invoice.amount}  due=${invoice.dueDate}  commitment=${toHex(invoice.smeCommitment)}`);
+        rows.push(`    nullifier=${toHex(nullifier)}  lender=${invoice.lender.is_some ? toHex(invoice.lender.value) : '(none)'}  amount=${invoice.amount}  due=${invoice.dueDate}  rate=${invoice.rateBps}bps  commitment=${toHex(invoice.smeCommitment)}`);
         for (const [bidKey, bid] of lg.bids) {
           if (bid.nullifier.length !== nullifier.length || !bid.nullifier.every((v, i) => v === nullifier[i])) continue;
-          rows.push(`        bid ${toHex(bidKey).slice(0, 16)}…  by ${toHex(bid.lender).slice(0, 16)}…  amount=${bid.amount}  due=${bid.dueDate}`);
+          rows.push(`        sealed bid ${toHex(bidKey).slice(0, 16)}…  by ${toHex(bid.lender).slice(0, 16)}…  commitment=${toHex(bid.commitment).slice(0, 16)}…`);
+        }
+        for (const [bestKey, best] of lg.bestBids) {
+          if (bestKey.length !== nullifier.length || !bestKey.every((v, i) => v === nullifier[i])) continue;
+          rows.push(`        🏆 best bid by ${toHex(best.lender).slice(0, 16)}…  amount=${best.amount}  due=${best.dueDate}  rate=${best.rateBps}bps`);
         }
       }
-      console.log(`\n  📋 Ledger — invoiceCount=${lg.invoiceCount}, invoices=${lg.invoices.size()}, bids=${lg.bids.size()}\n${rows.join('\n')}\n`);
+      console.log(`\n  📋 Ledger — invoiceCount=${lg.invoiceCount}, invoices=${lg.invoices.size()}, sealed bids=${lg.bids.size()}\n${rows.join('\n')}\n`);
     };
 
     const sendAndShow = async (label: string, txPromise: Promise<any>) => {
@@ -178,11 +183,12 @@ async function main() {
     while (running) {
       console.log('─── Menu ───────────────────────────────────────────────────────');
       console.log('  1. Register invoice (SME)');
-      console.log('  2. Submit bid (Lender)');
-      console.log('  3. Settle invoice (SME)');
-      console.log('  4. View ledger');
-      console.log('  5. Check wallet balance');
-      console.log('  6. Exit\n');
+      console.log('  2. Submit sealed bid (Lender)');
+      console.log('  3. Reveal bid (Lender)');
+      console.log('  4. Settle invoice (SME — pays the lowest-rate winner)');
+      console.log('  5. View ledger');
+      console.log('  6. Check wallet balance');
+      console.log('  7. Exit\n');
 
       const choice = await rl.question('  Your choice: ');
 
@@ -198,25 +204,48 @@ async function main() {
             const nullifier = await rl.question('  Invoice nullifier (64 hex chars): ');
             const amountRaw = await rl.question('  Bid amount: ');
             const dueRaw = await rl.question('  Bid due date (unix seconds): ');
-            await sendAndShow('submitBid', deployed.callTx.submitBid(parseHex(nullifier), BigInt(amountRaw.trim()), BigInt(dueRaw.trim())));
+            const rateRaw = await rl.question('  Interest rate (basis points, e.g. 400 = 4%): ');
+            const nf = parseHex(nullifier);
+            const amount = BigInt(amountRaw.trim());
+            const due = BigInt(dueRaw.trim());
+            const rate = BigInt(rateRaw.trim());
+            // Seal the terms with the wallet's lender secret — the ledger only
+            // ever sees the commitment, so rival lenders stay blind.
+            const commitment = pureCircuits.deriveBidCommitment(
+              initialPrivateState.lenderSecret,
+              nf,
+              amount,
+              due,
+              rate,
+            );
+            await sendAndShow('submitBid', deployed.callTx.submitBid(nf, commitment));
+            console.log('  ℹ  To compete for this invoice, reveal your bid when ready (menu 3).');
             break;
           }
 
           case '3': {
             const nullifier = await rl.question('  Invoice nullifier (64 hex chars): ');
-            const lender = await rl.question('  Winning lender pseudonym (64 hex chars): ');
-            const amountRaw = await rl.question('  Financed amount: ');
-            const dueRaw = await rl.question('  Financed due date (unix seconds): ');
-            await sendAndShow('settleInvoice', deployed.callTx.settleInvoice(parseHex(nullifier), parseHex(lender), BigInt(amountRaw.trim()), BigInt(dueRaw.trim())));
+            const amountRaw = await rl.question('  Bid amount: ');
+            const dueRaw = await rl.question('  Bid due date (unix seconds): ');
+            const rateRaw = await rl.question('  Interest rate (basis points, e.g. 400 = 4%): ');
+            await sendAndShow('revealBid', deployed.callTx.revealBid(parseHex(nullifier), BigInt(amountRaw.trim()), BigInt(dueRaw.trim()), BigInt(rateRaw.trim())));
             break;
           }
 
-          case '4':
+          case '4': {
+            const nullifier = await rl.question('  Invoice nullifier (64 hex chars): ');
+            const amountRaw = await rl.question('  Financed amount: ');
+            const dueRaw = await rl.question('  Financed due date (unix seconds): ');
+            await sendAndShow('settleInvoice', deployed.callTx.settleInvoice(parseHex(nullifier), BigInt(amountRaw.trim()), BigInt(dueRaw.trim())));
+            break;
+          }
+
+          case '5':
             console.log('\n  Reading ledger from indexer...');
             await readLedger();
             break;
 
-          case '5': {
+          case '6': {
             console.log('\n  Checking balance...');
             const currentState = await walletCtx.wallet.waitForSyncedState();
             const currentBalance = currentState.unshielded.balances[unshieldedToken().raw] ?? 0n;
@@ -226,13 +255,13 @@ async function main() {
             break;
           }
 
-          case '6':
+          case '7':
             running = false;
             console.log('\n  👋 Goodbye!\n');
             break;
 
           default:
-            console.log('\n  ❌ Invalid choice. Please enter 1-6.\n');
+            console.log('\n  ❌ Invalid choice. Please enter 1-7.\n');
         }
       } catch (error) {
         console.error('\n  ❌ Failed:', error instanceof Error ? error.message : error);

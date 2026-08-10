@@ -36,7 +36,7 @@ export const LedgerView: React.FC = () => {
         <>
           <p className="sl-meta">
             invoiceCount = {state.invoiceCount.toString()} · {state.invoices.length} invoice(s) · {state.bids.length}{' '}
-            bid(s)
+            sealed bid(s) · {state.bestBids.length} leading bid(s)
           </p>
 
           <h3 style={{ fontSize: 14, margin: '14px 0 8px', color: '#93b4e4' }}>Invoices</h3>
@@ -50,6 +50,7 @@ export const LedgerView: React.FC = () => {
                   <th>Commitment</th>
                   <th>Financed by</th>
                   <th>Amount</th>
+                  <th>Rate</th>
                   <th>Due</th>
                 </tr>
               </thead>
@@ -60,6 +61,7 @@ export const LedgerView: React.FC = () => {
                     <td className="sl-mono">{short(inv.smeCommitment)}</td>
                     <td className="sl-mono">{inv.lender ? short(inv.lender) : '— (bidding)'}</td>
                     <td>{inv.amount.toString()}</td>
+                    <td>{inv.rateBps > 0n ? `${inv.rateBps.toString()} bps` : '—'}</td>
                     <td>{formatDate(inv.dueDate)}</td>
                   </tr>
                 ))}
@@ -67,7 +69,7 @@ export const LedgerView: React.FC = () => {
             </table>
           )}
 
-          <h3 style={{ fontSize: 14, margin: '18px 0 8px', color: '#93b4e4' }}>Bids</h3>
+          <h3 style={{ fontSize: 14, margin: '18px 0 8px', color: '#93b4e4' }}>Sealed bids</h3>
           {state.bids.length === 0 ? (
             <p className="sl-empty">No bids submitted yet.</p>
           ) : (
@@ -76,8 +78,7 @@ export const LedgerView: React.FC = () => {
                 <tr>
                   <th>Invoice</th>
                   <th>Lender (pseudonym)</th>
-                  <th>Amount</th>
-                  <th>Due</th>
+                  <th>Commitment (terms hidden)</th>
                 </tr>
               </thead>
               <tbody>
@@ -85,8 +86,35 @@ export const LedgerView: React.FC = () => {
                   <tr key={bid.bidKey}>
                     <td className="sl-mono">{short(bid.nullifier)}</td>
                     <td className="sl-mono">{short(bid.lender)}</td>
-                    <td>{bid.amount.toString()}</td>
-                    <td>{formatDate(bid.dueDate)}</td>
+                    <td className="sl-mono">{short(bid.commitment)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          <h3 style={{ fontSize: 14, margin: '18px 0 8px', color: '#93b4e4' }}>Leading bids (revealed)</h3>
+          {state.bestBids.length === 0 ? (
+            <p className="sl-empty">Nothing revealed yet — bids stay sealed until a lender reveals.</p>
+          ) : (
+            <table className="sl-table">
+              <thead>
+                <tr>
+                  <th>Invoice</th>
+                  <th>Lender (pseudonym)</th>
+                  <th>Amount</th>
+                  <th>Rate</th>
+                  <th>Due</th>
+                </tr>
+              </thead>
+              <tbody>
+                {state.bestBids.map((best) => (
+                  <tr key={best.nullifier}>
+                    <td className="sl-mono">{short(best.nullifier)}</td>
+                    <td className="sl-mono">{short(best.lender)}</td>
+                    <td>{best.amount.toString()}</td>
+                    <td>{best.rateBps.toString()} bps</td>
+                    <td>{formatDate(best.dueDate)}</td>
                   </tr>
                 ))}
               </tbody>

@@ -1,6 +1,6 @@
 # ShieldLedger
 
-Confidential invoice-financing marketplace on the [Midnight Network](https://docs.midnight.network). SMEs register invoices without revealing their contents; lenders submit financing bids under pseudonyms; settlement is proven in zero knowledge. Only opaque nullifiers, commitments, pseudonyms, and financed terms ever touch the public ledger.
+Confidential invoice-financing marketplace on the [Midnight Network](https://docs.midnight.network). SMEs register invoices without revealing their contents; lenders compete in a **sealed-bid private auction** under pseudonyms — bids are commitments, only the winner's terms are ever revealed — and the **lowest interest rate wins**, enforced by the contract. Settlement is proven in zero knowledge. Only opaque nullifiers, commitments, pseudonyms, and the winning terms ever touch the public ledger.
 
 ## How it works
 
@@ -9,17 +9,30 @@ The contract (`contracts/shield-ledger.compact`) is written in Compact. Everythi
 | Piece | Public on ledger | Private |
 | --- | --- | --- |
 | Invoice registration | nullifier (32-byte hash of the invoice), SME commitment (hash of SME secret + nullifier) | invoice contents, SME secret |
-| Bidding | bid key (hash of nullifier + pseudonym), lender pseudonym (hash of lender secret), disclosed amount + due date | lender secret, credit score, exposure cap |
-| Settlement | winning lender pseudonym, financed amount, financed due date | — (SME proves ownership via commitment) |
+| Bidding | bid key (hash of nullifier + pseudonym), lender pseudonym (hash of lender secret), **commitment to the bid terms** | bid terms (amount, due date, interest rate) until reveal, lender secret, credit score, exposure cap |
+| Reveal | leading bid's terms + lender pseudonym (only if it beats the running best) | — (commitment re-derivation proves ownership) |
+| Settlement | winning lender pseudonym, financed amount, financed due date, winning interest rate | — (SME proves ownership via commitment) |
 
 Key ledger maps and circuits:
 
 - `registerInvoice(nullifier)` — asserts the invoice is not already registered, discloses `deriveCommitment(smeSecret, nullifier)`, inserts an empty `Invoice`.
-- `submitBid(nullifier, bidAmount, bidDueDate)` — asserts `lenderCreditScore >= 700` and `bidAmount <= lenderExposureCap` *without disclosing either*, derives the lender's pseudonym and bid key, inserts the bid.
-- `settleInvoice(nullifier, winningLender, financedAmount, financedDueDate)` — asserts SME ownership (commitment check), asserts the winning bid exists, checks `financedAmount <= bid.amount`, writes the public financing receipt.
-- `deriveCommitment`, `derivePseudonym`, `deriveBidKey` — `persistentHash` helpers.
+- `submitBid(nullifier, commitment)` — asserts `lenderCreditScore >= 700` *without disclosing it*, derives the lender's pseudonym and bid key, and stores a `SealedBid` holding only the commitment (`deriveBidCommitment(lenderSecret, nullifier, amount, dueDate, rateBps)`). No other lender can see the terms.
+- `revealBid(nullifier, amount, dueDate, rateBps)` — re-derives the commitment from the private lender secret, asserts it matches the stored seal (so only the genuine bidder can reveal), enforces the private exposure cap, and updates the invoice's **running best bid** if the terms beat it (lowest interest rate, then smallest amount, then earliest due date; ties keep the earlier revealer).
+- `settleInvoice(nullifier, financedAmount, financedDueDate)` — asserts SME ownership, requires a resolved auction, and pays the *running best* bid. The SME cannot choose a losing lender.
+- `deriveCommitment`, `derivePseudonym`, `deriveBidKey`, `deriveBidCommitment` — `persistentHash` helpers; `isBetter` is the deterministic comparison used at reveal.
 
-Bids live in a single-level `Map<Bytes<32>, Bid>` keyed by `deriveBidKey(nullifier, pseudonym)` because the runtime rejects member/lookup on absent nested-map keys; a flat map keeps every lookup guarded by a member check.
+Bids live in a single-level `Map<Bytes<32>, SealedBid>` keyed by `deriveBidKey(nullifier, pseudonym)` because the runtime rejects member/lookup on absent nested-map keys; a flat map keeps every lookup guarded by a member check. The same flat-map style applies to the per-invoice running best (`Map<Bytes<32>, BestBid>`).
+
+## The sealed-bid auction
+
+Because Compact circuits cannot iterate over a `Map`, "lowest rate wins" is built from **per-reveal comparisons against a running best**, not a final fold over all bids:
+
+1. SME calls `registerInvoice` (invoice is now `BIDDING`).
+2. Each lender calls `submitBid` with a **commitment** — amount, due date and rate are hidden, so lenders cannot shade their bids against each other.
+3. Lenders who want to compete call `revealBid` with their true terms. The contract verifies the commitment, then compares against the running best; the best bid (lowest rate → smallest amount → earliest due) takes the lead. The leader is only ever updated by a genuine bidder.
+4. SME calls `settleInvoice` — the contract pays the *current* best bid; favoritism is impossible.
+
+Privacy trade-off (inherent to a public ledger): bids stay hidden through the whole bidding phase, and a losing bid is only exposed if its owner reveals it; the winning bid's terms are public because the financing receipt is public.
 
 ## Repository layout
 
@@ -30,7 +43,7 @@ src/
   compile.ts                      Compiles the Compact contract (circuit generation)
   setup.ts                        Creates/funds wallet, runs proof-server, deploys contract
   deploy.ts                       Deploys the compiled contract to the active network
-  cli.ts                          Interactive CLI: register, bid, settle, view ledger
+  cli.ts                          Interactive CLI: register, sealed bid, reveal, settle, view ledger
   network.ts                      Network + wallet state (.midnight-state.json)
   wallet.ts                       Wallet SDK wrappers (create, sync, persist)
   private-state.ts                SME/lender secrets + credit profile
@@ -70,17 +83,18 @@ npm run cli                    # interactive CLI against the active network
 Menu options:
 
 1. **Register invoice (SME)** — enter a 64-hex nullifier.
-2. **Submit bid (Lender)** — nullifier, bid amount, due date (unix seconds).
-3. **Settle invoice (SME)** — nullifier, winning lender pseudonym, financed amount, due date.
-4. **View ledger** — shows all invoices and bids read from the indexer.
-5. **Check wallet balance** — tNight and DUST.
-6. **Exit**
+2. **Submit sealed bid (Lender)** — nullifier, bid amount, due date (unix seconds), interest rate (basis points). Only a commitment goes on-chain.
+3. **Reveal bid (Lender)** — same terms as your sealed bid; competes for the lowest-rate lead.
+4. **Settle invoice (SME)** — nullifier, financed amount, due date. Pays the lowest-rate winner automatically.
+5. **View ledger** — invoices, sealed bids, and the leading revealed bid, read from the indexer.
+6. **Check wallet balance** — tNight and DUST.
+7. **Exit**
 
 Each transaction takes 30–60s (proof generation via the local proof-server).
 
 ## End-to-end verification (preview)
 
-Live flows exercised against the preview network on 2026-08-10 with contract `f845054635782f3fca8f713df7af32d676d8ba033438146025cd0531ef5f6831`, nullifier `aa11bb22cc33dd44ee55ff66aa77bb88cc99dd00ee11ff22aa33bb44cc55dd66`, amount `1000`, due date `4102444800`:
+> These flows were recorded on the **pre-auction** (single-winner) contract on 2026-08-10 with contract `f845054635782f3fca8f713df7af32d676d8ba033438146025cd0531ef5f6831`, nullifier `aa11bb22cc33dd44ee55ff66aa77bb88cc99dd00ee11ff22aa33bb44cc55dd66`, amount `1000`, due date `4102444800`. The sealed-bid auction upgrade changes the bid and settle circuits, so these txids are preserved for reference only.
 
 | Flow | TxID | Block |
 | --- | --- | --- |
@@ -94,8 +108,6 @@ Final ledger state after settlement:
 invoice aa11bb22...55dd66  lender=7106894c835f6022cfe07deff65dde7e81c0fb3205ce433c8f1fc942ec43f582  amount=1000  due=4102444800
   bid  229a4ea7d994c82a...  by 7106894c835f6022...  amount=1000  due=4102444800
 ```
-
-The SME can settle by any valid bid (`financedAmount <= bid.amount`), and the invoice's `lender` field is set to the pseudonym of the chosen winning bid.
 
 ## Testing
 

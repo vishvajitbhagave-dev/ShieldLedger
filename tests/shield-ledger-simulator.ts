@@ -21,7 +21,7 @@ import {
  * Runs the circuits through the compact-runtime VM (no network, no proof
  * generation). A single simulator holds one private state; use
  * switchIdentity() to emulate a different actor (different SME secret, credit
- * profile, ...) acting on the same ledger.
+ * profile, lender secret, ...) acting on the same ledger.
  */
 export class ShieldLedgerSimulator {
   readonly contract: Contract<ShieldLedgerPrivateState>;
@@ -68,26 +68,39 @@ export class ShieldLedgerSimulator {
     return this.getLedger();
   }
 
-  submitBid(nullifier: Uint8Array, bidAmount: bigint, bidDueDate: bigint): Ledger {
+  submitBid(nullifier: Uint8Array, commitment: Uint8Array): Ledger {
     this.circuitContext = this.contract.impureCircuits.submitBid(
       this.circuitContext,
       nullifier,
-      bidAmount,
-      bidDueDate,
+      commitment,
+    ).context;
+    return this.getLedger();
+  }
+
+  revealBid(
+    nullifier: Uint8Array,
+    amount: bigint,
+    dueDate: bigint,
+    rateBps: bigint,
+  ): Ledger {
+    this.circuitContext = this.contract.impureCircuits.revealBid(
+      this.circuitContext,
+      nullifier,
+      amount,
+      dueDate,
+      rateBps,
     ).context;
     return this.getLedger();
   }
 
   settleInvoice(
     nullifier: Uint8Array,
-    winningLender: Uint8Array,
     financedAmount: bigint,
     financedDueDate: bigint,
   ): Ledger {
     this.circuitContext = this.contract.impureCircuits.settleInvoice(
       this.circuitContext,
       nullifier,
-      winningLender,
       financedAmount,
       financedDueDate,
     ).context;
@@ -105,4 +118,14 @@ export function derivePseudonym(secret: Uint8Array): Uint8Array {
 
 export function deriveBidKey(nullifier: Uint8Array, pseudonym: Uint8Array): Uint8Array {
   return pureCircuits.deriveBidKey(nullifier, pseudonym);
+}
+
+export function deriveBidCommitment(
+  secret: Uint8Array,
+  nullifier: Uint8Array,
+  amount: bigint,
+  dueDate: bigint,
+  rateBps: bigint,
+): Uint8Array {
+  return pureCircuits.deriveBidCommitment(secret, nullifier, amount, dueDate, rateBps);
 }

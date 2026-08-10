@@ -65,7 +65,13 @@ export const connectToWallet = (networkId: string): Promise<ConnectedAPI> => {
       }),
       catchError((error: unknown) => {
         log.error('Unable to enable connector API', error);
-        return throwError(() => new Error('Application is not authorized'));
+        // Surface the real cause (missing extension, wallet locked, network
+        // mismatch, timed-out approval) instead of a generic message.
+        return throwError(() =>
+          error instanceof Error
+            ? error
+            : new Error('Application is not authorized: ' + String(error)),
+        );
       }),
     ),
   );

@@ -2,11 +2,14 @@ import { setNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
 import { describe, it, expect } from 'vitest';
 import { sha256 } from 'js-sha256';
 
-import { ShieldLedgerSimulator, deriveCommitment, derivePseudonym, deriveBidKey } from './shield-ledger-simulator.js';
+import { ShieldLedgerSimulator, deriveCommitment, derivePseudonym, deriveBidKey, deriveBidCommitment } from './shield-ledger-simulator.js';
 import { createShieldLedgerPrivateState, type ShieldLedgerPrivateState } from '../src/witnesses.js';
 import type { Ledger } from '../contracts/managed/shield-ledger/contract/index.js';
 
 setNetworkId('undeployed');
+
+const DUE = 1_700_000_000n;
+const RATE = 400n;
 
 function hex(bytes: Uint8Array): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
@@ -35,13 +38,19 @@ function publicHexStrings(lg: Ledger): string[] {
     if (invoice.lender.is_some) out.push(hex(invoice.lender.value));
     out.push(invoice.amount.toString());
     out.push(invoice.dueDate.toString());
+    out.push(invoice.rateBps.toString());
   }
   for (const [bidKey, bid] of lg.bids) {
     out.push(hex(bidKey));
     out.push(hex(bid.nullifier));
     out.push(hex(bid.lender));
-    out.push(bid.amount.toString());
-    out.push(bid.dueDate.toString());
+    out.push(hex(bid.commitment));
+  }
+  for (const [, best] of lg.bestBids) {
+    out.push(hex(best.lender));
+    out.push(best.amount.toString());
+    out.push(best.dueDate.toString());
+    out.push(best.rateBps.toString());
   }
   return out;
 }
@@ -90,8 +99,10 @@ describe('ShieldLedger privacy — commitments', () => {
       createShieldLedgerPrivateState({ smeSecret, lenderSecret }),
     );
     sim.registerInvoice(nullifier);
-    sim.submitBid(nullifier, 100n, 1_700_000_000n);
-    sim.settleInvoice(nullifier, derivePseudonym(lenderSecret), 100n, 1_700_000_000n);
+    sim.switchIdentity({ lenderSecret });
+    sim.submitBid(nullifier, deriveBidCommitment(lenderSecret, nullifier, 100n, DUE, RATE));
+    sim.revealBid(nullifier, 100n, DUE, RATE);
+    sim.settleInvoice(nullifier, 100n, DUE);
 
     const publicValues = publicHexStrings(sim.getLedger());
     expect(publicValues).not.toContain(hex(smeSecret));
@@ -130,7 +141,7 @@ describe('ShieldLedger privacy — pseudonyms', () => {
     expect(hex(derivePseudonym(bytes32(6)))).not.toBe(p1);
   });
 
-  it('bids expose only the pseudonym and terms, not the lender identity', () => {
+  it('bids expose only the pseudonym and a commitment, not the terms or identity', () => {
     const smeSecret = bytes32(1);
     const lenderSecret = bytes32(2);
     const nullifier = bytes32(7);
@@ -139,14 +150,17 @@ describe('ShieldLedger privacy — pseudonyms', () => {
       createShieldLedgerPrivateState({ smeSecret, lenderSecret }),
     );
     sim.registerInvoice(nullifier);
-    sim.submitBid(nullifier, 100n, 1n);
+    sim.switchIdentity({ lenderSecret });
+    sim.submitBid(nullifier, deriveBidCommitment(lenderSecret, nullifier, 100n, 1n, RATE));
 
     let found = false;
     for (const [bidKey, bid] of sim.getLedger().bids) {
       if (!bid.nullifier.every((v, i) => v === nullifier[i])) continue;
       found = true;
       expect(hex(bidKey)).toBe(hex(deriveBidKey(nullifier, derivePseudonym(lenderSecret))));
-      expect(bid.amount).toBe(100n);
+      // The public bid carries only a seal — no amount, due date, or rate.
+      expect(Object.keys(bid).sort()).toEqual(['commitment', 'lender', 'nullifier']);
+      expect(hex(bid.commitment)).toBe(hex(deriveBidCommitment(lenderSecret, nullifier, 100n, 1n, RATE)));
       // The public bid's "lender" field is the pseudonym, never the secret.
       expect(hex(bid.lender)).toBe(hex(derivePseudonym(lenderSecret)));
       expect(hex(bid.lender)).not.toBe(hex(lenderSecret));
@@ -163,7 +177,8 @@ describe('ShieldLedger privacy — pseudonyms', () => {
     };
     const sim = new ShieldLedgerSimulator(ps);
     sim.registerInvoice(bytes32(7));
-    sim.submitBid(bytes32(7), 100n, 1n);
+    sim.switchIdentity({ lenderSecret: ps.lenderSecret });
+    sim.submitBid(bytes32(7), deriveBidCommitment(ps.lenderSecret, bytes32(7), 100n, 1n, RATE));
 
     const publicValues = publicHexStrings(sim.getLedger());
     expect(publicValues).not.toContain(ps.lenderCreditScore.toString());

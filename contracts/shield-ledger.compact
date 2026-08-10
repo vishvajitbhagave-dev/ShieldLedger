@@ -8,21 +8,23 @@
 //                       (opaque 32-byte hashes of invoices, e.g. the
 //                       hash of invoice id + issue date) plus, once
 //                       financed, a public receipt (winning lender
-//                       pseudonym, financed amount, financed due date).
-//                       Invoice contents themselves stay private.
-//    • bids          — Map<Bytes<32>, Bid>: one entry per (invoice, lender)
-//                       pair, keyed by a *derived bid key*
-//                       (hash of nullifier + lender pseudonym). Each bid
-//                       carries its public nullifier, the lender's
-//                       *pseudonym* (a hash of the lender secret), and the
-//                       disclosed terms (amount, due date). The lender's
-//                       true identity is never public. Single-level map so
-//                       that every lookup is guarded by a member check (the
-//                       runtime rejects member/lookup on absent nested-map
-//                       keys — see the flat-key note in the README).
+//                       pseudonym, financed amount, financed due date,
+//                       winning interest rate). Invoice contents themselves
+//                       stay private.
+//    • bids          — Map<Bytes<32>, SealedBid>: one *sealed* bid per
+//                       (invoice, lender) pair, keyed by a derived bid key
+//                       (hash of nullifier + lender pseudonym). Only the
+//                       lender's pseudonym and a *commitment* to the bid
+//                       terms are stored — the interest rate, amount and
+//                       due date never touch the ledger until the bidder
+//                       reveals them. Lenders cannot see each other's bids.
+//    • bestBids      — Map<Bytes<32>, BestBid>: the running best bid per
+//                       invoice (lowest interest rate, then smallest amount,
+//                       then earliest due date). Updated only by a successful
+//                       reveal, so it cannot be spoofed or front-run by a
+//                       non-bidder. Settlement is bound to this entry, so the
+//                       SME cannot favor an arbitrary lender.
 //    • invoiceCount  — Counter: number of ledger transitions, for UI/replay.
-//    • The nullifier registry proves "this invoice exists and is being
-//      financed" without revealing what the invoice is.
 //
 //  PRIVATE (never leaves the proposer's wallet, never disclosed):
 //    • Invoice contents: buyer identity, line items, counterparties — only
@@ -32,10 +34,22 @@
 //      via deriveCommitment without revealing the secret.
 //    • Lender secret (witness lenderSecret) — pseudonymous bidding; a lender
 //      proves "I own bid X" (used for settlement) without revealing identity.
+//      It also seals the bid: the stored commitment is a hash of the terms
+//      plus this secret, so only the bidder can reveal a matching bid.
 //    • lenderCreditScore  — a private, verifier-checked credential: the
 //      circuit asserts score >= 700 without ever disclosing the score.
 //    • lenderExposureCap  — a private lending limit: bids are rejected
 //      circuit-side when they would exceed the cap.
+//
+//  AUCTION FLOW (sealed-bid, lowest rate wins):
+//    1. registerInvoice(nullifier)      — SME lists the invoice (BIDDING).
+//    2. submitBid(nullifier, commitment)— each lender posts a *seal*; no
+//       other lender can read their terms.
+//    3. revealBid(nullifier, amt, due, rateBps) — a lender proves ownership
+//       of their seal and, if their bid beats the running best, becomes the
+//       leading bid. Repeated for every bidder; last best bid wins.
+//    4. settleInvoice(nullifier, amt, due) — SME proves ownership and the
+//       contract pays the *best* bid only; the SME cannot choose a loser.
 // ─────────────────────────────────────────────────────────────────────────────
 
 pragma language_version 0.23;
@@ -48,17 +62,33 @@ export struct Invoice {
   lender: Maybe<Bytes<32>>,
   amount: Uint<64>,
   dueDate: Uint<64>,
+  rateBps: Uint<64>,
 }
 
-export struct Bid {
+export struct SealedBid {
   nullifier: Bytes<32>,
+  lender: Bytes<32>,
+  commitment: Bytes<32>,
+}
+
+export struct BestBid {
   lender: Bytes<32>,
   amount: Uint<64>,
   dueDate: Uint<64>,
+  rateBps: Uint<64>,
+}
+
+export struct BidSeal {
+  nullifier: Bytes<32>,
+  amount: Uint<64>,
+  dueDate: Uint<64>,
+  rateBps: Uint<64>,
+  secret: Bytes<32>,
 }
 
 export ledger invoices: Map<Bytes<32>, Invoice>;
-export ledger bids: Map<Bytes<32>, Bid>;
+export ledger bids: Map<Bytes<32>, SealedBid>;
+export ledger bestBids: Map<Bytes<32>, BestBid>;
 export ledger invoiceCount: Counter;
 
 witness smeSecret(): Bytes<32>;
@@ -69,33 +99,64 @@ witness lenderExposureCap(): Uint<64>;
 export circuit registerInvoice(nullifier: Bytes<32>): [] {
   assert(!invoices.member(disclose(nullifier)), "invoice already registered");
   const commitment = disclose(deriveCommitment(smeSecret(), disclose(nullifier)));
-  invoices.insert(disclose(nullifier), Invoice { smeCommitment: commitment, lender: none<Bytes<32>>(), amount: 0, dueDate: 0 });
+  invoices.insert(disclose(nullifier), Invoice { smeCommitment: commitment, lender: none<Bytes<32>>(), amount: 0, dueDate: 0, rateBps: 0 });
   invoiceCount.increment(1);
 }
 
-export circuit submitBid(nullifier: Bytes<32>, bidAmount: Uint<64>, bidDueDate: Uint<64>): [] {
+// Sealed bidding: only a commitment to the terms (amount, due date, interest
+// rate) touches the ledger, so no lender can see any other bid. The credit
+// score is enforced here (identity is not), the exposure cap at reveal (the
+// amount is unknown until then).
+export circuit submitBid(nullifier: Bytes<32>, commitment: Bytes<32>): [] {
   assert(lenderCreditScore() >= 700, "not creditworthy");
-  assert(disclose(bidAmount) <= lenderExposureCap(), "bid exceeds exposure cap");
   assert(invoices.member(disclose(nullifier)), "unknown invoice");
   assert(!invoices.lookup(disclose(nullifier)).lender.is_some, "invoice not in bidding");
   const pseudonym = disclose(derivePseudonym(lenderSecret()));
   const bidKey = disclose(deriveBidKey(disclose(nullifier), pseudonym));
   assert(!bids.member(bidKey), "already bid");
-  bids.insert(bidKey, Bid { nullifier: disclose(nullifier), lender: pseudonym, amount: disclose(bidAmount), dueDate: disclose(bidDueDate) });
+  bids.insert(bidKey, SealedBid { nullifier: disclose(nullifier), lender: pseudonym, commitment: disclose(commitment) });
   invoiceCount.increment(1);
 }
 
-export circuit settleInvoice(nullifier: Bytes<32>, winningLender: Bytes<32>, financedAmount: Uint<64>, financedDueDate: Uint<64>): [] {
+// Reveal: the bidder re-derives the commitment from the private lender secret
+// and the disclosed terms, proves it matches the stored seal, and — if it
+// beats the current best (lowest interest rate, then smallest amount, then
+// earliest due date) — becomes the running best. Only a genuine bidder can
+// update the best bid, and settlement is bound to it.
+export circuit revealBid(nullifier: Bytes<32>, amount: Uint<64>, dueDate: Uint<64>, rateBps: Uint<64>): [] {
+  assert(lenderCreditScore() >= 700, "not creditworthy");
+  assert(disclose(amount) <= lenderExposureCap(), "bid exceeds exposure cap");
+  assert(invoices.member(disclose(nullifier)), "unknown invoice");
+  assert(!invoices.lookup(disclose(nullifier)).lender.is_some, "invoice not in bidding");
+  const pseudonym = disclose(derivePseudonym(lenderSecret()));
+  const bidKey = disclose(deriveBidKey(disclose(nullifier), pseudonym));
+  assert(bids.member(bidKey), "no such bid");
+  const seal = bids.lookup(bidKey);
+  assert(seal.commitment == deriveBidCommitment(lenderSecret(), disclose(nullifier), disclose(amount), disclose(dueDate), disclose(rateBps)), "commitment mismatch");
+  const candidate = BestBid { lender: pseudonym, amount: disclose(amount), dueDate: disclose(dueDate), rateBps: disclose(rateBps) };
+  if (bestBids.member(disclose(nullifier))) {
+    const current = bestBids.lookup(disclose(nullifier));
+    if (isBetter(disclose(rateBps), disclose(amount), disclose(dueDate), current.rateBps, current.amount, current.dueDate)) {
+      bestBids.insert(disclose(nullifier), candidate);
+    }
+  } else {
+    bestBids.insert(disclose(nullifier), candidate);
+  }
+  invoiceCount.increment(1);
+}
+
+export circuit settleInvoice(nullifier: Bytes<32>, financedAmount: Uint<64>, financedDueDate: Uint<64>): [] {
   assert(invoices.member(disclose(nullifier)), "unknown invoice");
   assert(deriveCommitment(smeSecret(), disclose(nullifier)) == invoices.lookup(disclose(nullifier)).smeCommitment, "not the SME");
   assert(!invoices.lookup(disclose(nullifier)).lender.is_some, "already financed");
-  const bidKey = disclose(deriveBidKey(disclose(nullifier), disclose(winningLender)));
-  assert(bids.member(bidKey), "no such bid");
-  assert(disclose(financedAmount) <= bids.lookup(bidKey).amount, "amount exceeds winning bid");
-  const receiptLender = disclose(winningLender);
+  assert(bestBids.member(disclose(nullifier)), "auction not resolved");
+  const best = bestBids.lookup(disclose(nullifier));
+  assert(disclose(financedAmount) <= best.amount, "amount exceeds winning bid");
+  const receiptLender = disclose(best.lender);
   const receiptAmount = disclose(financedAmount);
   const receiptDueDate = disclose(financedDueDate);
-  invoices.insert(disclose(nullifier), Invoice { smeCommitment: invoices.lookup(disclose(nullifier)).smeCommitment, lender: some<Bytes<32>>(receiptLender), amount: receiptAmount, dueDate: receiptDueDate });
+  const receiptRate = disclose(best.rateBps);
+  invoices.insert(disclose(nullifier), Invoice { smeCommitment: invoices.lookup(disclose(nullifier)).smeCommitment, lender: some<Bytes<32>>(receiptLender), amount: receiptAmount, dueDate: receiptDueDate, rateBps: receiptRate });
   invoiceCount.increment(1);
 }
 
@@ -109,4 +170,14 @@ export circuit derivePseudonym(secret: Bytes<32>): Bytes<32> {
 
 export circuit deriveBidKey(nullifier: Bytes<32>, pseudonym: Bytes<32>): Bytes<32> {
   return persistentHash<Vector<2, Bytes<32>>>([nullifier, pseudonym]);
+}
+
+export circuit deriveBidCommitment(secret: Bytes<32>, nullifier: Bytes<32>, amount: Uint<64>, dueDate: Uint<64>, rateBps: Uint<64>): Bytes<32> {
+  return persistentHash<BidSeal>(BidSeal { nullifier, amount, dueDate, rateBps, secret });
+}
+
+export circuit isBetter(rate: Uint<64>, amount: Uint<64>, dueDate: Uint<64>, bestRate: Uint<64>, bestAmount: Uint<64>, bestDueDate: Uint<64>): Boolean {
+  return rate < bestRate
+    || (rate == bestRate && amount < bestAmount)
+    || (rate == bestRate && amount == bestAmount && dueDate < bestDueDate);
 }

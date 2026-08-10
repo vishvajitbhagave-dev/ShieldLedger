@@ -29,15 +29,27 @@ export interface InvoiceView {
   readonly lender: string | null;
   readonly amount: bigint;
   readonly dueDate: bigint;
+  readonly rateBps: bigint;
 }
 
-/** A serializable view of one public bid entry. */
-export interface BidView {
+/**
+ * A serializable view of one public bid entry. Bids are *sealed*: the ledger
+ * only carries a commitment to the terms, never the terms themselves.
+ */
+export interface SealedBidView {
   readonly bidKey: string;
+  readonly nullifier: string;
+  readonly lender: string;
+  readonly commitment: string;
+}
+
+/** A serializable view of the running best bid per invoice. */
+export interface BestBidView {
   readonly nullifier: string;
   readonly lender: string;
   readonly amount: bigint;
   readonly dueDate: bigint;
+  readonly rateBps: bigint;
 }
 
 /** The derived application state: public ledger data plus wallet context. */
@@ -45,5 +57,6 @@ export interface ShieldLedgerDerivedState {
   readonly ledger: Ledger;
   readonly invoiceCount: bigint;
   readonly invoices: InvoiceView[];
-  readonly bids: BidView[];
+  readonly bids: SealedBidView[];
+  readonly bestBids: BestBidView[];
 }
