@@ -12,6 +12,16 @@ import {
 } from './manager.js';
 import type { ShieldLedgerProviders } from './shield-ledger-types.js';
 
+/** User role in the invoice-financing workflow. */
+export type Role = 'sme' | 'lender';
+
+const ROLE_STORAGE_KEY = 'shieldledger.role';
+
+const loadRole = (): Role => {
+  if (typeof localStorage === 'undefined') return 'sme';
+  return localStorage.getItem(ROLE_STORAGE_KEY) === 'lender' ? 'lender' : 'sme';
+};
+
 export interface ShieldLedgerContextValue {
   readonly networkId: string;
   readonly connecting: boolean;
@@ -19,6 +29,8 @@ export interface ShieldLedgerContextValue {
   readonly connected: boolean;
   readonly walletInfo: WalletInfo | null;
   readonly deployment: DeploymentState;
+  readonly role: Role;
+  readonly setRole: (role: Role) => void;
   readonly connect: () => Promise<void>;
   readonly disconnect: () => void;
   readonly deploy: () => Promise<void>;
@@ -42,12 +54,24 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
   const [connecting, setConnecting] = useState(false);
   const [walletLocked, setWalletLocked] = useState(false);
   const [walletInfo, setWalletInfo] = useState<WalletInfo | null>(null);
+  const [role, setRoleState] = useState<Role>(() => loadRole());
   const [providers, setProviders] = useState<ShieldLedgerProviders | null>(null);
   const [deployment, setDeployment] = useState<DeploymentState>({ status: 'idle' });
   const [error, setError] = useState<string | null>(null);
   const connectedAPI = useRef<ConnectedAPI | null>(null);
 
   const clearError = useCallback(() => setError(null), []);
+
+  const setRole = useCallback((next: Role) => {
+    setRoleState(next);
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem(ROLE_STORAGE_KEY, next);
+      } catch {
+        // Storage unavailable: the role applies for this session only.
+      }
+    }
+  }, []);
 
   const connect = useCallback(async () => {
     setConnecting(true);
@@ -111,6 +135,8 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
       connected: walletInfo !== null,
       walletInfo,
       deployment,
+      role,
+      setRole,
       connect,
       disconnect,
       deploy,
@@ -118,7 +144,7 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
       error,
       clearError,
     }),
-    [networkId, connecting, walletLocked, walletInfo, deployment, connect, disconnect, deploy, join, error, clearError],
+    [networkId, connecting, walletLocked, walletInfo, deployment, role, setRole, connect, disconnect, deploy, join, error, clearError],
   );
 
   return <ShieldLedgerContext.Provider value={value}>{children}</ShieldLedgerContext.Provider>;

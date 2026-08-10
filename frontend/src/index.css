@@ -151,6 +151,40 @@
   font-size: 14px;
 }
 
+.sl-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.sl-tab {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #2b4a7a;
+  background: transparent;
+  color: #93b4e4;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.sl-tab:hover:not(:disabled) {
+  border-color: #4a7ab0;
+  color: #bfdbfe;
+}
+
+.sl-tab-active {
+  background: #1e3a5f;
+  border-color: #5b9bd5;
+  color: #e8f1fb;
+  font-weight: 600;
+}
+
+.sl-tab:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .sl-success {
   background: #0c2f1f;
   border: 1px solid #14532d;

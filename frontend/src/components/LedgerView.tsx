@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useShieldLedger } from '../context.js';
-import type { ShieldLedgerDerivedState } from '../shield-ledger-types.js';
+import React from 'react';
+import { useLedgerState } from '../use-ledger-state.js';
 
 const short = (hex: string): string => (hex.length > 16 ? `${hex.slice(0, 10)}…${hex.slice(-6)}` : hex);
 
@@ -10,22 +9,7 @@ const formatDate = (unixSeconds: bigint): string => {
 };
 
 export const LedgerView: React.FC = () => {
-  const { deployment } = useShieldLedger();
-  const api = deployment.status === 'deployed' ? deployment.api : null;
-  const [state, setState] = useState<ShieldLedgerDerivedState | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!api) return;
-    const subscription = api.state$.subscribe({
-      next: (s) => {
-        setState(s);
-        setError(null);
-      },
-      error: (e) => setError(e instanceof Error ? e.message : String(e)),
-    });
-    return () => subscription.unsubscribe();
-  }, [api]);
+  const { state, error } = useLedgerState();
 
   return (
     <div className="sl-panel">
