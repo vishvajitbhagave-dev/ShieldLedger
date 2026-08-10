@@ -158,7 +158,7 @@ async function main() {
       const lg = ledger(contractState.data);
       const rows: string[] = [];
       for (const [nullifier, invoice] of lg.invoices) {
-        rows.push(`    nullifier=${toHex(nullifier)}  lender=${invoice.lender.is_some ? toHex(invoice.lender.value) : '(none)'}  amount=${invoice.amount}  due=${invoice.dueDate}  rate=${invoice.rateBps}bps  commitment=${toHex(invoice.smeCommitment)}`);
+        rows.push(`    nullifier=${toHex(nullifier)}  lender=${invoice.lender.is_some ? toHex(invoice.lender.value) : '(none)'}  credit=${invoice.creditThreshold}+  amount=${invoice.amount}  due=${invoice.dueDate}  rate=${invoice.rateBps}bps  commitment=${toHex(invoice.smeCommitment)}`);
         for (const [bidKey, bid] of lg.bids) {
           if (bid.nullifier.length !== nullifier.length || !bid.nullifier.every((v, i) => v === nullifier[i])) continue;
           rows.push(`        sealed bid ${toHex(bidKey).slice(0, 16)}…  by ${toHex(bid.lender).slice(0, 16)}…  commitment=${toHex(bid.commitment).slice(0, 16)}…`);
@@ -196,7 +196,10 @@ async function main() {
         switch (choice.trim()) {
           case '1': {
             const nullifier = await rl.question('  Invoice nullifier (64 hex chars): ');
-            await sendAndShow('registerInvoice', deployed.callTx.registerInvoice(parseHex(nullifier)));
+            const thresholdRaw = await rl.question('  Credit threshold to prove (>= 650, score stays private): ');
+            const creditThreshold = BigInt(thresholdRaw.trim() || '650');
+            console.log(`  Proving "credit score >= ${creditThreshold}" in zero knowledge — the score itself never leaves the wallet.`);
+            await sendAndShow('registerInvoice', deployed.callTx.registerInvoice(parseHex(nullifier), creditThreshold));
             break;
           }
 

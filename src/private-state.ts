@@ -24,6 +24,7 @@ const PRIVATE_STATE_FILE = '.midnight-private-state.json';
 export interface StoredPrivateState {
   version: 1;
   smeSecret: string;
+  smeCreditScore?: string;
   lenderSecret: string;
   lenderCreditScore: string;
   lenderExposureCap: string;
@@ -58,6 +59,7 @@ function toStored(ps: ShieldLedgerPrivateState): StoredPrivateState {
   return {
     version: 1,
     smeSecret: bytesToHex(ps.smeSecret),
+    smeCreditScore: ps.smeCreditScore.toString(),
     lenderSecret: bytesToHex(ps.lenderSecret),
     lenderCreditScore: ps.lenderCreditScore.toString(),
     lenderExposureCap: ps.lenderExposureCap.toString(),
@@ -67,6 +69,7 @@ function toStored(ps: ShieldLedgerPrivateState): StoredPrivateState {
 function fromStored(s: StoredPrivateState): ShieldLedgerPrivateState {
   return {
     smeSecret: hexToBytes(s.smeSecret),
+    smeCreditScore: s.smeCreditScore !== undefined ? BigInt(s.smeCreditScore) : 720n,
     lenderSecret: hexToBytes(s.lenderSecret),
     lenderCreditScore: BigInt(s.lenderCreditScore),
     lenderExposureCap: BigInt(s.lenderExposureCap),

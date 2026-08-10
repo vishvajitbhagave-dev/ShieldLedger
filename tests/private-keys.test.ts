@@ -171,6 +171,7 @@ describe('ShieldLedger privacy — pseudonyms', () => {
   it('never reveals the credit score or exposure cap in public state', () => {
     const ps: ShieldLedgerPrivateState = {
       smeSecret: bytes32(1),
+      smeCreditScore: 720n,
       lenderSecret: bytes32(2),
       lenderCreditScore: 799n,
       lenderExposureCap: 42_000n,

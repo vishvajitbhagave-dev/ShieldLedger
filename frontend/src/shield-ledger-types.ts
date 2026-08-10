@@ -26,6 +26,8 @@ export type DeployedShieldLedgerContract = FoundContract<ShieldLedgerContract>;
 export interface InvoiceView {
   readonly nullifier: string;
   readonly smeCommitment: string;
+  /** The proven credit bound: the SME attested score >= creditThreshold in ZK. */
+  readonly creditThreshold: bigint;
   readonly lender: string | null;
   readonly amount: bigint;
   readonly dueDate: bigint;

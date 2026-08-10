@@ -12,6 +12,7 @@ type FormState = {
   registerReference: string;
   registerAmount: string;
   registerDue: string;
+  registerThreshold: string;
   bidNullifier: string;
   bidAmount: string;
   bidDue: string;
@@ -29,6 +30,7 @@ const initialForm: FormState = {
   registerReference: '',
   registerAmount: '',
   registerDue: '',
+  registerThreshold: '650',
   bidNullifier: '',
   bidAmount: '',
   bidDue: '',
@@ -52,6 +54,7 @@ const sampleForm: FormState = {
   registerReference: SAMPLE_REFERENCE,
   registerAmount: SAMPLE_AMOUNT,
   registerDue: SAMPLE_DUE,
+  registerThreshold: '650',
   bidNullifier: SAMPLE_NULLIFIER,
   bidAmount: SAMPLE_AMOUNT,
   bidDue: SAMPLE_DUE,
@@ -227,10 +230,11 @@ export const InvoiceFinancing: React.FC = () => {
               const reference = form.registerReference.trim();
               const amount = BigInt(form.registerAmount.trim());
               const dueDate = BigInt(form.registerDue.trim());
+              const creditThreshold = BigInt(form.registerThreshold.trim());
               void run('registerInvoice', async () => {
                 const record = await registerInvoiceLocally({ reference, amount, dueDate });
                 setInvoices(loadRegisteredInvoices());
-                await a.registerInvoice(record.nullifier);
+                await a.registerInvoice(record.nullifier, creditThreshold);
               });
             }}
           >
@@ -238,14 +242,24 @@ export const InvoiceFinancing: React.FC = () => {
             <Field label="Reference" value={form.registerReference} placeholder="optional, private — e.g. INV-001" onChange={set('registerReference')} disabled={busy || working !== null} />
             <Field label="Amount" value={form.registerAmount} placeholder="tNight units" onChange={set('registerAmount')} disabled={busy || working !== null} />
             <Field label="Due date" value={form.registerDue} placeholder="unix seconds" onChange={set('registerDue')} disabled={busy || working !== null} />
+            <Field label="Credit check" value={form.registerThreshold} placeholder="e.g. 650 — your score stays private" onChange={set('registerThreshold')} disabled={busy || working !== null} />
             <p className="sl-meta" style={{ marginBottom: 0 }}>
               Only a <em>nullifier</em> — a blinded hash of these details plus a random secret — is posted on-chain.
               The invoice details never leave this browser; the nullifier is saved locally so you can reuse it later.
+              The <em>credit check</em> proves "my credit score is at least {form.registerThreshold.trim() || '…'}" in zero
+              knowledge — the score itself is never revealed, only the proven bound.
             </p>
             <button
               className="sl-button"
               type="submit"
-              disabled={busy || working !== null || !isDigits(form.registerAmount) || !isDigits(form.registerDue)}
+              disabled={
+                busy ||
+                working !== null ||
+                !isDigits(form.registerAmount) ||
+                !isDigits(form.registerDue) ||
+                !isDigits(form.registerThreshold) ||
+                BigInt(form.registerThreshold.trim() || '0') < 650n
+              }
             >
               {working === 'registerInvoice' ? 'Working…' : 'Register invoice'}
             </button>
@@ -346,6 +360,7 @@ export const InvoiceFinancing: React.FC = () => {
               <thead>
                 <tr>
                   <th>Invoice (nullifier)</th>
+                  <th>Credit (ZK-proof)</th>
                   <th>Commitment</th>
                   <th></th>
                 </tr>
@@ -354,6 +369,7 @@ export const InvoiceFinancing: React.FC = () => {
                 {openInvoices.map((inv) => (
                   <tr key={inv.nullifier}>
                     <td className="sl-mono">{short(inv.nullifier)}</td>
+                    <td>score ≥ {inv.creditThreshold.toString()}</td>
                     <td className="sl-mono">{short(inv.smeCommitment)}</td>
                     <td>
                       <button

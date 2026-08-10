@@ -340,6 +340,66 @@ describe('ShieldLedger contract — settlement', () => {
   });
 });
 
+describe('ShieldLedger contract — SME credit scoring (ZK)', () => {
+  it('proves score >= threshold at registration and stores only the threshold', () => {
+    const sim = new ShieldLedgerSimulator(
+      createShieldLedgerPrivateState({ smeSecret: SME_SECRET, smeCreditScore: 720n }),
+    );
+    sim.registerInvoice(NULLIFIER, 700n);
+    const invoice = sim.getLedger().invoices.lookup(NULLIFIER);
+    expect(invoice.creditThreshold).toBe(700n);
+    // The exact score is nowhere on the ledger — only the proven bound.
+    expect(invoice.creditThreshold).not.toBe(720n);
+  });
+
+  it('rejects registration when the score is below the chosen threshold', () => {
+    const sim = new ShieldLedgerSimulator(
+      createShieldLedgerPrivateState({ smeSecret: SME_SECRET, smeCreditScore: 640n }),
+    );
+    expect(() => sim.registerInvoice(NULLIFIER, 650n)).toThrow(/not creditworthy/);
+    expect(sim.getLedger().invoices.isEmpty()).toBe(true);
+  });
+
+  it('rejects thresholds below the contract minimum floor (no score >= 0 claims)', () => {
+    const sim = new ShieldLedgerSimulator(
+      createShieldLedgerPrivateState({ smeSecret: SME_SECRET, smeCreditScore: 600n }),
+    );
+    expect(() => sim.registerInvoice(NULLIFIER, 649n)).toThrow(/threshold below minimum/);
+    expect(() => sim.registerInvoice(NULLIFIER, 600n)).toThrow(/threshold below minimum/);
+    expect(sim.getLedger().invoices.isEmpty()).toBe(true);
+  });
+
+  it('accepts an exact score == threshold', () => {
+    const sim = new ShieldLedgerSimulator(
+      createShieldLedgerPrivateState({ smeSecret: SME_SECRET, smeCreditScore: 700n }),
+    );
+    sim.registerInvoice(NULLIFIER, 700n);
+    expect(sim.getLedger().invoices.lookup(NULLIFIER).creditThreshold).toBe(700n);
+  });
+
+  it('preserves the credit attestation through settlement', () => {
+    const sim = new ShieldLedgerSimulator(
+      createShieldLedgerPrivateState({ smeSecret: SME_SECRET, smeCreditScore: 750n, lenderSecret: LENDER_SECRET }),
+    );
+    sim.registerInvoice(NULLIFIER, 700n);
+    bid(sim, LENDER_SECRET, 100n, DUE, 400n);
+    sim.settleInvoice(NULLIFIER, 100n, DUE);
+    expect(sim.getLedger().invoices.lookup(NULLIFIER).creditThreshold).toBe(700n);
+  });
+
+  it('never discloses the score anywhere on the public ledger', () => {
+    const sim = new ShieldLedgerSimulator(
+      createShieldLedgerPrivateState({ smeSecret: SME_SECRET, smeCreditScore: 777n, lenderSecret: LENDER_SECRET }),
+    );
+    sim.registerInvoice(NULLIFIER, 650n);
+    const publicValues: string[] = [];
+    for (const [, invoice] of sim.getLedger().invoices) {
+      publicValues.push(invoice.creditThreshold.toString(), hex(invoice.smeCommitment));
+    }
+    expect(publicValues).not.toContain('777');
+  });
+});
+
 describe('ShieldLedger contract — pseudonym unlinkability', () => {
   it('gives distinct pseudonyms to distinct lenders', () => {
     expect(hex(LENDER(bytes32(1)))).not.toBe(hex(LENDER(bytes32(2))));

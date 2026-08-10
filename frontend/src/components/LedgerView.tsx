@@ -32,6 +32,7 @@ export const LedgerView: React.FC = () => {
                 <tr>
                   <th>Nullifier</th>
                   <th>Commitment</th>
+                  <th>Credit (ZK-proof)</th>
                   <th>Financed by</th>
                   <th>Amount</th>
                   <th>Rate</th>
@@ -43,6 +44,9 @@ export const LedgerView: React.FC = () => {
                   <tr key={inv.nullifier}>
                     <td className="sl-mono">{short(inv.nullifier)}</td>
                     <td className="sl-mono">{short(inv.smeCommitment)}</td>
+                    <td title="The SME proved this bound in zero knowledge; the score itself is never revealed.">
+                      score ≥ {inv.creditThreshold.toString()}
+                    </td>
                     <td className="sl-mono">{inv.lender ? short(inv.lender) : '— (bidding)'}</td>
                     <td>{inv.amount.toString()}</td>
                     <td>{inv.rateBps > 0n ? `${inv.rateBps.toString()} bps` : '—'}</td>

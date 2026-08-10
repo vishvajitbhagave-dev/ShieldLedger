@@ -34,6 +34,7 @@ function toDerivedState(state: Parameters<typeof ShieldLedger.ledger>[0]): Shiel
   const invoices = Array.from(lg.invoices, ([nullifier, invoice]) => ({
     nullifier: toHex(nullifier),
     smeCommitment: toHex(invoice.smeCommitment),
+    creditThreshold: invoice.creditThreshold,
     lender: invoice.lender.is_some ? toHex(invoice.lender.value) : null,
     amount: invoice.amount,
     dueDate: invoice.dueDate,
@@ -76,8 +77,8 @@ export class ShieldLedgerAPI {
   readonly deployedContractAddress: ContractAddress;
   readonly state$: Observable<ShieldLedgerDerivedState>;
 
-  async registerInvoice(nullifierHex: string): Promise<void> {
-    await this.deployedContract.callTx.registerInvoice(fromHex(nullifierHex));
+  async registerInvoice(nullifierHex: string, creditThreshold: bigint): Promise<void> {
+    await this.deployedContract.callTx.registerInvoice(fromHex(nullifierHex), creditThreshold);
   }
 
   /** Seals a bid with the wallet's lender secret; only the commitment goes on-chain. */

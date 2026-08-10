@@ -23,6 +23,9 @@ import {
  * switchIdentity() to emulate a different actor (different SME secret, credit
  * profile, lender secret, ...) acting on the same ledger.
  */
+// Mirrors the floor inlined in contracts/shield-ledger.compact (registerInvoice).
+export const MIN_CREDIT_SCORE = 650n;
+
 export class ShieldLedgerSimulator {
   readonly contract: Contract<ShieldLedgerPrivateState>;
   circuitContext: CircuitContext<ShieldLedgerPrivateState>;
@@ -60,10 +63,11 @@ export class ShieldLedgerSimulator {
     return this.circuitContext.currentPrivateState;
   }
 
-  registerInvoice(nullifier: Uint8Array): Ledger {
+  registerInvoice(nullifier: Uint8Array, creditThreshold: bigint = MIN_CREDIT_SCORE): Ledger {
     this.circuitContext = this.contract.impureCircuits.registerInvoice(
       this.circuitContext,
       nullifier,
+      creditThreshold,
     ).context;
     return this.getLedger();
   }

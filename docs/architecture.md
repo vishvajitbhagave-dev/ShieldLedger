@@ -79,6 +79,16 @@ Escrow:        smeCommitment = hash(nullifier, smeSecret)   ──┘ same value
 
 Only these ever touch the public ledger: invoice **nullifiers** (SHA-256 of
 private details + secret), **commitments** (hashes binding an owner to a
-nullifier), lender **pseudonyms**, **sealed-bid commitments**, and the
+nullifier), a **credit attestation** per invoice ("score ≥ N" — the proven
+bound), lender **pseudonyms**, **sealed-bid commitments**, and the
 **winning** bid's terms. Everything else — invoice contents, bid terms until the
-owner reveals, credit score, exposure cap, both secrets — stays in the wallet.
+owner reveals, both secrets, and both credit scores — stays in the wallet.
+
+### ZK credit scoring (SME)
+
+`registerInvoice(nullifier, creditThreshold)` proves the SME's private
+`smeCreditScore() >= creditThreshold` inside the circuit. Only the bound is
+disclosed; the score and the financial history behind it never leave the wallet.
+A contract floor of 650 stops "score ≥ 0" gaming. The attestation survives
+settlement (it is carried on the `Invoice` struct) and is shown to lenders as
+`score ≥ N` in the DApp's Open-invoices and Public-ledger tables.

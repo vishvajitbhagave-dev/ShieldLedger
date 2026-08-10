@@ -10,14 +10,14 @@ The contract (`contracts/shield-ledger.compact`) is written in Compact. Everythi
 
 | Piece | Public on ledger | Private |
 | --- | --- | --- |
-| Invoice registration | nullifier (32-byte hash of the invoice), SME commitment (hash of SME secret + nullifier) | invoice contents, SME secret |
+| Invoice registration | nullifier (32-byte hash of the invoice), SME commitment (hash of SME secret + nullifier), **credit attestation** ("score ≥ N", the proven bound) | invoice contents, SME secret, **credit score** |
 | Bidding | bid key (hash of nullifier + pseudonym), lender pseudonym (hash of lender secret), **commitment to the bid terms** | bid terms (amount, due date, interest rate) until reveal, lender secret, credit score, exposure cap |
 | Reveal | leading bid's terms + lender pseudonym (only if it beats the running best) | — (commitment re-derivation proves ownership) |
 | Settlement | winning lender pseudonym, financed amount, financed due date, winning interest rate | — (SME proves ownership via commitment) |
 
 Key ledger maps and circuits:
 
-- `registerInvoice(nullifier)` — asserts the invoice is not already registered, discloses `deriveCommitment(smeSecret, nullifier)`, inserts an empty `Invoice`.
+- `registerInvoice(nullifier, creditThreshold)` — asserts the invoice is not already registered, proves the SME's **credit score ≥ creditThreshold in zero knowledge** (the score never leaves the wallet; only the chosen bound is stored), discloses `deriveCommitment(smeSecret, nullifier)`, and inserts an empty `Invoice`. Thresholds below the contract's floor (650) are rejected, so "credit-checked" can't be gamed into a score ≥ 0 claim.
 - `submitBid(nullifier, commitment)` — asserts `lenderCreditScore >= 700` *without disclosing it*, derives the lender's pseudonym and bid key, and stores a `SealedBid` holding only the commitment (`deriveBidCommitment(lenderSecret, nullifier, amount, dueDate, rateBps)`). No other lender can see the terms.
 - `revealBid(nullifier, amount, dueDate, rateBps)` — re-derives the commitment from the private lender secret, asserts it matches the stored seal (so only the genuine bidder can reveal), enforces the private exposure cap, and updates the invoice's **running best bid** if the terms beat it (lowest interest rate, then smallest amount, then earliest due date; ties keep the earlier revealer).
 - `settleInvoice(nullifier, financedAmount, financedDueDate)` — asserts SME ownership, requires a resolved auction, and pays the *running best* bid. The SME cannot choose a losing lender.
@@ -95,7 +95,7 @@ npm run setup -- --network preview
 
 ### Current deployment (preview)
 
-The sealed-bid auction contract is live on the **Preview** network:
+The sealed-bid auction contract was live on the **Preview** network at:
 
 ```
 contract address  25d5118f8004ea5b7f7c4fe2b963bfae32b1e85ee1f4e1ef7bcb33af12680689
@@ -103,7 +103,10 @@ deployer          mn_addr_preview1t3te36lz6uwlvgu5tnlq9h3w7c5upgcvgvcyexns8638w3
 deployed          2026-08-10
 ```
 
-Also recorded in `.midnight-state.json` (gitignored).
+> This address predates the **ZK SME credit-scoring** upgrade (`registerInvoice`
+> now proves a credit threshold), so it is preserved for reference only. The DApp
+> deploys a fresh contract with the current circuits on Connect → Deploy; no
+> recorded address is reused.
 
 ## Usage
 
@@ -113,7 +116,7 @@ npm run cli                    # interactive CLI against the active network
 
 Menu options:
 
-1. **Register invoice (SME)** — enter a 64-hex nullifier.
+1. **Register invoice (SME)** — enter a 64-hex nullifier and the credit threshold to prove (≥ 650; the score itself stays private).
 2. **Submit sealed bid (Lender)** — nullifier, bid amount, due date (unix seconds), interest rate (basis points). Only a commitment goes on-chain.
 3. **Reveal bid (Lender)** — same terms as your sealed bid; competes for the lowest-rate lead.
 4. **Settle invoice (SME)** — nullifier, financed amount, due date. Pays the lowest-rate winner automatically.
@@ -167,6 +170,13 @@ ledger** — the commitment is visible, the underlying value never is:
   700` — the verifier checks the proof, but the score itself never leaves the
   wallet.
 
+- **SME credit score (CIBIL-style, privacy mode ON).** At registration the SME
+  proves "my score is ≥ X" inside the circuit; only the *bound* X (with a
+  contract-enforced floor of 650) is stored on the invoice. Lenders see
+  `score ≥ 650` — never the score, and never the financial history behind it.
+  The threshold the SME chooses to attest is itself the privacy knob: attest a
+  low bound to prove basic creditworthiness, or a high one to stand out.
+
 - **Settlement fairness.** The winning bid is the contract-enforced lowest rate;
   the SME cannot reveal the terms or pay any other lender.
 
@@ -178,9 +188,7 @@ until a lender reveals.
 
 1. Open the live app (below) and **Connect with Lace** (Preview network; if Lace
    is locked the app shows a waiting hint and retries automatically).
-2. As **SME**: switch the role tab, fill *Reference / Amount / Due date*, and
-   **Register invoice**. Only a blinded nullifier + commitment go on-chain — the
-   details stay in the browser (see `frontend/src/invoice-registry.ts`).
+2. As **SME**: switch the role tab, fill *Reference / Amount / Due date*, and set a **Credit check** threshold (e.g. 650). **Register invoice** proves "score ≥ threshold" in zero knowledge — your score and the invoice details stay in the browser (see `frontend/src/invoice-registry.ts`).
 3. As **Lender**: switch roles, **Bid on this ↓** an open invoice, pick your
    amount/due/rate, and **Submit sealed bid** — the Sealed-bids table shows only
    the commitment. Then **Reveal bid** with the same terms to take the lead; the
