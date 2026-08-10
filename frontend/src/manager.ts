@@ -108,7 +108,7 @@ const effectiveConfiguration = (config: Configuration): Configuration => {
 export const initializeProviders = async (connectedAPI: ConnectedAPI): Promise<ShieldLedgerProviders> => {
   const config = effectiveConfiguration(await connectedAPI.getConfiguration());
   const shieldedAddresses = await connectedAPI.getShieldedAddresses();
-  const zkConfigPath = `${import.meta.env.BASE_URL}zk`;
+  const zkConfigPath = `${window.location.origin}${import.meta.env.BASE_URL}zk`;
   const zkConfigProvider = new FetchZkConfigProvider<ShieldLedgerCircuitKeys>(
     zkConfigPath,
     fetch.bind(window),
