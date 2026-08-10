@@ -24,6 +24,41 @@ import {
 
 const COMPATIBLE_CONNECTOR_API_VERSION = '4.x';
 
+const LOCKED_RETRY_MS = 1_000;
+const UNLOCK_WAIT_MS = 60_000;
+const CONNECT_RESPONSE_MS = 60_000;
+
+const isLockedError = (error: unknown): boolean =>
+  error instanceof Error && /locked/i.test(error.message);
+
+const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Calls wallet.connect(networkId), retrying while the wallet reports that it is
+ * locked. Lace rejects connect() with "Wallet is locked" instead of opening an
+ * unlock prompt on its own, so the DApp keeps polling so that the connection
+ * completes automatically once the user unlocks the extension.
+ */
+const connectWithUnlockRetry = async (
+  wallet: InitialAPI,
+  networkId: string,
+  onLocked: () => void,
+): Promise<ConnectedAPI> => {
+  const deadline = Date.now() + UNLOCK_WAIT_MS;
+  for (;;) {
+    try {
+      return await wallet.connect(networkId);
+    } catch (error) {
+      if (!isLockedError(error)) throw error;
+      onLocked();
+      if (Date.now() >= deadline) {
+        throw new Error('Timed out waiting for the Lace wallet to be unlocked. Unlock it via the extension icon and try again.');
+      }
+      await delay(LOCKED_RETRY_MS);
+    }
+  }
+};
+
 const getFirstCompatibleWallet = (): InitialAPI | undefined => {
   if (!window.midnight) return undefined;
   return Object.values(window.midnight).find(
@@ -40,8 +75,15 @@ const log = {
   error: (msg: string, err?: unknown): void => console.error(`[shieldledger] ${msg}`, err),
 };
 
-/** Polls for the Lace wallet connector API, then connects on the given network. */
-export const connectToWallet = (networkId: string): Promise<ConnectedAPI> => {
+/**
+ * Polls for the Lace wallet connector API, then connects on the given network.
+ * While the wallet is locked, reports 'wallet-locked' via onStatus and keeps
+ * retrying until the user unlocks it (or the wait times out).
+ */
+export const connectToWallet = (
+  networkId: string,
+  onStatus?: (status: 'wallet-locked') => void,
+): Promise<ConnectedAPI> => {
   return firstValueFrom(
     interval(100).pipe(
       map(() => getFirstCompatibleWallet()),
@@ -54,13 +96,13 @@ export const connectToWallet = (networkId: string): Promise<ConnectedAPI> => {
           throwError(() => new Error('Could not find Midnight Lace wallet. Extension installed?')),
       }),
       concatMap(async (initialAPI: InitialAPI) => {
-        const connectedAPI = await initialAPI.connect(networkId);
+        const connectedAPI = await connectWithUnlockRetry(initialAPI, networkId, () => onStatus?.('wallet-locked'));
         const connectionStatus = await connectedAPI.getConnectionStatus();
         log.info(`Wallet connection status: ${JSON.stringify(connectionStatus)}`);
         return connectedAPI;
       }),
       timeout({
-        first: 5_000,
+        first: CONNECT_RESPONSE_MS,
         with: () => throwError(() => new Error('Midnight Lace wallet has failed to respond. Extension enabled?')),
       }),
       catchError((error: unknown) => {

@@ -141,6 +141,16 @@
   font-size: 14px;
 }
 
+.sl-info {
+  background: #12233f;
+  border: 1px solid #2b4a7a;
+  color: #bfdbfe;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
 .sl-success {
   background: #0c2f1f;
   border: 1px solid #14532d;

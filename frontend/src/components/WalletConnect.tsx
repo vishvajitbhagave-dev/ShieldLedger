@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useShieldLedger } from '../context.js';
 
 export const WalletConnect: React.FC = () => {
-  const { connecting, connected, walletInfo, deployment, connect, disconnect, deploy, join } = useShieldLedger();
+  const { connecting, connected, walletLocked, walletInfo, deployment, connect, disconnect, deploy, join } =
+    useShieldLedger();
   const [joinAddress, setJoinAddress] = useState('');
 
   const busy = deployment.status === 'in-progress';
@@ -15,9 +16,19 @@ export const WalletConnect: React.FC = () => {
           Connect the Midnight Lace wallet to deploy or join a ShieldLedger contract. The wallet signs and balances
           every transaction in your browser — private state never leaves it.
         </p>
+        {walletLocked && (
+          <div className="sl-info">
+            Lace is locked. Click the <strong>Lace extension icon</strong> in your browser toolbar to unlock it — the
+            connection continues automatically as soon as you do.
+          </div>
+        )}
         <div className="sl-row">
           <button className="sl-button" onClick={() => void connect()} disabled={connecting}>
-            {connecting ? 'Connecting…' : 'Connect Midnight Lace wallet'}
+            {walletLocked
+              ? 'Waiting for Lace to be unlocked…'
+              : connecting
+                ? 'Connecting…'
+                : 'Connect Midnight Lace wallet'}
           </button>
         </div>
       </div>
