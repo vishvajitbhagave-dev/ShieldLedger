@@ -19,6 +19,7 @@ export interface ShieldLedgerContextValue {
   readonly walletInfo: WalletInfo | null;
   readonly deployment: DeploymentState;
   readonly connect: () => Promise<void>;
+  readonly disconnect: () => void;
   readonly deploy: () => Promise<void>;
   readonly join: (contractAddress: string) => Promise<void>;
   readonly error: string | null;
@@ -63,6 +64,14 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
     }
   }, [networkId]);
 
+  const disconnect = useCallback(() => {
+    connectedAPI.current = null;
+    setWalletInfo(null);
+    setProviders(null);
+    setDeployment({ status: 'idle' });
+    setError(null);
+  }, []);
+
   const deploy = useCallback(async () => {
     if (!providers) return;
     setError(null);
@@ -95,12 +104,13 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
       walletInfo,
       deployment,
       connect,
+      disconnect,
       deploy,
       join,
       error,
       clearError,
     }),
-    [networkId, connecting, walletInfo, deployment, connect, deploy, join, error, clearError],
+    [networkId, connecting, walletInfo, deployment, connect, disconnect, deploy, join, error, clearError],
   );
 
   return <ShieldLedgerContext.Provider value={value}>{children}</ShieldLedgerContext.Provider>;

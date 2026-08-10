@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useShieldLedger } from '../context.js';
 
 export const WalletConnect: React.FC = () => {
-  const { connecting, connected, walletInfo, deployment, connect, deploy, join } = useShieldLedger();
+  const { connecting, connected, walletInfo, deployment, connect, disconnect, deploy, join } = useShieldLedger();
   const [joinAddress, setJoinAddress] = useState('');
 
   const busy = deployment.status === 'in-progress';
@@ -60,6 +60,17 @@ export const WalletConnect: React.FC = () => {
           Contract: <span className="sl-mono">{deployment.address}</span>
         </p>
       )}
+
+      <div className="sl-row" style={{ marginTop: 14 }}>
+        <button
+          className="sl-button sl-button-secondary"
+          onClick={disconnect}
+          disabled={busy}
+          title="Forget this wallet connection and clear the deployed/joined contract from this session"
+        >
+          Disconnect
+        </button>
+      </div>
     </div>
   );
 };

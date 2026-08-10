@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Contract tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Compact compiler
+        uses: midnightntwrk/setup-compact-action@v1
+        with:
+          compact-version: '0.31.1'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compile contract
+        run: npm run compile
+
+      - name: Run tests
+        run: npm test
+
+      - name: Typecheck
+        run: npm run build
+
+  dapp:
+    name: Browser DApp build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Compact compiler
+        uses: midnightntwrk/setup-compact-action@v1
+        with:
+          compact-version: '0.31.1'
+
+      - name: Install root dependencies (compile tooling)
+        run: npm ci
+
+      - name: Compile contract (ZK assets for the DApp)
+        run: npm run compile
+
+      - name: Install frontend dependencies
+        run: npm --prefix frontend ci
+
+      - name: Build browser DApp
+        run: npm --prefix frontend run build

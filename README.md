@@ -1,5 +1,7 @@
 # ShieldLedger
 
+[![CI](https://github.com/vishvajitbhagave-dev/ShieldLedger/actions/workflows/ci.yml/badge.svg)](https://github.com/vishvajitbhagave-dev/ShieldLedger/actions/workflows/ci.yml)
+
 Confidential invoice-financing marketplace on the [Midnight Network](https://docs.midnight.network). SMEs register invoices without revealing their contents; lenders compete in a **sealed-bid private auction** under pseudonyms — bids are commitments, only the winner's terms are ever revealed — and the **lowest interest rate wins**, enforced by the contract. Settlement is proven in zero knowledge. Only opaque nullifiers, commitments, pseudonyms, and the winning terms ever touch the public ledger.
 
 ## How it works
@@ -74,6 +76,18 @@ npm run setup -- --network preview
 
 `setup.ts` runs compile/deploy as needed, creates a 24-word BIP-39 wallet (printed once; also restorable in Lace), funds it from the preview faucet, waits for the proof-server to be listening, and deploys the contract. The deploy address is recorded in `.midnight-state.json` (gitignored). `--skip-proof-server`/`--skip-faucet` flags exist for an already-running server or already-funded wallet.
 
+### Current deployment (preview)
+
+The sealed-bid auction contract is live on the **Preview** network:
+
+```
+contract address  25d5118f8004ea5b7f7c4fe2b963bfae32b1e85ee1f4e1ef7bcb33af12680689
+deployer          mn_addr_preview1t3te36lz6uwlvgu5tnlq9h3w7c5upgcvgvcyexns8638w3jme5uqnepcmz
+deployed          2026-08-10
+```
+
+Also recorded in `.midnight-state.json` (gitignored).
+
 ## Usage
 
 ```bash
@@ -108,6 +122,40 @@ Final ledger state after settlement:
 invoice aa11bb22...55dd66  lender=7106894c835f6022cfe07deff65dde7e81c0fb3205ce433c8f1fc942ec43f582  amount=1000  due=4102444800
   bid  229a4ea7d994c82a...  by 7106894c835f6022...  amount=1000  due=4102444800
 ```
+
+## Privacy properties (proven without being shown)
+
+Every privacy guarantee is enforced by the circuits and **observable on the public
+ledger** — the commitment is visible, the underlying value never is:
+
+- **Sealed bids.** `submitBid` stores only a 32-byte commitment —
+  `persistentHash(bid terms + lender secret)` — keyed by a pseudonymous bid key.
+  A viewer of the ledger can see *that* a lender bid, but cannot see the amount,
+  due date, or interest rate. Only the bidder who owns the secret can later
+  `revealBid`, and the `revealBid` circuit *proves* the revealed terms open the
+  stored commitment without re-disclosing the secret.
+
+  ```
+  sealed bid on ledger        ledger viewer sees            viewer cannot see
+  ──────────────────────      ──────────────────────        ──────────────────
+  bidKey  = hash(nullifier,   lender pseudonym,             amount, due date,
+            pseudonym)        commitment (opaque hash)      interest rate
+  ```
+
+- **Invoice ownership.** `registerInvoice` posts only `deriveCommitment(SME
+  secret, nullifier)`; `settleInvoice` proves the SME knows the matching secret
+  without ever revealing it.
+
+- **Creditworthiness.** `submitBid`/`revealBid` assert `lenderCreditScore() >=
+  700` — the verifier checks the proof, but the score itself never leaves the
+  wallet.
+
+- **Settlement fairness.** The winning bid is the contract-enforced lowest rate;
+  the SME cannot reveal the terms or pay any other lender.
+
+Observe it live in the DApp: after `submitBid` the **Sealed bids** table shows
+`Commitment (terms hidden)` and nothing else, while **Leading bids** stays empty
+until a lender reveals.
 
 ## Testing
 
