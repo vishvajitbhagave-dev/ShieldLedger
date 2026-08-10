@@ -165,7 +165,7 @@ export const InvoiceFinancing: React.FC = () => {
 
   const [form, setForm] = useState<FormState>(initialForm);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
-  const [working, setWorking] = useState(false);
+  const [working, setWorking] = useState<string | null>(null);
   const [invoices, setInvoices] = useState<RegisteredInvoice[]>(() => loadRegisteredInvoices());
 
   const set = (k: keyof FormState) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
@@ -180,14 +180,14 @@ export const InvoiceFinancing: React.FC = () => {
   const run = async (label: string, op: () => Promise<void>) => {
     if (!api) return;
     setMessage(null);
-    setWorking(true);
+    setWorking(label);
     try {
       await op();
       setMessage({ ok: true, text: `${label} succeeded` });
     } catch (e) {
       setMessage({ ok: false, text: `${label} failed: ${e instanceof Error ? e.message : String(e)}` });
     } finally {
-      setWorking(false);
+      setWorking(null);
     }
   };
 
@@ -203,13 +203,13 @@ export const InvoiceFinancing: React.FC = () => {
         bid. Whoever reveals the lowest interest rate wins — the contract enforces it, the SME cannot play favorites.
       </p>
       <div className="sl-row">
-        <button className="sl-button sl-button-secondary" type="button" onClick={() => setForm(sampleForm)} disabled={busy || working}>
+        <button className="sl-button sl-button-secondary" type="button" onClick={() => setForm(sampleForm)} disabled={busy || working !== null}>
           Use sample values
         </button>
         <span className="sl-meta">Fills the forms with sample values.</span>
       </div>
 
-      <RoleTabs role={role} disabled={busy || working} onChange={setRole} />
+      <RoleTabs role={role} disabled={busy || working !== null} onChange={setRole} />
 
       {role === 'sme' ? (
         <>
@@ -229,9 +229,9 @@ export const InvoiceFinancing: React.FC = () => {
             }}
           >
             <h3 style={sectionHeading('1 · Register an invoice', '14px')}>1 · Register an invoice</h3>
-            <Field label="Reference" value={form.registerReference} placeholder="optional, private — e.g. INV-001" onChange={set('registerReference')} disabled={busy || working} />
-            <Field label="Amount" value={form.registerAmount} placeholder="tNight units" onChange={set('registerAmount')} disabled={busy || working} />
-            <Field label="Due date" value={form.registerDue} placeholder="unix seconds" onChange={set('registerDue')} disabled={busy || working} />
+            <Field label="Reference" value={form.registerReference} placeholder="optional, private — e.g. INV-001" onChange={set('registerReference')} disabled={busy || working !== null} />
+            <Field label="Amount" value={form.registerAmount} placeholder="tNight units" onChange={set('registerAmount')} disabled={busy || working !== null} />
+            <Field label="Due date" value={form.registerDue} placeholder="unix seconds" onChange={set('registerDue')} disabled={busy || working !== null} />
             <p className="sl-meta" style={{ marginBottom: 0 }}>
               Only a <em>nullifier</em> — a blinded hash of these details plus a random secret — is posted on-chain.
               The invoice details never leave this browser; the nullifier is saved locally so you can reuse it later.
@@ -239,9 +239,9 @@ export const InvoiceFinancing: React.FC = () => {
             <button
               className="sl-button"
               type="submit"
-              disabled={busy || working || !isDigits(form.registerAmount) || !isDigits(form.registerDue)}
+              disabled={busy || working !== null || !isDigits(form.registerAmount) || !isDigits(form.registerDue)}
             >
-              {working ? 'Working…' : 'Register invoice'}
+              {working === 'registerInvoice' ? 'Working…' : 'Register invoice'}
             </button>
           </form>
 
@@ -273,7 +273,7 @@ export const InvoiceFinancing: React.FC = () => {
                         <button
                           className="sl-button sl-button-secondary"
                           type="button"
-                          disabled={busy || working}
+                          disabled={busy || working !== null}
                           onClick={() => {
                             setForm((f) => ({
                               ...f,
@@ -304,10 +304,10 @@ export const InvoiceFinancing: React.FC = () => {
             }}
           >
             <h3 style={sectionHeading('3 · Settle invoice')}>3 · Settle invoice</h3>
-            <InvoicePicker invoices={invoices} disabled={busy || working} onPick={pick('settle')} />
-            <Field label="Nullifier" value={form.settleNullifier} placeholder="64 hex chars" onChange={set('settleNullifier')} disabled={busy || working} />
-            <Field label="Amount" value={form.settleAmount} placeholder="financed amount (≤ winning bid)" onChange={set('settleAmount')} disabled={busy || working} />
-            <Field label="Due date" value={form.settleDue} placeholder="unix seconds" onChange={set('settleDue')} disabled={busy || working} />
+            <InvoicePicker invoices={invoices} disabled={busy || working !== null} onPick={pick('settle')} />
+            <Field label="Nullifier" value={form.settleNullifier} placeholder="64 hex chars" onChange={set('settleNullifier')} disabled={busy || working !== null} />
+            <Field label="Amount" value={form.settleAmount} placeholder="financed amount (≤ winning bid)" onChange={set('settleAmount')} disabled={busy || working !== null} />
+            <Field label="Due date" value={form.settleDue} placeholder="unix seconds" onChange={set('settleDue')} disabled={busy || working !== null} />
             <p className="sl-meta" style={{ marginBottom: 0 }}>
               The contract pays the lowest-rate winner automatically — you cannot pick a different lender. You can
               settle as soon as a lender has revealed a winning bid.
@@ -315,9 +315,9 @@ export const InvoiceFinancing: React.FC = () => {
             <button
               className="sl-button"
               type="submit"
-              disabled={busy || working || form.settleNullifier.trim().length === 0 || form.settleAmount.trim().length === 0 || form.settleDue.trim().length === 0}
+              disabled={busy || working !== null || form.settleNullifier.trim().length === 0 || form.settleAmount.trim().length === 0 || form.settleDue.trim().length === 0}
             >
-              {working ? 'Working…' : 'Settle'}
+              {working === 'settleInvoice' ? 'Working…' : 'Settle'}
             </button>
           </form>
         </>
@@ -344,7 +344,7 @@ export const InvoiceFinancing: React.FC = () => {
                       <button
                         className="sl-button sl-button-secondary"
                         type="button"
-                        disabled={busy || working}
+                        disabled={busy || working !== null}
                         onClick={() => setForm((f) => ({ ...f, bidNullifier: inv.nullifier }))}
                       >
                         Bid on this ↓
@@ -367,20 +367,20 @@ export const InvoiceFinancing: React.FC = () => {
             }}
           >
             <h3 style={sectionHeading('2 · Submit sealed bid')}>2 · Submit sealed bid</h3>
-            <InvoicePicker invoices={invoices} disabled={busy || working} onPick={pick('bid')} />
-            <Field label="Nullifier" value={form.bidNullifier} placeholder="64 hex chars" onChange={set('bidNullifier')} disabled={busy || working} />
-            <Field label="Amount" value={form.bidAmount} placeholder="tNight units" onChange={set('bidAmount')} disabled={busy || working} />
-            <Field label="Due date" value={form.bidDue} placeholder="unix seconds" onChange={set('bidDue')} disabled={busy || working} />
-            <Field label="Rate" value={form.bidRate} placeholder="basis points, e.g. 400 = 4%" onChange={set('bidRate')} disabled={busy || working} />
+            <InvoicePicker invoices={invoices} disabled={busy || working !== null} onPick={pick('bid')} />
+            <Field label="Nullifier" value={form.bidNullifier} placeholder="64 hex chars" onChange={set('bidNullifier')} disabled={busy || working !== null} />
+            <Field label="Amount" value={form.bidAmount} placeholder="tNight units" onChange={set('bidAmount')} disabled={busy || working !== null} />
+            <Field label="Due date" value={form.bidDue} placeholder="unix seconds" onChange={set('bidDue')} disabled={busy || working !== null} />
+            <Field label="Rate" value={form.bidRate} placeholder="basis points, e.g. 400 = 4%" onChange={set('bidRate')} disabled={busy || working !== null} />
             <p className="sl-meta" style={{ marginBottom: 0 }}>
               Your bid is sealed on-chain — other lenders only see a commitment.
             </p>
             <button
               className="sl-button"
               type="submit"
-              disabled={busy || working || form.bidNullifier.trim().length === 0 || form.bidAmount.trim().length === 0 || form.bidDue.trim().length === 0 || form.bidRate.trim().length === 0}
+              disabled={busy || working !== null || form.bidNullifier.trim().length === 0 || form.bidAmount.trim().length === 0 || form.bidDue.trim().length === 0 || form.bidRate.trim().length === 0}
             >
-              {working ? 'Working…' : 'Submit sealed bid'}
+              {working === 'submitBid' ? 'Working…' : 'Submit sealed bid'}
             </button>
           </form>
 
@@ -395,11 +395,11 @@ export const InvoiceFinancing: React.FC = () => {
             }}
           >
             <h3 style={sectionHeading('3 · Reveal your bid')}>3 · Reveal your bid</h3>
-            <InvoicePicker invoices={invoices} disabled={busy || working} onPick={pick('reveal')} />
-            <Field label="Nullifier" value={form.revealNullifier} placeholder="64 hex chars" onChange={set('revealNullifier')} disabled={busy || working} />
-            <Field label="Amount" value={form.revealAmount} placeholder="must match your sealed bid" onChange={set('revealAmount')} disabled={busy || working} />
-            <Field label="Due date" value={form.revealDue} placeholder="must match your sealed bid" onChange={set('revealDue')} disabled={busy || working} />
-            <Field label="Rate" value={form.revealRate} placeholder="must match your sealed bid" onChange={set('revealRate')} disabled={busy || working} />
+            <InvoicePicker invoices={invoices} disabled={busy || working !== null} onPick={pick('reveal')} />
+            <Field label="Nullifier" value={form.revealNullifier} placeholder="64 hex chars" onChange={set('revealNullifier')} disabled={busy || working !== null} />
+            <Field label="Amount" value={form.revealAmount} placeholder="must match your sealed bid" onChange={set('revealAmount')} disabled={busy || working !== null} />
+            <Field label="Due date" value={form.revealDue} placeholder="must match your sealed bid" onChange={set('revealDue')} disabled={busy || working !== null} />
+            <Field label="Rate" value={form.revealRate} placeholder="must match your sealed bid" onChange={set('revealRate')} disabled={busy || working !== null} />
             <p className="sl-meta" style={{ marginBottom: 0 }}>
               The contract verifies these terms against your commitment and, if they beat the running best, you take
               the lead. The lowest rate wins.
@@ -407,17 +407,17 @@ export const InvoiceFinancing: React.FC = () => {
             <button
               className="sl-button"
               type="submit"
-              disabled={busy || working || form.revealNullifier.trim().length === 0 || form.revealAmount.trim().length === 0 || form.revealDue.trim().length === 0 || form.revealRate.trim().length === 0}
+              disabled={busy || working !== null || form.revealNullifier.trim().length === 0 || form.revealAmount.trim().length === 0 || form.revealDue.trim().length === 0 || form.revealRate.trim().length === 0}
             >
-              {working ? 'Working…' : 'Reveal bid'}
+              {working === 'revealBid' ? 'Working…' : 'Reveal bid'}
             </button>
           </form>
         </>
       )}
 
-      {working && (
+      {working !== null && (
         <div className="sl-meta" style={{ marginBottom: 0 }}>
-          Working… (proof generation can take 30–60s) — when ready, approve in Lace.
+          {working} in progress… (proof generation can take 30–60s) — when ready, approve in Lace.
         </div>
       )}
 
