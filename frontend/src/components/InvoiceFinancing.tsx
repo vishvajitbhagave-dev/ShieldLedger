@@ -7,6 +7,7 @@ import {
 } from '../invoice-registry.js';
 import { useLedgerState } from '../use-ledger-state.js';
 import { invoiceStatusOf, isAuctionResolved, isOpenInvoice } from '../invoice-status.js';
+import { userFacingFailureMessage } from '../../../src/error-messages.js';
 
 type FormState = {
   registerReference: string;
@@ -188,7 +189,9 @@ export const InvoiceFinancing: React.FC = () => {
       await op();
       setMessage({ ok: true, text: `${label} succeeded` });
     } catch (e) {
-      setMessage({ ok: false, text: `${label} failed: ${e instanceof Error ? e.message : String(e)}` });
+      // The raw technical error stays in the browser console for debugging.
+      console.error(`${label} failed:`, e);
+      setMessage({ ok: false, text: userFacingFailureMessage(label, e) });
     } finally {
       setWorking(null);
     }
@@ -353,6 +356,11 @@ export const InvoiceFinancing: React.FC = () => {
       ) : (
         <>
           <h3 style={sectionHeading('1 · Open invoices', '14px')}>1 · Open invoices available for financing</h3>
+          <p className="sl-meta" style={{ marginBottom: 8 }}>
+            The <strong>Credit</strong> column shows the <em>proven bound</em> the SME attested in zero knowledge at
+            registration (e.g. "score ≥ 650"). The SME's actual credit score is never revealed to anyone — not to
+            lenders, and not to any on-chain observer.
+          </p>
           {openInvoices.length === 0 ? (
             <p className="sl-empty">No invoices are currently open for bidding.</p>
           ) : (

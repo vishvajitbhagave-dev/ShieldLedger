@@ -24,6 +24,10 @@ export const LedgerView: React.FC = () => {
           </p>
 
           <h3 style={{ fontSize: 14, margin: '14px 0 8px', color: '#93b4e4' }}>Invoices</h3>
+          <p className="sl-meta" style={{ marginBottom: 8 }}>
+            <strong>Credit (ZK-proof)</strong> is the bound the SME proved in zero knowledge — the actual credit
+            score is never revealed to anyone.
+          </p>
           {state.invoices.length === 0 ? (
             <p className="sl-empty">No invoices registered yet.</p>
           ) : (

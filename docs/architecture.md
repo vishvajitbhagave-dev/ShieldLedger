@@ -92,3 +92,20 @@ disclosed; the score and the financial history behind it never leave the wallet.
 A contract floor of 650 stops "score ≥ 0" gaming. The attestation survives
 settlement (it is carried on the `Invoice` struct) and is shown to lenders as
 `score ≥ N` in the DApp's Open-invoices and Public-ledger tables.
+
+#### Privacy model: ZK credit scoring — what an observer can and cannot learn
+
+| Can an observer learn… | Yes / No | How |
+| --- | --- | --- |
+| The SME's exact credit score | **No** | Private witness `smeCreditScore`, consumed only inside the ZK circuit; never disclosed, stored, or serialized into any transaction payload. |
+| The proven bound ("score ≥ N") | **Yes** | `creditThreshold` is a public field of the `Invoice` struct, written by `disclose(creditThreshold)`. |
+| That the score meets the attested minimum | **Yes** | The bound *is* the attestation — a viewer sees "score ≥ 650". |
+| The financial history behind the score | **No** | Never leaves the wallet; the circuit sees only the score value. |
+| The SME's identity | **No** | The invoice is keyed by a nullifier; ownership is a commitment hash, not an identifier. |
+
+**Why it is unforgeable.** The check is a circuit `assert`
+(`smeCreditScore() >= disclose(creditThreshold)`), so a score below the
+threshold makes **proof generation fail**. Registration is a proof of
+creditworthiness, not a claim an SME can make or fake through application
+logic: only a threshold at or below the true score is cryptographically
+provable, and the verifier checks that proof on-chain.

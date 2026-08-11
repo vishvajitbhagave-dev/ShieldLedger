@@ -112,11 +112,12 @@ deployed          2026-08-10
 
 ```bash
 npm run cli                    # interactive CLI against the active network
+npm run cli -- --sme-credit-threshold 650   # pre-set the credit bound to prove at registration
 ```
 
 Menu options:
 
-1. **Register invoice (SME)** — enter a 64-hex nullifier and the credit threshold to prove (≥ 650; the score itself stays private).
+1. **Register invoice (SME)** — enter a 64-hex nullifier and the credit threshold to prove (≥ 650; the score itself stays private). Pass `--sme-credit-threshold <N>` to skip the prompt.
 2. **Submit sealed bid (Lender)** — nullifier, bid amount, due date (unix seconds), interest rate (basis points). Only a commitment goes on-chain.
 3. **Reveal bid (Lender)** — same terms as your sealed bid; competes for the lowest-rate lead.
 4. **Settle invoice (SME)** — nullifier, financed amount, due date. Pays the lowest-rate winner automatically.
@@ -179,6 +180,27 @@ ledger** — the commitment is visible, the underlying value never is:
 
 - **Settlement fairness.** The winning bid is the contract-enforced lowest rate;
   the SME cannot reveal the terms or pay any other lender.
+
+### Privacy model: ZK credit scoring
+
+At registration the SME supplies a private witness `smeCreditScore` and a public
+threshold `creditThreshold`. The circuit proves `smeCreditScore() >=
+creditThreshold` in zero knowledge, so the *only* credit datum that ever appears
+on-chain is the bound.
+
+| Can an observer learn… | Yes / No | How |
+| --- | --- | --- |
+| The SME's exact credit score | **No** | It is a private witness, read only inside the ZK circuit; it is never disclosed, stored, or serialized. |
+| The chosen bound ("score ≥ N") | **Yes** | `creditThreshold` is a public field of the `Invoice` struct, set by `disclose(creditThreshold)`. |
+| Whether the score meets *some* minimum | **Yes** | The bound itself is that proof; a ledger viewer sees "score ≥ 650". |
+| The financial history behind the score | **No** | It never leaves the SME's wallet; the circuit only consumes the score value. |
+| Anything else about the SME's identity | **No** | The invoice is keyed by a nullifier; ownership is a commitment, not an identifier. |
+
+Because the check is enforced by the circuit (an `assert` inside
+`registerInvoice`), a below-threshold score makes **proof generation fail** —
+the SME cannot register, cannot be rejected by application logic, and cannot
+fake a higher score. Only a threshold at or below the true score is
+cryptographically provable.
 
 Observe it live in the DApp: after `submitBid` the **Sealed bids** table shows
 `Commitment (terms hidden)` and nothing else, while **Leading bids** stays empty

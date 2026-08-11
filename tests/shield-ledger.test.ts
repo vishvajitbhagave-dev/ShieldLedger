@@ -398,6 +398,31 @@ describe('ShieldLedger contract — SME credit scoring (ZK)', () => {
     }
     expect(publicValues).not.toContain('777');
   });
+
+  it('never leaks the raw score into any serialized public output', () => {
+    const sim = new ShieldLedgerSimulator(
+      createShieldLedgerPrivateState({ smeSecret: SME_SECRET, smeCreditScore: 777n, lenderSecret: LENDER_SECRET }),
+    );
+    sim.registerInvoice(NULLIFIER, 650n);
+
+    // Serialize every public value exactly as a ledger observer/indexer would.
+    const serialized = JSON.stringify({
+      invoiceCount: sim.getLedger().invoiceCount.toString(),
+      invoices: Array.from(sim.getLedger().invoices, ([nullifier, invoice]) => ({
+        nullifier: hex(nullifier),
+        smeCommitment: hex(invoice.smeCommitment),
+        creditThreshold: invoice.creditThreshold.toString(),
+        lender: invoice.lender.is_some ? hex(invoice.lender.value) : null,
+        amount: invoice.amount.toString(),
+        dueDate: invoice.dueDate.toString(),
+        rateBps: invoice.rateBps.toString(),
+      })),
+    });
+
+    // The proven bound is present; the exact score (777) is nowhere.
+    expect(serialized).toContain('"creditThreshold":"650"');
+    expect(serialized).not.toContain('777');
+  });
 });
 
 describe('ShieldLedger contract — pseudonym unlinkability', () => {

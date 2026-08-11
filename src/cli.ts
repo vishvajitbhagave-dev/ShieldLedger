@@ -20,6 +20,7 @@ import { resolveNetwork, getOrCreateWallet, formatWalletBackupNotice, getDeploym
 import { createWallet, persistWalletState, unshieldedToken, type WalletContext } from './wallet';
 import { loadOrCreatePrivateState } from './private-state';
 import { compiledShieldLedgerContract } from './compiled';
+import { parseShieldLedgerCliArgs } from './cli-args';
 import { pureCircuits } from '../contracts/managed/shield-ledger/contract/index.js';
 
 // Enable WebSocket for GraphQL subscriptions
@@ -27,6 +28,14 @@ import { pureCircuits } from '../contracts/managed/shield-ledger/contract/index.
 globalThis.WebSocket = WebSocket;
 
 const PRIVATE_STATE_ID = 'shieldLedgerPrivateState';
+
+// Optional `--sme-credit-threshold <N>`: pass the credit bound the SME must
+// prove at registration without being prompted. The score itself is never a
+// CLI argument — only the bound the SME chooses to attest.
+const { smeCreditThreshold: SME_CREDIT_THRESHOLD, unknown: UNKNOWN_ARGS } = parseShieldLedgerCliArgs(process.argv.slice(2));
+if (UNKNOWN_ARGS.length > 0) {
+  console.warn(`  ⚠ Ignoring unrecognized arguments: ${UNKNOWN_ARGS.join(', ')}`);
+}
 
 const { network, config: networkConfig } = resolveNetwork();
 const WALLET = getOrCreateWallet(network);
@@ -97,6 +106,7 @@ async function main() {
   console.log('\n╔══════════════════════════════════════════════════════════════╗');
   console.log('║                   ShieldLedger CLI                            ║');
   console.log('╚══════════════════════════════════════════════════════════════╝\n');
+  console.log('  Usage: npm run cli [-- --sme-credit-threshold <N>]\n');
 
   const rl = createInterface({ input: stdin, output: stdout });
 
@@ -196,8 +206,14 @@ async function main() {
         switch (choice.trim()) {
           case '1': {
             const nullifier = await rl.question('  Invoice nullifier (64 hex chars): ');
-            const thresholdRaw = await rl.question('  Credit threshold to prove (>= 650, score stays private): ');
-            const creditThreshold = BigInt(thresholdRaw.trim() || '650');
+            let creditThreshold: bigint;
+            if (SME_CREDIT_THRESHOLD !== undefined) {
+              creditThreshold = SME_CREDIT_THRESHOLD;
+              console.log(`  Using --sme-credit-threshold ${creditThreshold}`);
+            } else {
+              const thresholdRaw = await rl.question('  Credit threshold to prove (>= 650, score stays private): ');
+              creditThreshold = BigInt(thresholdRaw.trim() || '650');
+            }
             console.log(`  Proving "credit score >= ${creditThreshold}" in zero knowledge — the score itself never leaves the wallet.`);
             await sendAndShow('registerInvoice', deployed.callTx.registerInvoice(parseHex(nullifier), creditThreshold));
             break;
