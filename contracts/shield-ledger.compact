@@ -47,6 +47,17 @@
 //      threshold) entirely in zero knowledge; only the threshold itself — a
 //      public *attestation* of the bound — is stored. The exact score, and
 //      the whole financial history behind it, never touch the ledger.
+//    • smeReputationScore  — the SME's private cross-deal reputation score
+//      (0..100) accumulated across every invoice the SME has ever settled:
+//      on-time settlements +10 (capped at 100), late/defaulted ones -20
+//      (floored at 0). The score and the deal history behind it stay in the
+//      wallet; only the *proven bound* (reputationThreshold) is disclosed.
+//    • smeOnTimeCount / smeLateCount — private counts of on-time vs
+//      late/defaulted settlements, shown only on the SME's own dashboard.
+//    • lenderMinReputation — a private per-lender minimum reputation bar. At
+//      submitBid the circuit requires the invoice's PUBLIC reputation
+//      threshold to meet it, so lenders can filter low-reputation invoices
+//      without ever disclosing their bar or any SME's raw score.
 //    • lenderExposureCap  — a private lending limit: bids are rejected
 //      circuit-side when they would exceed the cap.
 //    • buyerSecret      — the corporate buyer's private secret. At
@@ -62,6 +73,8 @@
 //       the invoice (BIDDING), proving score >= creditThreshold in ZK; the
 //       threshold is the only credit data revealed, and the *claimed* face
 //       amount becomes public so the buyer can vouch for it.
+//       A second public bound, reputationThreshold, attests "my cross-deal
+//       reputation score is at least this" in ZK; 0 means no requirement.
 //    2. confirmInvoice(nullifier, confirmedAmount) — the corporate buyer
 //       proves it acknowledges owing exactly the claimed amount for this
 //       invoice (a mismatch fails in-circuit). Only a boolean
@@ -75,6 +88,8 @@
 //       leading bid. Repeated for every bidder; last best bid wins.
 //    5. settleInvoice(nullifier, amt, due) — SME proves ownership and the
 //       contract pays the *best* bid only; the SME cannot choose a loser.
+//       Also takes settledAt and returns settledAt <= due so the wallet can
+//       classify the settlement on-time/late for the private reputation score.
 // ─────────────────────────────────────────────────────────────────────────────
 
 pragma language_version 0.23;
@@ -89,6 +104,7 @@ export enum InvoiceStatus { BIDDING, FINANCED }
 export struct Invoice {
   smeCommitment: Bytes<32>,
   creditThreshold: Uint<64>,
+  reputationThreshold: Uint<64>,
   invoiceAmount: Uint<64>,
   buyerVerified: Boolean,
   buyerCommitment: Bytes<32>,
@@ -130,6 +146,8 @@ witness lenderSecret(): Bytes<32>;
 witness lenderCreditScore(): Uint<64>;
 witness lenderExposureCap(): Uint<64>;
 witness buyerSecret(): Bytes<32>;
+witness smeReputationScore(): Uint<64>;
+witness lenderMinReputation(): Uint<64>;
 
 // Lists the invoice. The SME proves score >= creditThreshold in zero knowledge
 // (the exact score never leaves the wallet); only the proven threshold is
@@ -138,12 +156,16 @@ witness buyerSecret(): Bytes<32>;
 // attestation the SME chose to reveal, gated by the contract's floor. The
 // claimed face amount (invoiceAmount) is also public: it is the amount a
 // corporate buyer must later vouch for, and the amount lenders will finance.
-export circuit registerInvoice(nullifier: Bytes<32>, creditThreshold: Uint<64>, invoiceAmount: Uint<64>): [] {
+// reputationThreshold is a second *bound*: it attests that the SME's private
+// cross-deal reputation score is >= that value (0 = no requirement). Only the
+// bound is stored; the raw score and the on-time/late history stay private.
+export circuit registerInvoice(nullifier: Bytes<32>, creditThreshold: Uint<64>, invoiceAmount: Uint<64>, reputationThreshold: Uint<64>): [] {
   assert(!invoices.member(disclose(nullifier)), "invoice already registered");
   assert(disclose(creditThreshold) >= 650, "threshold below minimum");
   assert(smeCreditScore() >= disclose(creditThreshold), "not creditworthy");
+  assert(smeReputationScore() >= disclose(reputationThreshold), "insufficient reputation");
   const commitment = disclose(deriveCommitment(smeSecret(), disclose(nullifier)));
-  invoices.insert(disclose(nullifier), Invoice { smeCommitment: commitment, creditThreshold: disclose(creditThreshold), invoiceAmount: disclose(invoiceAmount), buyerVerified: false, buyerCommitment: pad(32, "shieldledger:unverified"), lender: none<Bytes<32>>(), amount: 0, dueDate: 0, rateBps: 0 });
+  invoices.insert(disclose(nullifier), Invoice { smeCommitment: commitment, creditThreshold: disclose(creditThreshold), reputationThreshold: disclose(reputationThreshold), invoiceAmount: disclose(invoiceAmount), buyerVerified: false, buyerCommitment: pad(32, "shieldledger:unverified"), lender: none<Bytes<32>>(), amount: 0, dueDate: 0, rateBps: 0 });
   invoiceCount.increment(1);
 }
 
@@ -162,18 +184,21 @@ export circuit confirmInvoice(nullifier: Bytes<32>, confirmedAmount: Uint<64>): 
   assert(disclose(confirmedAmount) == invoices.lookup(disclose(nullifier)).invoiceAmount, "amount mismatch");
   const current = invoices.lookup(disclose(nullifier));
   const buyerCommitment = disclose(deriveBuyerCommitment(buyerSecret(), disclose(nullifier)));
-  invoices.insert(disclose(nullifier), Invoice { smeCommitment: current.smeCommitment, creditThreshold: current.creditThreshold, invoiceAmount: current.invoiceAmount, buyerVerified: true, buyerCommitment: buyerCommitment, lender: current.lender, amount: current.amount, dueDate: current.dueDate, rateBps: current.rateBps });
+  invoices.insert(disclose(nullifier), Invoice { smeCommitment: current.smeCommitment, creditThreshold: current.creditThreshold, reputationThreshold: current.reputationThreshold, invoiceAmount: current.invoiceAmount, buyerVerified: true, buyerCommitment: buyerCommitment, lender: current.lender, amount: current.amount, dueDate: current.dueDate, rateBps: current.rateBps });
   invoiceCount.increment(1);
 }
 
 // Sealed bidding: only a commitment to the terms (amount, due date, interest
 // rate) touches the ledger, so no lender can see any other bid. The credit
 // score is enforced here (identity is not), the exposure cap at reveal (the
-// amount is unknown until then).
+// amount is unknown until then). A lender may also require a private minimum
+// reputation (lenderMinReputation): the invoice's PUBLIC reputationThreshold
+// must clear it, or the bid is rejected in-circuit.
 export circuit submitBid(nullifier: Bytes<32>, commitment: Bytes<32>): [] {
   assert(lenderCreditScore() >= 700, "not creditworthy");
   assert(invoices.member(disclose(nullifier)), "unknown invoice");
   assert(!invoices.lookup(disclose(nullifier)).lender.is_some, "invoice not in bidding");
+  assert(invoices.lookup(disclose(nullifier)).reputationThreshold >= lenderMinReputation(), "reputation below lender minimum");
   const pseudonym = disclose(derivePseudonym(lenderSecret()));
   const bidKey = disclose(deriveBidKey(disclose(nullifier), pseudonym));
   assert(!bids.member(bidKey), "already bid");
@@ -208,7 +233,7 @@ export circuit revealBid(nullifier: Bytes<32>, amount: Uint<64>, dueDate: Uint<6
   invoiceCount.increment(1);
 }
 
-export circuit settleInvoice(nullifier: Bytes<32>, financedAmount: Uint<64>, financedDueDate: Uint<64>): [] {
+export circuit settleInvoice(nullifier: Bytes<32>, financedAmount: Uint<64>, financedDueDate: Uint<64>, settledAt: Uint<64>): Boolean {
   assert(invoices.member(disclose(nullifier)), "unknown invoice");
   assert(deriveCommitment(smeSecret(), disclose(nullifier)) == invoices.lookup(disclose(nullifier)).smeCommitment, "not the SME");
   assert(!invoices.lookup(disclose(nullifier)).lender.is_some, "already financed");
@@ -220,8 +245,9 @@ export circuit settleInvoice(nullifier: Bytes<32>, financedAmount: Uint<64>, fin
   const receiptDueDate = disclose(financedDueDate);
   const receiptRate = disclose(best.rateBps);
   const invoice = invoices.lookup(disclose(nullifier));
-  invoices.insert(disclose(nullifier), Invoice { smeCommitment: invoice.smeCommitment, creditThreshold: invoice.creditThreshold, invoiceAmount: invoice.invoiceAmount, buyerVerified: invoice.buyerVerified, buyerCommitment: invoice.buyerCommitment, lender: some<Bytes<32>>(receiptLender), amount: receiptAmount, dueDate: receiptDueDate, rateBps: receiptRate });
+  invoices.insert(disclose(nullifier), Invoice { smeCommitment: invoice.smeCommitment, creditThreshold: invoice.creditThreshold, reputationThreshold: invoice.reputationThreshold, invoiceAmount: invoice.invoiceAmount, buyerVerified: invoice.buyerVerified, buyerCommitment: invoice.buyerCommitment, lender: some<Bytes<32>>(receiptLender), amount: receiptAmount, dueDate: receiptDueDate, rateBps: receiptRate });
   invoiceCount.increment(1);
+  return disclose(settledAt) <= disclose(financedDueDate);
 }
 
 export circuit deriveCommitment(secret: Bytes<32>, nullifier: Bytes<32>): Bytes<32> {

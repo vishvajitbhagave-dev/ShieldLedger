@@ -2,6 +2,11 @@
  * CLI for interacting with the ShieldLedger contract: register invoices as an
  * SME, submit *sealed* financing bids as a lender, reveal your bid to compete,
  * settle with the lowest-rate winner, and inspect the public ledger.
+ *
+ * Reputation: settling an invoice updates the SME's private cross-deal score
+ * (+10 on-time, -20 late, 0..100) in the local private state, which the SME
+ * can view with `--show-reputation`. A lender's private minimum bar for
+ * invoices is set with `--min-reputation <N>`.
  */
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
@@ -18,9 +23,11 @@ import { NodeZkConfigProvider } from '@midnight-ntwrk/midnight-js-node-zk-config
 
 import { resolveNetwork, getOrCreateWallet, formatWalletBackupNotice, getDeployment } from './network';
 import { createWallet, persistWalletState, unshieldedToken, type WalletContext } from './wallet';
-import { loadOrCreatePrivateState } from './private-state';
+import { loadOrCreatePrivateState, savePrivateState } from './private-state';
+import { applyReputationUpdate, reputationView } from './reputation';
 import { compiledShieldLedgerContract } from './compiled';
 import { parseShieldLedgerCliArgs } from './cli-args';
+import { runReputationCycleDemo } from '../scripts/demo-reputation-cycle.js';
 import { pureCircuits } from '../contracts/managed/shield-ledger/contract/index.js';
 
 // Enable WebSocket for GraphQL subscriptions
@@ -34,6 +41,15 @@ const PRIVATE_STATE_ID = 'shieldLedgerPrivateState';
 //                                registration without being prompted. The score
 //                                itself is never a CLI argument — only the bound
 //                                the SME chooses to attest.
+//   --min-reputation <N>         set the lender's private minimum reputation
+//                                bar for bidding (persisted locally; never
+//                                disclosed on-chain).
+//   --show-reputation            print the SME's private cross-deal reputation
+//                                score and on-time/late history for this
+//                                network, then exit.
+//   --demo-reputation-cycle      run the demo-only reputation-cycle tool
+//                                (scripts/demo-reputation-cycle.ts) and exit.
+//                                No network or wallet is needed.
 //   --confirm-invoice <hex>      run one-shot as the buyer: confirm a pending
 //                                invoice by its public nullifier (optionally
 //                                with --confirm-amount <N>), then exit.
@@ -41,10 +57,21 @@ const {
   smeCreditThreshold: SME_CREDIT_THRESHOLD,
   confirmInvoiceNullifier: CONFIRM_INVOICE_NULLIFIER,
   confirmAmount: CONFIRM_AMOUNT,
+  minReputation: MIN_REPUTATION,
+  showReputation: SHOW_REPUTATION,
+  demoReputationCycle: DEMO_REPUTATION_CYCLE,
   unknown: UNKNOWN_ARGS,
 } = parseShieldLedgerCliArgs(process.argv.slice(2));
 if (UNKNOWN_ARGS.length > 0) {
   console.warn(`  ⚠ Ignoring unrecognized arguments: ${UNKNOWN_ARGS.join(', ')}`);
+}
+
+if (DEMO_REPUTATION_CYCLE) {
+  // Demo-only tool: runs scripted invoice cycles through the real circuits and
+  // the real reputation formula, then exits. Deliberately placed before the
+  // wallet/network code so a recording never touches a network or a wallet.
+  runReputationCycleDemo();
+  process.exit(0);
 }
 
 const { network, config: networkConfig } = resolveNetwork();
@@ -113,11 +140,28 @@ async function createProviders(walletCtx: WalletContext) {
 // ─── Main CLI ──────────────────────────────────────────────────────────────────
 
 async function main() {
+  if (SHOW_REPUTATION) {
+    // Local-only view: reads the SME's private state for this network, prints
+    // the cross-deal reputation score and deal history, then exits. No network
+    // connection needed — this never touches the ledger.
+    const privateState = loadOrCreatePrivateState(network);
+    const view = reputationView(privateState);
+    console.log(`\n  SME reputation for network ${network}:`);
+    console.log(`    Score: ${view.score}/100`);
+    console.log(`    On-time settlements: ${view.onTimeCount}`);
+    console.log(`    Late/defaulted settlements: ${view.lateCount}`);
+    console.log(`    Lender minimum reputation for bids: ${privateState.lenderMinReputation}`);
+    console.log('  ℹ  This stays in your wallet. The ledger only ever sees proven bounds (reputationThreshold), never the raw score.\n');
+    process.exit(0);
+  }
+
   console.log('\n╔══════════════════════════════════════════════════════════════╗');
   console.log('║                   ShieldLedger CLI                            ║');
   console.log('╚══════════════════════════════════════════════════════════════╝\n');
   console.log('  Usage: npm run cli [-- --sme-credit-threshold <N>]');
-  console.log('          npm run cli [-- --confirm-invoice <hex> [--confirm-amount <N>]]\n');
+  console.log('          npm run cli [-- --confirm-invoice <hex> [--confirm-amount <N>]]');
+  console.log('          npm run cli [-- --min-reputation <N>]');
+  console.log('          npm run cli [-- --show-reputation]\n');
 
   const rl = createInterface({ input: stdin, output: stdout });
 
@@ -161,7 +205,13 @@ async function main() {
 
     console.log('  Connecting to contract...');
     const providers = await createProviders(walletCtx);
-    const initialPrivateState = loadOrCreatePrivateState(network);
+    let initialPrivateState = loadOrCreatePrivateState(network);
+
+    if (MIN_REPUTATION !== undefined) {
+      initialPrivateState = { ...initialPrivateState, lenderMinReputation: MIN_REPUTATION };
+      savePrivateState(network, initialPrivateState);
+      console.log(`  ✅ Lender private reputation bar set to ${MIN_REPUTATION} (persisted locally; never disclosed on-chain).`);
+    }
 
     const deployed: any = await findDeployedContract(providers, {
       compiledContract: compiledShieldLedgerContract as any,
@@ -230,7 +280,7 @@ async function main() {
       const lg = ledger(contractState.data);
       const rows: string[] = [];
       for (const [nullifier, invoice] of lg.invoices) {
-        rows.push(`    nullifier=${toHex(nullifier)}  lender=${invoice.lender.is_some ? toHex(invoice.lender.value) : '(none)'}  credit=${invoice.creditThreshold}+  claim=${invoice.invoiceAmount}  buyerVerified=${invoice.buyerVerified}  amount=${invoice.amount}  due=${invoice.dueDate}  rate=${invoice.rateBps}bps  commitment=${toHex(invoice.smeCommitment)}`);
+        rows.push(`    nullifier=${toHex(nullifier)}  lender=${invoice.lender.is_some ? toHex(invoice.lender.value) : '(none)'}  credit=${invoice.creditThreshold}+  reputation=${invoice.reputationThreshold}+  claim=${invoice.invoiceAmount}  buyerVerified=${invoice.buyerVerified}  amount=${invoice.amount}  due=${invoice.dueDate}  rate=${invoice.rateBps}bps  commitment=${toHex(invoice.smeCommitment)}`);
         for (const [bidKey, bid] of lg.bids) {
           if (bid.nullifier.length !== nullifier.length || !bid.nullifier.every((v, i) => v === nullifier[i])) continue;
           rows.push(`        sealed bid ${toHex(bidKey).slice(0, 16)}…  by ${toHex(bid.lender).slice(0, 16)}…  commitment=${toHex(bid.commitment).slice(0, 16)}…`);
@@ -261,7 +311,8 @@ async function main() {
       console.log('  5. View ledger');
       console.log('  6. Check wallet balance');
       console.log('  7. Confirm invoice (Buyer — proves the invoice is genuine)');
-      console.log('  8. Exit\n');
+      console.log('  8. Show my reputation (private)');
+      console.log('  9. Exit\n');
 
       const choice = await rl.question('  Your choice: ');
 
@@ -278,8 +329,12 @@ async function main() {
               const thresholdRaw = await rl.question('  Credit threshold to prove (>= 650, score stays private): ');
               creditThreshold = BigInt(thresholdRaw.trim() || '650');
             }
-            console.log(`  Proving "credit score >= ${creditThreshold}" in zero knowledge — the score itself never leaves the wallet.`);
-            await sendAndShow('registerInvoice', deployed.callTx.registerInvoice(parseHex(nullifier), creditThreshold, BigInt(amountRaw.trim())));
+            const reputationRaw = await rl.question('  Reputation threshold to prove (>= 0, 0 = no requirement, score stays private): ');
+            const reputationThreshold = BigInt(reputationRaw.trim() || '0');
+            const rep = reputationView(initialPrivateState);
+            console.log(`  ℹ  Your private reputation score is ${rep.score}/100 — a threshold above it would fail the proof ("insufficient reputation").`);
+            console.log(`  Proving "credit score >= ${creditThreshold} and reputation score >= ${reputationThreshold}" in zero knowledge — the scores themselves never leave the wallet.`);
+            await sendAndShow('registerInvoice', deployed.callTx.registerInvoice(parseHex(nullifier), creditThreshold, BigInt(amountRaw.trim()), reputationThreshold));
             break;
           }
 
@@ -319,7 +374,17 @@ async function main() {
             const nullifier = await rl.question('  Invoice nullifier (64 hex chars): ');
             const amountRaw = await rl.question('  Financed amount: ');
             const dueRaw = await rl.question('  Financed due date (unix seconds): ');
-            await sendAndShow('settleInvoice', deployed.callTx.settleInvoice(parseHex(nullifier), BigInt(amountRaw.trim()), BigInt(dueRaw.trim())));
+            const settledAt = BigInt(Math.floor(Date.now() / 1000));
+            await sendAndShow('settleInvoice', deployed.callTx.settleInvoice(parseHex(nullifier), BigInt(amountRaw.trim()), BigInt(dueRaw.trim()), settledAt));
+            // The circuit returned "on-time" (settledAt <= financedDueDate); the
+            // wallet applies the reputation update locally and persists it. The
+            // ledger only ever saw the settlement, not the classification.
+            const onTime = settledAt <= BigInt(dueRaw.trim());
+            initialPrivateState = applyReputationUpdate(initialPrivateState, onTime);
+            savePrivateState(network, initialPrivateState);
+            await providers.privateStateProvider.set(PRIVATE_STATE_ID, initialPrivateState);
+            const rep = reputationView(initialPrivateState);
+            console.log(`  ℹ  Settlement ${onTime ? 'on time' : 'late/defaulted'} — private reputation updated (score ${rep.score}/100, on-time ${rep.onTimeCount}, late ${rep.lateCount}). View it anytime with --show-reputation or menu 8.`);
             break;
           }
 
@@ -346,13 +411,24 @@ async function main() {
             break;
           }
 
-          case '8':
+          case '8': {
+            const rep = reputationView(initialPrivateState);
+            console.log(`\n  SME reputation for network ${network}:`);
+            console.log(`    Score: ${rep.score}/100`);
+            console.log(`    On-time settlements: ${rep.onTimeCount}`);
+            console.log(`    Late/defaulted settlements: ${rep.lateCount}`);
+            console.log(`    Lender minimum reputation for bids: ${initialPrivateState.lenderMinReputation}`);
+            console.log('  ℹ  This stays in your wallet — the ledger only ever sees proven bounds (reputationThreshold), never the raw score.\n');
+            break;
+          }
+
+          case '9':
             running = false;
             console.log('\n  👋 Goodbye!\n');
             break;
 
           default:
-            console.log('\n  ❌ Invalid choice. Please enter 1-8.\n');
+            console.log('\n  ❌ Invalid choice. Please enter 1-9.\n');
         }
       } catch (error) {
         console.error('\n  ❌ Failed:', error instanceof Error ? error.message : error);

@@ -8,6 +8,7 @@ import {
 import { useLedgerState } from '../use-ledger-state.js';
 import { invoiceStatusOf, isAuctionResolved, isOpenInvoice } from '../invoice-status.js';
 import type { InvoiceView } from '../shield-ledger-types.js';
+import type { ReputationView } from '../../../src/reputation.js';
 import { userFacingFailureMessage } from '../lib/errorMessages.js';
 
 type FormState = {
@@ -15,6 +16,7 @@ type FormState = {
   registerAmount: string;
   registerDue: string;
   registerThreshold: string;
+  registerReputation: string;
   confirmNullifier: string;
   confirmAmount: string;
   bidNullifier: string;
@@ -35,6 +37,7 @@ const initialForm: FormState = {
   registerAmount: '',
   registerDue: '',
   registerThreshold: '650',
+  registerReputation: '0',
   confirmNullifier: '',
   confirmAmount: '',
   bidNullifier: '',
@@ -61,6 +64,7 @@ const sampleForm: FormState = {
   registerAmount: SAMPLE_AMOUNT,
   registerDue: SAMPLE_DUE,
   registerThreshold: '650',
+  registerReputation: '0',
   confirmNullifier: SAMPLE_NULLIFIER,
   confirmAmount: SAMPLE_AMOUNT,
   bidNullifier: SAMPLE_NULLIFIER,
@@ -192,6 +196,21 @@ export const InvoiceFinancing: React.FC = () => {
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [working, setWorking] = useState<string | null>(null);
   const [invoices, setInvoices] = useState<RegisteredInvoice[]>(() => loadRegisteredInvoices());
+  const [reputation, setReputation] = useState<ReputationView | null>(null);
+
+  const refreshReputation = async () => {
+    if (!api) return;
+    try {
+      setReputation(await api.getReputation());
+    } catch {
+      setReputation(null);
+    }
+  };
+
+  React.useEffect(() => {
+    if (deployment.status === 'deployed') void refreshReputation();
+    // Refresh whenever the private-state provider is recreated (e.g. reconnect).
+  }, [deployment.status, connected]);
 
   const set = (k: keyof FormState) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -260,10 +279,12 @@ export const InvoiceFinancing: React.FC = () => {
               const amount = BigInt(form.registerAmount.trim());
               const dueDate = BigInt(form.registerDue.trim());
               const creditThreshold = BigInt(form.registerThreshold.trim());
+              const reputationThreshold = BigInt(form.registerReputation.trim());
               void run('registerInvoice', async () => {
                 const record = await registerInvoiceLocally({ reference, amount, dueDate });
                 setInvoices(loadRegisteredInvoices());
-                await a.registerInvoice(record.nullifier, creditThreshold, amount);
+                await a.registerInvoice(record.nullifier, creditThreshold, amount, reputationThreshold);
+                await refreshReputation();
               });
             }}
           >
@@ -272,11 +293,14 @@ export const InvoiceFinancing: React.FC = () => {
             <Field label="Amount" value={form.registerAmount} placeholder="tNight units" onChange={set('registerAmount')} disabled={busy || working !== null} />
             <Field label="Due date" value={form.registerDue} placeholder="unix seconds" onChange={set('registerDue')} disabled={busy || working !== null} />
             <Field label="Credit check" value={form.registerThreshold} placeholder="e.g. 650 — your score stays private" onChange={set('registerThreshold')} disabled={busy || working !== null} />
+            <Field label="Reputation check" value={form.registerReputation} placeholder="e.g. 30 — proven in zero knowledge" onChange={set('registerReputation')} disabled={busy || working !== null} />
             <p className="sl-meta" style={{ marginBottom: 0 }}>
               Only a <em>nullifier</em> — a blinded hash of these details plus a random secret — is posted on-chain.
               The invoice details never leave this browser; the nullifier is saved locally so you can reuse it later.
               The <em>credit check</em> proves "my credit score is at least {form.registerThreshold.trim() || '…'}" in zero
-              knowledge — the score itself is never revealed, only the proven bound. The <em>claimed amount</em> is
+              knowledge — the score itself is never revealed, only the proven bound. The <em>reputation check</em>
+              proves "my reputation is at least {form.registerReputation.trim() || '…'}" (set 0 for no requirement) — the
+              current score is read from your private wallet state and never disclosed. The <em>claimed amount</em> is
               posted publicly so your corporate buyer can later vouch for it in zero knowledge; your reference, due
               date and secret stay private.
             </p>
@@ -289,6 +313,7 @@ export const InvoiceFinancing: React.FC = () => {
                 !isDigits(form.registerAmount) ||
                 !isDigits(form.registerDue) ||
                 !isDigits(form.registerThreshold) ||
+                !isDigits(form.registerReputation) ||
                 BigInt(form.registerThreshold.trim() || '0') < 650n
               }
             >
@@ -296,7 +321,39 @@ export const InvoiceFinancing: React.FC = () => {
             </button>
           </form>
 
-          <h3 style={sectionHeading('2 · Your invoices')}>2 · Your invoices</h3>
+          <h3 style={sectionHeading('2 · Your private reputation', '14px')}>2 · Your private reputation</h3>
+          <p className="sl-meta" style={{ marginBottom: 8 }}>
+            Stored only in this browser session. Settling <em>on or before</em> the due date earns you{' '}
+            <strong>+10</strong>; a late settlement costs <strong>−20</strong> (clamped to 0–100). Every
+            registration proves "score ≥ threshold" in zero knowledge, so lenders are bound to what you really
+            have — without ever seeing the score.
+          </p>
+          {reputation === null ? (
+            <p className="sl-empty">No private reputation available in this browser session.</p>
+          ) : (
+            <table className="sl-table">
+              <thead>
+                <tr>
+                  <th>Score</th>
+                  <th>On-time settlements</th>
+                  <th>Late settlements</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <span className={reputation.score >= 50n ? 'sl-badge' : 'sl-badge sl-badge-warn'}>
+                      {reputation.score.toString()} / 100
+                    </span>
+                  </td>
+                  <td>{reputation.onTimeCount.toString()}</td>
+                  <td>{reputation.lateCount.toString()}</td>
+                </tr>
+              </tbody>
+            </table>
+          )}
+
+          <h3 style={sectionHeading('3 · Your invoices')}>3 · Your invoices</h3>
           {invoices.length === 0 ? (
             <p className="sl-empty">No invoices registered in this browser yet.</p>
           ) : (
@@ -352,12 +409,17 @@ export const InvoiceFinancing: React.FC = () => {
               e.preventDefault();
               if (!api) return;
               const a = api;
-              void run('settleInvoice', () =>
-                a.settleInvoice(form.settleNullifier, BigInt(form.settleAmount.trim()), BigInt(form.settleDue.trim())),
-              );
+              void run('settleInvoice', async () => {
+                const updated = await a.settleInvoice(
+                  form.settleNullifier,
+                  BigInt(form.settleAmount.trim()),
+                  BigInt(form.settleDue.trim()),
+                );
+                setReputation(updated ?? (await a.getReputation()));
+              });
             }}
           >
-            <h3 style={sectionHeading('3 · Settle invoice')}>3 · Settle invoice</h3>
+            <h3 style={sectionHeading('4 · Settle invoice')}>4 · Settle invoice</h3>
             <InvoicePicker invoices={invoices} disabled={busy || working !== null} onPick={pick('settle')} />
             <Field label="Nullifier" value={form.settleNullifier} placeholder="64 hex chars" onChange={set('settleNullifier')} disabled={busy || working !== null} />
             <Field label="Amount" value={form.settleAmount} placeholder="financed amount (≤ winning bid)" onChange={set('settleAmount')} disabled={busy || working !== null} />
@@ -486,8 +548,11 @@ export const InvoiceFinancing: React.FC = () => {
           <h3 style={sectionHeading('1 · Open invoices', '14px')}>1 · Open invoices available for financing</h3>
           <p className="sl-meta" style={{ marginBottom: 8 }}>
             The <strong>Credit</strong> column shows the <em>proven bound</em> the SME attested in zero knowledge at
-            registration (e.g. "score ≥ 650"). The <strong>Buyer-verified ✓</strong> badge means the corporate buyer
-            proved in zero knowledge that the invoice is genuine — its identity and the terms never appear.
+            registration (e.g. "score ≥ 650"). The <strong>Reputation</strong> column shows the <em>proven
+            reputation bound</em> ("score ≥ N"; <strong>any</strong> means no minimum). Neither the credit score nor
+            the reputation score is ever revealed — only the proven lower bound. The{' '}
+            <strong>Buyer-verified ✓</strong> badge means the corporate buyer proved in zero knowledge that the
+            invoice is genuine — its identity and the terms never appear.
           </p>
           {openInvoices.length === 0 ? (
             <p className="sl-empty">No invoices are currently open for bidding.</p>
@@ -497,6 +562,7 @@ export const InvoiceFinancing: React.FC = () => {
                 <tr>
                   <th>Invoice (nullifier)</th>
                   <th>Credit (ZK-proof)</th>
+                  <th>Reputation (ZK-proof)</th>
                   <th>Buyer-verified</th>
                   <th>Commitment</th>
                   <th></th>
@@ -507,6 +573,13 @@ export const InvoiceFinancing: React.FC = () => {
                   <tr key={inv.nullifier}>
                     <td className="sl-mono">{short(inv.nullifier)}</td>
                     <td>score ≥ {inv.creditThreshold.toString()}</td>
+                    <td title="The SME proved its reputation is at least this bound; the actual score is never revealed.">
+                      {inv.reputationThreshold > 0n ? (
+                        `score ≥ ${inv.reputationThreshold.toString()}`
+                      ) : (
+                        <span className="sl-meta">any</span>
+                      )}
+                    </td>
                     <td>{inv.buyerVerified ? <BuyerVerifiedBadge /> : <span className="sl-meta">—</span>}</td>
                     <td className="sl-mono">{short(inv.smeCommitment)}</td>
                     <td>

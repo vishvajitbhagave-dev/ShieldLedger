@@ -28,6 +28,8 @@ export interface InvoiceView {
   readonly smeCommitment: string;
   /** The proven credit bound: the SME attested score >= creditThreshold in ZK. */
   readonly creditThreshold: bigint;
+  /** The proven reputation bound: the SME attested reputationScore >= this in ZK (0 = no requirement). */
+  readonly reputationThreshold: bigint;
   /** The SME's claimed face amount, posted at registration (public so the buyer can vouch for it). */
   readonly invoiceAmount: bigint;
   /** True once a corporate buyer proved the invoice genuine in ZK. */

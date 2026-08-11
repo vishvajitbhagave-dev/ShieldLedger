@@ -35,6 +35,8 @@ function publicHexStrings(lg: Ledger): string[] {
   for (const [nullifier, invoice] of lg.invoices) {
     out.push(hex(nullifier));
     out.push(hex(invoice.smeCommitment));
+    out.push(invoice.creditThreshold.toString());
+    out.push(invoice.reputationThreshold.toString());
     if (invoice.lender.is_some) out.push(hex(invoice.lender.value));
     out.push(invoice.amount.toString());
     out.push(invoice.dueDate.toString());
@@ -172,18 +174,29 @@ describe('ShieldLedger privacy — pseudonyms', () => {
     const ps: ShieldLedgerPrivateState = {
       smeSecret: bytes32(1),
       smeCreditScore: 720n,
+      smeReputationScore: 70n,
+      smeOnTimeCount: 5n,
+      smeLateCount: 1n,
       lenderSecret: bytes32(2),
       lenderCreditScore: 799n,
       lenderExposureCap: 42_000n,
+      lenderMinReputation: 10n,
       buyerSecret: bytes32(3),
     };
     const sim = new ShieldLedgerSimulator(ps);
-    sim.registerInvoice(bytes32(7));
+    sim.registerInvoice(bytes32(7), 650n, 0n, 12n);
     sim.switchIdentity({ lenderSecret: ps.lenderSecret });
     sim.submitBid(bytes32(7), deriveBidCommitment(ps.lenderSecret, bytes32(7), 100n, 1n, RATE));
 
     const publicValues = publicHexStrings(sim.getLedger());
     expect(publicValues).not.toContain(ps.lenderCreditScore.toString());
     expect(publicValues).not.toContain(ps.lenderExposureCap.toString());
+    // The reputation score, the deal history and the lender's private bar are
+    // never public — only the *bound* the SME attested to (12) is.
+    expect(publicValues).not.toContain(ps.smeReputationScore.toString());
+    expect(publicValues).not.toContain(ps.smeOnTimeCount.toString());
+    expect(publicValues).not.toContain(ps.smeLateCount.toString());
+    expect(publicValues).not.toContain(ps.lenderMinReputation.toString());
+    expect(publicValues).toContain('12');
   });
 });

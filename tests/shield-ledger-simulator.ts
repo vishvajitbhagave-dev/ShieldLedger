@@ -14,6 +14,7 @@ import {
   type ShieldLedgerPrivateState,
   witnesses,
 } from '../src/witnesses.js';
+import { applyReputationUpdate } from '../src/reputation.js';
 
 /**
  * Headless simulator for the ShieldLedger contract.
@@ -67,12 +68,14 @@ export class ShieldLedgerSimulator {
     nullifier: Uint8Array,
     creditThreshold: bigint = MIN_CREDIT_SCORE,
     invoiceAmount: bigint = 0n,
+    reputationThreshold: bigint = 0n,
   ): Ledger {
     this.circuitContext = this.contract.impureCircuits.registerInvoice(
       this.circuitContext,
       nullifier,
       creditThreshold,
       invoiceAmount,
+      reputationThreshold,
     ).context;
     return this.getLedger();
   }
@@ -115,13 +118,24 @@ export class ShieldLedgerSimulator {
     nullifier: Uint8Array,
     financedAmount: bigint,
     financedDueDate: bigint,
+    settledAt: bigint = financedDueDate,
   ): Ledger {
-    this.circuitContext = this.contract.impureCircuits.settleInvoice(
+    const results = this.contract.impureCircuits.settleInvoice(
       this.circuitContext,
       nullifier,
       financedAmount,
       financedDueDate,
-    ).context;
+      settledAt,
+    );
+    this.circuitContext = results.context;
+    // The circuit returns the on-time/late classification (settledAt <=
+    // financedDueDate). The wallet layer applies it to the SME's private
+    // reputation score; the ledger itself never records the classification.
+    const onTime = results.result;
+    this.circuitContext.currentPrivateState = applyReputationUpdate(
+      this.circuitContext.currentPrivateState,
+      onTime,
+    );
     return this.getLedger();
   }
 }

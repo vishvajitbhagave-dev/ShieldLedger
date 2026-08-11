@@ -57,12 +57,22 @@ Escrow:        smeCommitment = hash(nullifier, smeSecret)   ──┘ same value
 | 1 | Advanced ZK smart-contract development with a private/public data split | ✅ | `contracts/shield-ledger.compact` — every circuit, split annotated; bids, invoices, credit score stay private |
 | 2 | Event streaming & real-time updates on a public ledger | ✅ | DApp subscribes to `state$` (`frontend/src/use-ledger-state.ts`); live badge + last-update time in the header |
 | 3 | Deployment and interaction with the deployed contract | ✅ | `src/setup.ts`, `src/deploy.ts`, CLI, live **preview** deployment, `state$` interactions, `scripts/e2e-check.ts` |
-| 4 | Writing tests for contracts and frontend | ✅ | `tests/` — 8 suites, **107 tests**: `shield-ledger` (31), `inter-contract` (14), `cli-args` (13), `error-messages` (13), `buyer-verification` (10), `private-keys` (9), `invoice-status` (9), `invoice-nullifier` (8) |
+| 4 | Writing tests for contracts and frontend | ✅ | `tests/` — 9 suites, **131 tests**: `shield-ledger` (31), `cli-args` (19), `error-messages` (16), `reputation` (15), `inter-contract` (14), `buyer-verification` (10), `private-keys` (9), `invoice-status` (9), `invoice-nullifier` (8) |
 | 5 | Error handling and loading states | ✅ | deploy/connect errors + dismissible banner, busy/working states, `wallet-locked` retry, new React `ErrorBoundary`, ledger-stream error badge |
 | 6 | Inter-contract communication | ✅ (platform-equivalent) | Second `Escrow` contract + off-chain communication layer (see above); on-chain cross-contract calls are not yet implemented by the Compact compiler |
 | 7 | Production deployment architecture | ✅ | CI + Pages CD, env-driven config, TS strict, single-version WASM override, gitignored secrets, public site at `/ShieldLedger/` |
 | 8 | Documentation and demo/presentation | ✅ | This file + README (architecture, demo script, privacy properties, live links) |
-| 9 | Advanced smart-contract development | ✅ | sealed-bid auction, commitment/reveal, ZK credit check & exposure cap, **ZK buyer verification**, contract-enforced settlement fairness |
+| 9 | Advanced smart-contract development | ✅ | sealed-bid auction, commitment/reveal, ZK credit check & exposure cap, **ZK buyer verification**, **ZK cross-deal reputation (registration bound + lender minimum)**, contract-enforced settlement fairness |
+
+### Demo tool: reputation across invoice cycles
+
+`scripts/demo-reputation-cycle.ts` (`npm run demo:reputation`, or
+`npm run cli -- --demo-reputation-cycle`) is a **demo-only** tool for terminal
+recordings. It drives the headless simulator (`tests/shield-ledger-simulator.ts`)
+through scripted invoice cycles — real Compact circuits, real
+`applyReputationUpdate` from `src/reputation.ts` — and prints the SME's
+reputation before/after each settlement. It never touches a network or a wallet
+and is explicitly not part of the production flow.
 
 ### Notes on honest platform limits
 
@@ -80,10 +90,13 @@ Escrow:        smeCommitment = hash(nullifier, smeSecret)   ──┘ same value
 Only these ever touch the public ledger: invoice **nullifiers** (SHA-256 of
 private details + secret), **commitments** (hashes binding an owner to a
 nullifier), a **credit attestation** per invoice ("score ≥ N" — the proven
+bound), a **reputation attestation** per invoice ("reputation ≥ N" — the proven
 bound), lender **pseudonyms**, **sealed-bid commitments**, the **buyer-verified
 flag** with its opaque per-invoice **buyer commitment**, and the **winning**
 bid's terms. Everything else — invoice contents, bid terms until the owner
-reveals, both secrets, and both credit scores — stays in the wallet.
+reveals, both secrets, the credit score, the reputation score, the lender's
+minimum-reputation bar, and the settlement's on-time/late classification —
+stays in the wallet.
 
 ### ZK credit scoring (SME)
 
@@ -138,3 +151,60 @@ Public-ledger tables.
 | Which other invoices the buyer confirmed | **No** | Every commitment is keyed by its own nullifier; no field links two confirmations to one buyer. |
 | The confirmed terms (e.g. exact liability) | **No** | The only public amount is the SME's claimed `invoiceAmount`; the confirmation adds no new public data. |
 | Whether the buyer really owes the claimed amount | **Yes** | The circuit asserts `confirmedAmount == invoiceAmount` — the buyer cannot vouch for a different amount. |
+
+### ZK cross-deal reputation (SME)
+
+The SME carries a private **reputation score** in its private state
+(`smeReputationScore`, plus `smeOnTimeCount`/`smeLateCount`). The score is
+wallet-side state — the contract never stores it — and is updated only at
+settlement, from the on-time/late classification the `settleInvoice` circuit
+returns:
+
+```
+score    = clamp(score    + 10, 0, 100)   // settledAt <= financedDueDate
+score    = clamp(score    - 20, 0, 100)   // settledAt >  financedDueDate
+onTimeCount += 1 / lateCount += 1
+```
+
+The single source of truth for the formula is `src/reputation.ts`
+(`applyReputationUpdate(privateState, onTime)`), shared by the CLI, the
+simulator and the browser DApp.
+
+The reputation is enforced in zero knowledge at two points:
+
+- **Registration.** `registerInvoice(nullifier, creditThreshold, invoiceAmount,
+  reputationThreshold)` asserts `smeReputationScore() >=
+  disclose(reputationThreshold)` — the SME proves its current score meets the
+  chosen bound, so the attestation is real, not a claim. `reputationThreshold =
+  0` disables the requirement (the bound stored on-chain is still compared
+  against the score).
+- **Bidding.** `submitBid` asserts `invoices.lookup(disclose(nullifier))
+  .reputationThreshold >= lenderMinReputation()` — the lender's private
+  minimum bar is a witness, and the SME's stored bound is read from the
+  public invoice, so the comparison is done inside the circuit and neither
+  value is disclosed. A lender that only finances SMEs above a reputation
+  floor is therefore bound by it without revealing its bar.
+
+`settleInvoice(nullifier, financedAmount, financedDueDate, settledAt)` compares
+`disclose(settledAt) <= disclose(financedDueDate)` inside the circuit and
+**returns** the boolean to the calling wallet. The classification never appears
+on the ledger; the wallet applies `applyReputationUpdate` and persists the new
+score via `savePrivateState` (CLI) or the in-memory provider (DApp).
+
+#### Privacy model: cross-deal reputation — what an observer can and cannot learn
+
+| Can an observer learn… | Yes / No | How |
+| --- | --- | --- |
+| The SME's exact reputation score | **No** | `smeReputationScore` is a private witness consumed only inside the ZK circuits. |
+| How many deals were on-time / late | **No** | `smeOnTimeCount`/`smeLateCount` are private witnesses; no count ever appears on-chain. |
+| The proven bound ("rep ≥ N") | **Yes** | `reputationThreshold` is a public field of the `Invoice` struct, written by `disclose(reputationThreshold)`. |
+| The lender's minimum-reputation bar | **No** | `lenderMinReputation` is a private witness; `submitBid` compares it to the bound inside the circuit. |
+| The settlement's on-time classification | **No** | The boolean is the circuit *return value*, delivered only to the caller's wallet. |
+| The SME's identity | **No** | The invoice is keyed by a nullifier; ownership is a commitment hash, not an identifier. |
+
+**Why it is unforgeable.** Both comparisons are circuit `assert`s: a
+registration bound above the true score, or a bid against a bound below the
+lender's bar, makes **proof generation fail**. The score is therefore an
+incentive that reliably compounds across deals (on-time SMEs register
+progressively higher bounds, which lenders trust), without ever publishing a
+financial history.

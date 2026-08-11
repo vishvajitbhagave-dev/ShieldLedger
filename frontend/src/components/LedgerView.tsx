@@ -31,9 +31,10 @@ export const LedgerView: React.FC = () => {
 
           <h3 style={{ fontSize: 14, margin: '14px 0 8px', color: '#93b4e4' }}>Invoices</h3>
           <p className="sl-meta" style={{ marginBottom: 8 }}>
-            <strong>Credit (ZK-proof)</strong> is the bound the SME proved in zero knowledge — the actual credit
-            score is never revealed to anyone. A <strong>Buyer-verified ✓</strong> badge means a corporate buyer
-            proved the invoice genuine; the buyer's identity and terms stay private.
+            <strong>Credit (ZK-proof)</strong> and <strong>Reputation (ZK-proof)</strong> are the bounds the SME
+            proved in zero knowledge — the actual scores are never revealed to anyone. A{' '}
+            <strong>Buyer-verified ✓</strong> badge means a corporate buyer proved the invoice genuine; the buyer's
+            identity and terms stay private.
           </p>
           {state.invoices.length === 0 ? (
             <p className="sl-empty">No invoices registered yet.</p>
@@ -44,6 +45,7 @@ export const LedgerView: React.FC = () => {
                   <th>Nullifier</th>
                   <th>Commitment</th>
                   <th>Credit (ZK-proof)</th>
+                  <th>Reputation (ZK-proof)</th>
                   <th>Claimed</th>
                   <th>Buyer-verified</th>
                   <th>Financed by</th>
@@ -59,6 +61,13 @@ export const LedgerView: React.FC = () => {
                     <td className="sl-mono">{short(inv.smeCommitment)}</td>
                     <td title="The SME proved this bound in zero knowledge; the score itself is never revealed.">
                       score ≥ {inv.creditThreshold.toString()}
+                    </td>
+                    <td title="The SME proved its reputation is at least this bound; the actual score is never revealed.">
+                      {inv.reputationThreshold > 0n ? (
+                        `score ≥ ${inv.reputationThreshold.toString()}`
+                      ) : (
+                        <span className="sl-meta">any</span>
+                      )}
                     </td>
                     <td>{inv.invoiceAmount.toString()}</td>
                     <td>{inv.buyerVerified ? <BuyerVerifiedBadge /> : <span className="sl-meta">—</span>}</td>

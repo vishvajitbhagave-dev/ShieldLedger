@@ -5,6 +5,9 @@ import {
   NOT_CREDITWORTHY_MESSAGE,
   ALREADY_REGISTERED_MESSAGE,
   GENERIC_REGISTER_FAILURE_MESSAGE,
+  INSUFFICIENT_REPUTATION_MESSAGE,
+  GENERIC_SUBMIT_BID_FAILURE_MESSAGE,
+  REPUTATION_BELOW_LENDER_MINIMUM_MESSAGE,
   CONFIRM_AMOUNT_MISMATCH_MESSAGE,
   ALREADY_BUYER_VERIFIED_MESSAGE,
   GENERIC_CONFIRM_FAILURE_MESSAGE,
@@ -28,6 +31,11 @@ describe('userFacingFailureMessage — registerInvoice circuit assertions', () =
     expect(userFacingFailureMessage('registerInvoice', err)).toBe(ALREADY_REGISTERED_MESSAGE);
   });
 
+  it('maps the "insufficient reputation" assert to the friendly reputation message', () => {
+    const err = new Error("failed assert: insufficient reputation");
+    expect(userFacingFailureMessage('registerInvoice', err)).toBe(INSUFFICIENT_REPUTATION_MESSAGE);
+  });
+
   it('maps any other registerInvoice circuit assertion to the generic fallback', () => {
     const threshold = new Error("failed assert: threshold below minimum");
     const unknown = new Error("failed assert: some other invariant");
@@ -46,6 +54,18 @@ describe('userFacingFailureMessage — registerInvoice circuit assertions', () =
   });
 });
 
+describe('userFacingFailureMessage — submitBid circuit assertions', () => {
+  it('maps the "reputation below lender minimum" assert to the friendly message', () => {
+    const err = new Error("failed assert: reputation below lender minimum");
+    expect(userFacingFailureMessage('submitBid', err)).toBe(REPUTATION_BELOW_LENDER_MINIMUM_MESSAGE);
+  });
+
+  it('maps any other submitBid circuit assertion to the generic fallback', () => {
+    const err = new Error("failed assert: unknown invoice");
+    expect(userFacingFailureMessage('submitBid', err)).toBe(GENERIC_SUBMIT_BID_FAILURE_MESSAGE);
+  });
+});
+
 describe('userFacingFailureMessage — distinct errors are not swallowed', () => {
   it('keeps proof-server failures on their own wording', () => {
     const err = new Error(
@@ -61,9 +81,9 @@ describe('userFacingFailureMessage — distinct errors are not swallowed', () =>
     expect(userFacingFailureMessage('registerInvoice', err)).toContain('Failed to fetch');
   });
 
-  it('keeps the raw message for credit assertions on non-register operations', () => {
+  it('maps submitBid credit assertion failures to the generic submit-bid fallback', () => {
     const err = new Error("failed assert: not creditworthy");
-    expect(userFacingFailureMessage('submitBid', err)).toContain('not creditworthy');
+    expect(userFacingFailureMessage('submitBid', err)).toBe(GENERIC_SUBMIT_BID_FAILURE_MESSAGE);
   });
 
   it('keeps the raw message for other operations', () => {

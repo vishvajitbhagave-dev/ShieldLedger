@@ -38,6 +38,56 @@ describe('parseShieldLedgerCliArgs — --sme-credit-threshold', () => {
   });
 });
 
+describe('parseShieldLedgerCliArgs — --min-reputation (lender bar)', () => {
+  it('returns the value when the flag is present', () => {
+    const args = parseShieldLedgerCliArgs(['--min-reputation', '30']);
+    expect(args.minReputation).toBe(30n);
+    expect(args.unknown).toEqual([]);
+  });
+
+  it('supports --min-reputation=N inline form', () => {
+    expect(parseShieldLedgerCliArgs(['--min-reputation=0']).minReputation).toBe(0n);
+  });
+
+  it('returns undefined when the flag is absent', () => {
+    expect(parseShieldLedgerCliArgs([]).minReputation).toBeUndefined();
+  });
+
+  it('rejects a missing or non-integer value', () => {
+    expect(() => parseShieldLedgerCliArgs(['--min-reputation'])).toThrow(/non-negative integer/);
+    expect(() => parseShieldLedgerCliArgs(['--min-reputation', 'high'])).toThrow(/non-negative integer/);
+  });
+});
+
+describe('parseShieldLedgerCliArgs — --show-reputation', () => {
+  it('is false when absent and true when present', () => {
+    expect(parseShieldLedgerCliArgs([]).showReputation).toBe(false);
+    expect(parseShieldLedgerCliArgs(['--show-reputation']).showReputation).toBe(true);
+  });
+
+  it('can be combined with other flags without side effects', () => {
+    const args = parseShieldLedgerCliArgs(['--show-reputation', '--min-reputation', '20']);
+    expect(args.showReputation).toBe(true);
+    expect(args.minReputation).toBe(20n);
+    expect(args.unknown).toEqual([]);
+  });
+});
+
+describe('parseShieldLedgerCliArgs — --demo-reputation-cycle (demo tool)', () => {
+  it('is false when absent and true when present', () => {
+    expect(parseShieldLedgerCliArgs([]).demoReputationCycle).toBe(false);
+    expect(parseShieldLedgerCliArgs(['--demo-reputation-cycle']).demoReputationCycle).toBe(true);
+    expect(parseShieldLedgerCliArgs(['--demo-reputation-cycle']).unknown).toEqual([]);
+  });
+
+  it('can be combined with other flags without side effects', () => {
+    const args = parseShieldLedgerCliArgs(['--demo-reputation-cycle', '--min-reputation', '30']);
+    expect(args.demoReputationCycle).toBe(true);
+    expect(args.minReputation).toBe(30n);
+    expect(args.unknown).toEqual([]);
+  });
+});
+
 describe('parseShieldLedgerCliArgs — --confirm-invoice (buyer role)', () => {
   const NF = 'aa11bb22cc33dd44ee55ff66aa77bb88cc99dd00ee11ff22aa33bb44cc55dd66';
 

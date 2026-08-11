@@ -160,6 +160,12 @@
   white-space: nowrap;
 }
 
+.sl-badge-warn {
+  background: #3d2a0f;
+  border: 1px solid #7f5d1d;
+  color: #fcd34d;
+}
+
 .sl-error {
   background: #3d1220;
   border: 1px solid #7f1d1d;

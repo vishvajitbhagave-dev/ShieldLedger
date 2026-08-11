@@ -1,6 +1,11 @@
 // Adapts a deployed (or newly deployed) ShieldLedger contract into a small
 // typed API for the browser DApp: exposes the derived ledger state as an
-// observable, and thin wrappers over the three impure circuits.
+// observable, and thin wrappers over the impure circuits.
+//
+// Reputation is wallet-side: after each settlement the API reads the SME's
+// private state from the provider, applies the on-time/late classification the
+// circuit returned, and writes the updated score back. The provider (in-memory
+// for this demo) keeps it for the session; it never goes on-chain.
 import * as ShieldLedger from '../../contracts/managed/shield-ledger/contract/index.js';
 import { deployContract, findDeployedContract } from '@midnight-ntwrk/midnight-js-contracts';
 import { type ContractAddress } from '@midnight-ntwrk/midnight-js-protocol/compact-runtime';
@@ -8,6 +13,11 @@ import { from, map, type Observable } from 'rxjs';
 
 import { compiledShieldLedgerContract } from '../../src/compiled.js';
 import { createShieldLedgerPrivateState, type ShieldLedgerPrivateState } from '../../src/witnesses.js';
+import {
+  applyReputationUpdate,
+  reputationView,
+  type ReputationView,
+} from '../../src/reputation.js';
 import {
   shieldLedgerPrivateStateKey,
   type DeployedShieldLedgerContract,
@@ -35,6 +45,7 @@ function toDerivedState(state: Parameters<typeof ShieldLedger.ledger>[0]): Shiel
     nullifier: toHex(nullifier),
     smeCommitment: toHex(invoice.smeCommitment),
     creditThreshold: invoice.creditThreshold,
+    reputationThreshold: invoice.reputationThreshold,
     invoiceAmount: invoice.invoiceAmount,
     buyerVerified: invoice.buyerVerified,
     buyerCommitment: toHex(invoice.buyerCommitment),
@@ -80,8 +91,18 @@ export class ShieldLedgerAPI {
   readonly deployedContractAddress: ContractAddress;
   readonly state$: Observable<ShieldLedgerDerivedState>;
 
-  async registerInvoice(nullifierHex: string, creditThreshold: bigint, invoiceAmount: bigint): Promise<void> {
-    await this.deployedContract.callTx.registerInvoice(fromHex(nullifierHex), creditThreshold, invoiceAmount);
+  async registerInvoice(
+    nullifierHex: string,
+    creditThreshold: bigint,
+    invoiceAmount: bigint,
+    reputationThreshold = 0n,
+  ): Promise<void> {
+    await this.deployedContract.callTx.registerInvoice(
+      fromHex(nullifierHex),
+      creditThreshold,
+      invoiceAmount,
+      reputationThreshold,
+    );
   }
 
   /**
@@ -107,9 +128,33 @@ export class ShieldLedgerAPI {
     await this.deployedContract.callTx.revealBid(fromHex(nullifierHex), amount, dueDate, rateBps);
   }
 
-  /** Settles to the contract's chosen winner (lowest interest rate). */
-  async settleInvoice(nullifierHex: string, amount: bigint, dueDate: bigint): Promise<void> {
-    await this.deployedContract.callTx.settleInvoice(fromHex(nullifierHex), amount, dueDate);
+  /**
+   * Settles to the contract's chosen winner (lowest interest rate). Passes the
+   * actual settlement timestamp so the circuit classifies on-time vs late; the
+   * wallet then applies the resulting reputation change to the SME's private
+   * state. Returns the new reputation view (or null if no private state).
+   */
+  async settleInvoice(nullifierHex: string, amount: bigint, dueDate: bigint): Promise<ReputationView | null> {
+    const settledAt = BigInt(Date.now());
+    const results = await this.deployedContract.callTx.settleInvoice(
+      fromHex(nullifierHex),
+      amount,
+      dueDate,
+      settledAt,
+    );
+    const onTime = results.private.result === true;
+
+    const privateState = await this.providers.privateStateProvider.get(shieldLedgerPrivateStateKey);
+    if (!privateState) return null;
+    const updated = applyReputationUpdate(privateState, onTime);
+    await this.providers.privateStateProvider.set(shieldLedgerPrivateStateKey, updated);
+    return reputationView(updated);
+  }
+
+  /** Reads the current private reputation score for the connected wallet. */
+  async getReputation(): Promise<ReputationView | null> {
+    const privateState = await this.providers.privateStateProvider.get(shieldLedgerPrivateStateKey);
+    return privateState ? reputationView(privateState) : null;
   }
 
   static async deploy(providers: ShieldLedgerProviders): Promise<ShieldLedgerAPI> {

@@ -26,9 +26,13 @@ export interface StoredPrivateState {
   version: 1;
   smeSecret: string;
   smeCreditScore?: string;
+  smeReputationScore?: string;
+  smeOnTimeCount?: string;
+  smeLateCount?: string;
   lenderSecret: string;
   lenderCreditScore: string;
   lenderExposureCap: string;
+  lenderMinReputation?: string;
   buyerSecret?: string;
 }
 
@@ -62,9 +66,13 @@ function toStored(ps: ShieldLedgerPrivateState): StoredPrivateState {
     version: 1,
     smeSecret: bytesToHex(ps.smeSecret),
     smeCreditScore: ps.smeCreditScore.toString(),
+    smeReputationScore: ps.smeReputationScore.toString(),
+    smeOnTimeCount: ps.smeOnTimeCount.toString(),
+    smeLateCount: ps.smeLateCount.toString(),
     lenderSecret: bytesToHex(ps.lenderSecret),
     lenderCreditScore: ps.lenderCreditScore.toString(),
     lenderExposureCap: ps.lenderExposureCap.toString(),
+    lenderMinReputation: ps.lenderMinReputation.toString(),
     buyerSecret: bytesToHex(ps.buyerSecret),
   };
 }
@@ -73,11 +81,26 @@ function fromStored(s: StoredPrivateState): ShieldLedgerPrivateState {
   return {
     smeSecret: hexToBytes(s.smeSecret),
     smeCreditScore: s.smeCreditScore !== undefined ? BigInt(s.smeCreditScore) : 720n,
+    smeReputationScore: s.smeReputationScore !== undefined ? BigInt(s.smeReputationScore) : 0n,
+    smeOnTimeCount: s.smeOnTimeCount !== undefined ? BigInt(s.smeOnTimeCount) : 0n,
+    smeLateCount: s.smeLateCount !== undefined ? BigInt(s.smeLateCount) : 0n,
     lenderSecret: hexToBytes(s.lenderSecret),
     lenderCreditScore: BigInt(s.lenderCreditScore),
     lenderExposureCap: BigInt(s.lenderExposureCap),
+    lenderMinReputation: s.lenderMinReputation !== undefined ? BigInt(s.lenderMinReputation) : 0n,
     buyerSecret: s.buyerSecret !== undefined ? hexToBytes(s.buyerSecret) : randomBytes(32),
   };
+}
+
+/** Persist an updated private state (e.g. after a settlement updated the reputation score). */
+export function savePrivateState(
+  network: NetworkId,
+  ps: ShieldLedgerPrivateState,
+  cwd: string = process.cwd(),
+): void {
+  const file = readFile(cwd);
+  const next: PrivateStateFile = { ...file, [network]: toStored(ps) };
+  fs.writeFileSync(statePath(cwd), `${JSON.stringify(next, null, 2)}\n`, { mode: 0o600 });
 }
 
 export function loadOrCreatePrivateState(
@@ -88,17 +111,22 @@ export function loadOrCreatePrivateState(
   const stored = file[network];
   if (stored && stored.version === 1) {
     const ps = fromStored(stored);
-    if (stored.buyerSecret === undefined) {
-      // Migration: pre-buyer files have no buyer secret. Generate one now and
-      // persist it, so buyer confirmations survive a later restart.
-      const next: PrivateStateFile = { ...file, [network]: toStored(ps) };
-      fs.writeFileSync(statePath(cwd), `${JSON.stringify(next, null, 2)}\n`, { mode: 0o600 });
+    // Migration: pre-buyer files have no buyer secret; pre-reputation files
+    // have no reputation fields. Generate the missing values now and persist,
+    // so buyer confirmations and reputation scores survive a later restart.
+    if (
+      stored.buyerSecret === undefined ||
+      stored.smeReputationScore === undefined ||
+      stored.smeOnTimeCount === undefined ||
+      stored.smeLateCount === undefined ||
+      stored.lenderMinReputation === undefined
+    ) {
+      savePrivateState(network, ps, cwd);
     }
     return ps;
   }
 
   const ps = createShieldLedgerPrivateState();
-  const next: PrivateStateFile = { ...file, [network]: toStored(ps) };
-  fs.writeFileSync(statePath(cwd), `${JSON.stringify(next, null, 2)}\n`, { mode: 0o600 });
+  savePrivateState(network, ps, cwd);
   return ps;
 }
