@@ -7,7 +7,7 @@ import {
 } from '../invoice-registry.js';
 import { useLedgerState } from '../use-ledger-state.js';
 import { invoiceStatusOf, isAuctionResolved, isOpenInvoice } from '../invoice-status.js';
-import { userFacingFailureMessage } from '../../../src/error-messages.js';
+import { userFacingFailureMessage } from '../lib/errorMessages.js';
 
 type FormState = {
   registerReference: string;
