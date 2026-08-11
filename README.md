@@ -17,11 +17,12 @@ The contract (`contracts/shield-ledger.compact`) is written in Compact. Everythi
 
 Key ledger maps and circuits:
 
-- `registerInvoice(nullifier, creditThreshold)` — asserts the invoice is not already registered, proves the SME's **credit score ≥ creditThreshold in zero knowledge** (the score never leaves the wallet; only the chosen bound is stored), discloses `deriveCommitment(smeSecret, nullifier)`, and inserts an empty `Invoice`. Thresholds below the contract's floor (650) are rejected, so "credit-checked" can't be gamed into a score ≥ 0 claim.
+- `registerInvoice(nullifier, creditThreshold)` — asserts the invoice is not already registered, proves the SME's **credit score ≥ creditThreshold in zero knowledge** (the score never leaves the wallet; only the chosen bound is stored), discloses `deriveCommitment(smeSecret, nullifier)`, and inserts an empty `Invoice`. Thresholds below the contract's floor (650) are rejected, so "credit-checked" can't be gamed into a score ≥ 0 claim. The claimed face amount (`invoiceAmount`) is posted publicly so the buyer can later vouch for it.
+- `confirmInvoice(nullifier, confirmedAmount)` — the corporate buyer proves in zero knowledge that the invoice is genuine and that it owes exactly `invoiceAmount`: the circuit asserts the invoice exists, is not already financed, is not already verified, and that `confirmedAmount == invoiceAmount` (a mismatch fails the proof). It stores an opaque per-invoice commitment `deriveBuyerCommitment(buyerSecret, nullifier)` and flips the public `buyerVerified` flag. Only the boolean flag and that commitment go on-chain — the buyer's identity, other supplier relationships and terms never do, and the commitment binds the confirmation to this specific invoice (no replay, no forging across invoices).
 - `submitBid(nullifier, commitment)` — asserts `lenderCreditScore >= 700` *without disclosing it*, derives the lender's pseudonym and bid key, and stores a `SealedBid` holding only the commitment (`deriveBidCommitment(lenderSecret, nullifier, amount, dueDate, rateBps)`). No other lender can see the terms.
 - `revealBid(nullifier, amount, dueDate, rateBps)` — re-derives the commitment from the private lender secret, asserts it matches the stored seal (so only the genuine bidder can reveal), enforces the private exposure cap, and updates the invoice's **running best bid** if the terms beat it (lowest interest rate, then smallest amount, then earliest due date; ties keep the earlier revealer).
 - `settleInvoice(nullifier, financedAmount, financedDueDate)` — asserts SME ownership, requires a resolved auction, and pays the *running best* bid. The SME cannot choose a losing lender.
-- `deriveCommitment`, `derivePseudonym`, `deriveBidKey`, `deriveBidCommitment` — `persistentHash` helpers; `isBetter` is the deterministic comparison used at reveal.
+- `deriveCommitment`, `derivePseudonym`, `deriveBidKey`, `deriveBidCommitment`, `deriveBuyerCommitment` — `persistentHash` helpers; `isBetter` is the deterministic comparison used at reveal.
 
 Bids live in a single-level `Map<Bytes<32>, SealedBid>` keyed by `deriveBidKey(nullifier, pseudonym)` because the runtime rejects member/lookup on absent nested-map keys; a flat map keeps every lookup guarded by a member check. The same flat-map style applies to the per-invoice running best (`Map<Bytes<32>, BestBid>`).
 
@@ -30,9 +31,10 @@ Bids live in a single-level `Map<Bytes<32>, SealedBid>` keyed by `deriveBidKey(n
 Because Compact circuits cannot iterate over a `Map`, "lowest rate wins" is built from **per-reveal comparisons against a running best**, not a final fold over all bids:
 
 1. SME calls `registerInvoice` (invoice is now `BIDDING`).
-2. Each lender calls `submitBid` with a **commitment** — amount, due date and rate are hidden, so lenders cannot shade their bids against each other.
-3. Lenders who want to compete call `revealBid` with their true terms. The contract verifies the commitment, then compares against the running best; the best bid (lowest rate → smallest amount → earliest due) takes the lead. The leader is only ever updated by a genuine bidder.
-4. SME calls `settleInvoice` — the contract pays the *current* best bid; favoritism is impossible.
+2. *Optionally*, the corporate buyer calls `confirmInvoice` with the claimed amount — the `buyer-verified` flag and an opaque per-invoice commitment become public, so lenders can see the invoice is genuine without learning anything else about the buyer.
+3. Each lender calls `submitBid` with a **commitment** — amount, due date and rate are hidden, so lenders cannot shade their bids against each other.
+4. Lenders who want to compete call `revealBid` with their true terms. The contract verifies the commitment, then compares against the running best; the best bid (lowest rate → smallest amount → earliest due) takes the lead. The leader is only ever updated by a genuine bidder.
+5. SME calls `settleInvoice` — the contract pays the *current* best bid; favoritism is impossible.
 
 Privacy trade-off (inherent to a public ledger): bids stay hidden through the whole bidding phase, and a losing bid is only exposed if its owner reveals it; the winning bid's terms are public because the financing receipt is public.
 
@@ -47,7 +49,7 @@ src/
   compile.ts                      Compiles all Compact contracts (circuit generation)
   setup.ts                        Creates/funds wallet, runs proof-server, deploys contract
   deploy.ts                       Deploys the compiled contract to the active network
-  cli.ts                          Interactive CLI: register, sealed bid, reveal, settle, view ledger
+  cli.ts                          Interactive CLI: register, buyer-confirm, sealed bid, reveal, settle, view ledger
   network.ts                      Network + wallet state (.midnight-state.json)
   wallet.ts                       Wallet SDK wrappers (create, sync, persist)
   private-state.ts                SME/lender secrets + credit profile
@@ -117,13 +119,14 @@ npm run cli -- --sme-credit-threshold 650   # pre-set the credit bound to prove 
 
 Menu options:
 
-1. **Register invoice (SME)** — enter a 64-hex nullifier and the credit threshold to prove (≥ 650; the score itself stays private). Pass `--sme-credit-threshold <N>` to skip the prompt.
+1. **Register invoice (SME)** — enter a 64-hex nullifier, the claimed amount (the corporate buyer will vouch for this), and the credit threshold to prove (≥ 650; the score itself stays private). Pass `--sme-credit-threshold <N>` to skip the prompt.
 2. **Submit sealed bid (Lender)** — nullifier, bid amount, due date (unix seconds), interest rate (basis points). Only a commitment goes on-chain.
 3. **Reveal bid (Lender)** — same terms as your sealed bid; competes for the lowest-rate lead.
 4. **Settle invoice (SME)** — nullifier, financed amount, due date. Pays the lowest-rate winner automatically.
 5. **View ledger** — invoices, sealed bids, and the leading revealed bid, read from the indexer.
 6. **Check wallet balance** — tNight and DUST.
-7. **Exit**
+7. **Confirm invoice (Buyer)** — nullifier + the amount the buyer owes; the circuit proves the invoice is genuine and the amount matches the SME's claim exactly. Only a `buyerVerified` flag and an opaque per-invoice commitment go on-chain. Non-interactive form: `--confirm-invoice <nullifier> [--confirm-amount <N>]`.
+8. **Exit**
 
 Each transaction takes 30–60s (proof generation via the local proof-server).
 
@@ -178,6 +181,14 @@ ledger** — the commitment is visible, the underlying value never is:
   The threshold the SME chooses to attest is itself the privacy knob: attest a
   low bound to prove basic creditworthiness, or a high one to stand out.
 
+- **Buyer verification.** `confirmInvoice` proves in zero knowledge that the
+  invoice is genuine and that the buyer owes the SME's claimed amount exactly
+  (`amount mismatch` fails the proof). On-chain this is only a `buyer-verified`
+  flag and an opaque per-invoice commitment
+  (`hash(buyerSecret, nullifier)`) — the buyer's identity, its other supplier
+  relationships and the contract terms never appear, and the commitment cannot
+  be forged for or replayed on a different invoice.
+
 - **Settlement fairness.** The winning bid is the contract-enforced lowest rate;
   the SME cannot reveal the terms or pay any other lender.
 
@@ -210,15 +221,20 @@ until a lender reveals.
 
 1. Open the live app (below) and **Connect with Lace** (Preview network; if Lace
    is locked the app shows a waiting hint and retries automatically).
-2. As **SME**: switch the role tab, fill *Reference / Amount / Due date*, and set a **Credit check** threshold (e.g. 650). **Register invoice** proves "score ≥ threshold" in zero knowledge — your score and the invoice details stay in the browser (see `frontend/src/invoice-registry.ts`).
-3. As **Lender**: switch roles, **Bid on this ↓** an open invoice, pick your
+2. As **SME**: switch the role tab, fill *Reference / Amount / Due date*, and set a **Credit check** threshold (e.g. 650). **Register invoice** proves "score ≥ threshold" in zero knowledge — your score and the invoice details stay in the browser (see `frontend/src/invoice-registry.ts`). The claimed *Amount* is posted publicly so your buyer can vouch for it.
+3. As **Buyer**: switch roles, and on an open invoice click **Confirm ↓** — the
+   form pre-fills the exact claimed amount. **Confirm invoice** proves in zero
+   knowledge that the invoice is genuine; the ledger then shows a
+   **Buyer-verified ✓** badge and an opaque commitment, and lenders can trust the
+   invoice without learning anything about you.
+4. As **Lender**: switch roles, **Bid on this ↓** an open invoice, pick your
    amount/due/rate, and **Submit sealed bid** — the Sealed-bids table shows only
    the commitment. Then **Reveal bid** with the same terms to take the lead; the
    lowest rate wins.
-4. Back as **SME**: **Settle** the invoice — the contract pays the winning
+5. Back as **SME**: **Settle** the invoice — the contract pays the winning
    lender automatically. The **Live** badge updates as the indexer streams each
    new ledger state.
-5. (Architecture demo) `npm test` runs `tests/inter-contract.test.ts`, which
+6. (Architecture demo) `npm test` runs `tests/inter-contract.test.ts`, which
    drives the same auction through `contracts/shield-ledger.compact` and then
    releases the matching escrow on `contracts/escrow.compact` via the
    communication layer — see `docs/architecture.md`.
@@ -226,7 +242,7 @@ until a lender reveals.
 ## Testing
 
 ```bash
-npm test               # vitest — 61 simulator tests (auction + escrow + inter-contract + frontend logic)
+npm test               # vitest — 107 simulator tests (auction + escrow + buyer verification + inter-contract + frontend logic)
 npm run test:e2e       # read-only smoke check against the deployed contract
 npm run build          # tsc --noEmit (root) + `npm --prefix frontend run build`
 ```

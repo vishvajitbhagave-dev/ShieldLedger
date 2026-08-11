@@ -149,6 +149,17 @@
   word-break: break-all;
 }
 
+.sl-badge {
+  display: inline-block;
+  background: #0c2f1f;
+  border: 1px solid #14532d;
+  color: #86efac;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .sl-error {
   background: #3d1220;
   border: 1px solid #7f1d1d;

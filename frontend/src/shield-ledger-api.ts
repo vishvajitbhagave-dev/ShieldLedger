@@ -35,6 +35,9 @@ function toDerivedState(state: Parameters<typeof ShieldLedger.ledger>[0]): Shiel
     nullifier: toHex(nullifier),
     smeCommitment: toHex(invoice.smeCommitment),
     creditThreshold: invoice.creditThreshold,
+    invoiceAmount: invoice.invoiceAmount,
+    buyerVerified: invoice.buyerVerified,
+    buyerCommitment: toHex(invoice.buyerCommitment),
     lender: invoice.lender.is_some ? toHex(invoice.lender.value) : null,
     amount: invoice.amount,
     dueDate: invoice.dueDate,
@@ -77,8 +80,17 @@ export class ShieldLedgerAPI {
   readonly deployedContractAddress: ContractAddress;
   readonly state$: Observable<ShieldLedgerDerivedState>;
 
-  async registerInvoice(nullifierHex: string, creditThreshold: bigint): Promise<void> {
-    await this.deployedContract.callTx.registerInvoice(fromHex(nullifierHex), creditThreshold);
+  async registerInvoice(nullifierHex: string, creditThreshold: bigint, invoiceAmount: bigint): Promise<void> {
+    await this.deployedContract.callTx.registerInvoice(fromHex(nullifierHex), creditThreshold, invoiceAmount);
+  }
+
+  /**
+   * Buyer confirmation: proves the buyer acknowledges owing exactly
+   * `confirmedAmount` for this invoice. Buyer identity and terms stay private;
+   * only the boolean flag and an opaque per-invoice commitment go on-chain.
+   */
+  async confirmInvoice(nullifierHex: string, confirmedAmount: bigint): Promise<void> {
+    await this.deployedContract.callTx.confirmInvoice(fromHex(nullifierHex), confirmedAmount);
   }
 
   /** Seals a bid with the wallet's lender secret; only the commitment goes on-chain. */

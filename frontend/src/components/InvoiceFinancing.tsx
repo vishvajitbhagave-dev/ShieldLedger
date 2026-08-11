@@ -7,6 +7,7 @@ import {
 } from '../invoice-registry.js';
 import { useLedgerState } from '../use-ledger-state.js';
 import { invoiceStatusOf, isAuctionResolved, isOpenInvoice } from '../invoice-status.js';
+import type { InvoiceView } from '../shield-ledger-types.js';
 import { userFacingFailureMessage } from '../lib/errorMessages.js';
 
 type FormState = {
@@ -14,6 +15,8 @@ type FormState = {
   registerAmount: string;
   registerDue: string;
   registerThreshold: string;
+  confirmNullifier: string;
+  confirmAmount: string;
   bidNullifier: string;
   bidAmount: string;
   bidDue: string;
@@ -32,6 +35,8 @@ const initialForm: FormState = {
   registerAmount: '',
   registerDue: '',
   registerThreshold: '650',
+  confirmNullifier: '',
+  confirmAmount: '',
   bidNullifier: '',
   bidAmount: '',
   bidDue: '',
@@ -56,6 +61,8 @@ const sampleForm: FormState = {
   registerAmount: SAMPLE_AMOUNT,
   registerDue: SAMPLE_DUE,
   registerThreshold: '650',
+  confirmNullifier: SAMPLE_NULLIFIER,
+  confirmAmount: SAMPLE_AMOUNT,
   bidNullifier: SAMPLE_NULLIFIER,
   bidAmount: SAMPLE_AMOUNT,
   bidDue: SAMPLE_DUE,
@@ -150,6 +157,14 @@ const RoleTabs: React.FC<{ role: Role; disabled?: boolean; onChange: (role: Role
       I'm an SME · sell invoices
     </button>
     <button
+      className={role === 'buyer' ? 'sl-tab sl-tab-active' : 'sl-tab'}
+      type="button"
+      onClick={() => onChange('buyer')}
+      disabled={disabled}
+    >
+      I'm a Buyer · confirm invoices
+    </button>
+    <button
       className={role === 'lender' ? 'sl-tab sl-tab-active' : 'sl-tab'}
       type="button"
       onClick={() => onChange('lender')}
@@ -158,6 +173,12 @@ const RoleTabs: React.FC<{ role: Role; disabled?: boolean; onChange: (role: Role
       I'm a Lender · bid on invoices
     </button>
   </div>
+);
+
+const BuyerVerifiedBadge: React.FC = () => (
+  <span className="sl-badge" title="The corporate buyer proved in zero knowledge that this invoice is genuine and that it owes the claimed amount.">
+    Buyer-verified ✓
+  </span>
 );
 
 export const InvoiceFinancing: React.FC = () => {
@@ -181,6 +202,10 @@ export const InvoiceFinancing: React.FC = () => {
     });
   };
 
+  const pickForConfirm = (inv: InvoiceView) => {
+    setForm((f) => ({ ...f, confirmNullifier: inv.nullifier, confirmAmount: inv.invoiceAmount.toString() }));
+  };
+
   const run = async (label: string, op: () => Promise<void>) => {
     if (!api) return;
     setMessage(null);
@@ -198,6 +223,7 @@ export const InvoiceFinancing: React.FC = () => {
   };
 
   const openInvoices = (ledgerState?.invoices ?? []).filter(isOpenInvoice);
+  const stateBuyerVerified = (ledgerState?.invoices ?? []).filter((inv) => inv.buyerVerified);
 
   const statusOf = (inv: RegisteredInvoice): string => invoiceStatusOf(inv, ledgerState?.invoices ?? []);
 
@@ -237,7 +263,7 @@ export const InvoiceFinancing: React.FC = () => {
               void run('registerInvoice', async () => {
                 const record = await registerInvoiceLocally({ reference, amount, dueDate });
                 setInvoices(loadRegisteredInvoices());
-                await a.registerInvoice(record.nullifier, creditThreshold);
+                await a.registerInvoice(record.nullifier, creditThreshold, amount);
               });
             }}
           >
@@ -250,7 +276,9 @@ export const InvoiceFinancing: React.FC = () => {
               Only a <em>nullifier</em> — a blinded hash of these details plus a random secret — is posted on-chain.
               The invoice details never leave this browser; the nullifier is saved locally so you can reuse it later.
               The <em>credit check</em> proves "my credit score is at least {form.registerThreshold.trim() || '…'}" in zero
-              knowledge — the score itself is never revealed, only the proven bound.
+              knowledge — the score itself is never revealed, only the proven bound. The <em>claimed amount</em> is
+              posted publicly so your corporate buyer can later vouch for it in zero knowledge; your reference, due
+              date and secret stay private.
             </p>
             <button
               className="sl-button"
@@ -353,13 +381,113 @@ export const InvoiceFinancing: React.FC = () => {
             </button>
           </form>
         </>
+      ) : role === 'buyer' ? (
+        <>
+          <h3 style={sectionHeading('1 · Pending invoices to confirm', '14px')}>1 · Pending invoices (open for bidding)</h3>
+          <p className="sl-meta" style={{ marginBottom: 8 }}>
+            As the <strong>corporate buyer</strong> you can cryptographically confirm that an invoice is genuine and
+            that you owe its claimed amount. Only a <strong>Buyer-verified ✓</strong> flag and an opaque per-invoice
+            commitment go on-chain — your identity, your other supplier relationships and the full contract terms
+            never do.
+          </p>
+          {openInvoices.length === 0 ? (
+            <p className="sl-empty">No pending invoices on the ledger to confirm.</p>
+          ) : (
+            <table className="sl-table">
+              <thead>
+                <tr>
+                  <th>Invoice (nullifier)</th>
+                  <th>Claimed amount</th>
+                  <th>Credit (ZK-proof)</th>
+                  <th>Buyer status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {openInvoices.map((inv) => (
+                  <tr key={inv.nullifier}>
+                    <td className="sl-mono">{short(inv.nullifier)}</td>
+                    <td>{inv.invoiceAmount.toString()} tNight</td>
+                    <td>score ≥ {inv.creditThreshold.toString()}</td>
+                    <td>{inv.buyerVerified ? <BuyerVerifiedBadge /> : <span className="sl-meta">not verified</span>}</td>
+                    <td>
+                      {inv.buyerVerified ? (
+                        <span className="sl-meta">confirmed</span>
+                      ) : (
+                        <button
+                          className="sl-button sl-button-secondary"
+                          type="button"
+                          disabled={busy || working !== null}
+                          onClick={() => pickForConfirm(inv)}
+                        >
+                          Confirm ↓
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!api) return;
+              const a = api;
+              void run('confirmInvoice', () =>
+                a.confirmInvoice(form.confirmNullifier, BigInt(form.confirmAmount.trim())),
+              );
+            }}
+          >
+            <h3 style={sectionHeading('2 · Confirm an invoice')}>2 · Confirm an invoice</h3>
+            <Field label="Nullifier" value={form.confirmNullifier} placeholder="64 hex chars" onChange={set('confirmNullifier')} disabled={busy || working !== null} />
+            <Field label="Amount owed" value={form.confirmAmount} placeholder="must match the SME's claimed amount" onChange={set('confirmAmount')} disabled={busy || working !== null} />
+            <p className="sl-meta" style={{ marginBottom: 0 }}>
+              The circuit verifies the amount you enter matches the SME's on-chain claim exactly — a mismatch fails
+              the proof. Only a boolean flag and an opaque per-invoice commitment become public; nobody learns who you
+              are or what the invoice is.
+            </p>
+            <button
+              className="sl-button"
+              type="submit"
+              disabled={busy || working !== null || form.confirmNullifier.trim().length === 0 || !isDigits(form.confirmAmount)}
+            >
+              {working === 'confirmInvoice' ? 'Working…' : 'Confirm invoice'}
+            </button>
+          </form>
+
+          <h3 style={sectionHeading('3 · Already buyer-verified')}>3 · Already buyer-verified</h3>
+          {stateBuyerVerified.length === 0 ? (
+            <p className="sl-empty">No invoices confirmed yet.</p>
+          ) : (
+            <table className="sl-table">
+              <thead>
+                <tr>
+                  <th>Invoice (nullifier)</th>
+                  <th>Claimed amount</th>
+                  <th>Buyer status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stateBuyerVerified.map((inv) => (
+                  <tr key={inv.nullifier}>
+                    <td className="sl-mono">{short(inv.nullifier)}</td>
+                    <td>{inv.invoiceAmount.toString()} tNight</td>
+                    <td><BuyerVerifiedBadge /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
       ) : (
         <>
           <h3 style={sectionHeading('1 · Open invoices', '14px')}>1 · Open invoices available for financing</h3>
           <p className="sl-meta" style={{ marginBottom: 8 }}>
             The <strong>Credit</strong> column shows the <em>proven bound</em> the SME attested in zero knowledge at
-            registration (e.g. "score ≥ 650"). The SME's actual credit score is never revealed to anyone — not to
-            lenders, and not to any on-chain observer.
+            registration (e.g. "score ≥ 650"). The <strong>Buyer-verified ✓</strong> badge means the corporate buyer
+            proved in zero knowledge that the invoice is genuine — its identity and the terms never appear.
           </p>
           {openInvoices.length === 0 ? (
             <p className="sl-empty">No invoices are currently open for bidding.</p>
@@ -369,6 +497,7 @@ export const InvoiceFinancing: React.FC = () => {
                 <tr>
                   <th>Invoice (nullifier)</th>
                   <th>Credit (ZK-proof)</th>
+                  <th>Buyer-verified</th>
                   <th>Commitment</th>
                   <th></th>
                 </tr>
@@ -378,6 +507,7 @@ export const InvoiceFinancing: React.FC = () => {
                   <tr key={inv.nullifier}>
                     <td className="sl-mono">{short(inv.nullifier)}</td>
                     <td>score ≥ {inv.creditThreshold.toString()}</td>
+                    <td>{inv.buyerVerified ? <BuyerVerifiedBadge /> : <span className="sl-meta">—</span>}</td>
                     <td className="sl-mono">{short(inv.smeCommitment)}</td>
                     <td>
                       <button

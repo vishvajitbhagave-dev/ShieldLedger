@@ -16,6 +16,7 @@ import * as path from 'node:path';
 import type { NetworkId } from './network';
 import {
   createShieldLedgerPrivateState,
+  randomBytes,
   type ShieldLedgerPrivateState,
 } from './witnesses';
 
@@ -28,6 +29,7 @@ export interface StoredPrivateState {
   lenderSecret: string;
   lenderCreditScore: string;
   lenderExposureCap: string;
+  buyerSecret?: string;
 }
 
 type PrivateStateFile = Partial<Record<NetworkId, StoredPrivateState>>;
@@ -63,6 +65,7 @@ function toStored(ps: ShieldLedgerPrivateState): StoredPrivateState {
     lenderSecret: bytesToHex(ps.lenderSecret),
     lenderCreditScore: ps.lenderCreditScore.toString(),
     lenderExposureCap: ps.lenderExposureCap.toString(),
+    buyerSecret: bytesToHex(ps.buyerSecret),
   };
 }
 
@@ -73,6 +76,7 @@ function fromStored(s: StoredPrivateState): ShieldLedgerPrivateState {
     lenderSecret: hexToBytes(s.lenderSecret),
     lenderCreditScore: BigInt(s.lenderCreditScore),
     lenderExposureCap: BigInt(s.lenderExposureCap),
+    buyerSecret: s.buyerSecret !== undefined ? hexToBytes(s.buyerSecret) : randomBytes(32),
   };
 }
 
@@ -82,7 +86,16 @@ export function loadOrCreatePrivateState(
 ): ShieldLedgerPrivateState {
   const file = readFile(cwd);
   const stored = file[network];
-  if (stored && stored.version === 1) return fromStored(stored);
+  if (stored && stored.version === 1) {
+    const ps = fromStored(stored);
+    if (stored.buyerSecret === undefined) {
+      // Migration: pre-buyer files have no buyer secret. Generate one now and
+      // persist it, so buyer confirmations survive a later restart.
+      const next: PrivateStateFile = { ...file, [network]: toStored(ps) };
+      fs.writeFileSync(statePath(cwd), `${JSON.stringify(next, null, 2)}\n`, { mode: 0o600 });
+    }
+    return ps;
+  }
 
   const ps = createShieldLedgerPrivateState();
   const next: PrivateStateFile = { ...file, [network]: toStored(ps) };

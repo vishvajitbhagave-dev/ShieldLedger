@@ -37,3 +37,40 @@ describe('parseShieldLedgerCliArgs — --sme-credit-threshold', () => {
     expect(parseShieldLedgerCliArgs(['--sme-credit-threshold=720']).smeCreditThreshold).toBe(720n);
   });
 });
+
+describe('parseShieldLedgerCliArgs — --confirm-invoice (buyer role)', () => {
+  const NF = 'aa11bb22cc33dd44ee55ff66aa77bb88cc99dd00ee11ff22aa33bb44cc55dd66';
+
+  it('returns the nullifier when the flag is present', () => {
+    const args = parseShieldLedgerCliArgs(['--confirm-invoice', NF]);
+    expect(args.confirmInvoiceNullifier).toBe(NF);
+    expect(args.confirmAmount).toBeUndefined();
+    expect(args.unknown).toEqual([]);
+  });
+
+  it('supports --confirm-invoice=<hex> inline form and normalizes case', () => {
+    const args = parseShieldLedgerCliArgs([`--confirm-invoice=${NF.toUpperCase()}`]);
+    expect(args.confirmInvoiceNullifier).toBe(NF);
+  });
+
+  it('returns undefined when the flag is absent', () => {
+    expect(parseShieldLedgerCliArgs([]).confirmInvoiceNullifier).toBeUndefined();
+  });
+
+  it('parses --confirm-amount alongside --confirm-invoice', () => {
+    const args = parseShieldLedgerCliArgs(['--confirm-invoice', NF, '--confirm-amount', '1000']);
+    expect(args.confirmInvoiceNullifier).toBe(NF);
+    expect(args.confirmAmount).toBe(1000n);
+  });
+
+  it('rejects a malformed nullifier', () => {
+    expect(() => parseShieldLedgerCliArgs(['--confirm-invoice', 'short'])).toThrow(/64 hex characters/);
+    expect(() => parseShieldLedgerCliArgs(['--confirm-invoice'])).toThrow(/64 hex characters/);
+  });
+
+  it('rejects a non-integer confirm amount', () => {
+    expect(() => parseShieldLedgerCliArgs(['--confirm-invoice', NF, '--confirm-amount', 'abc'])).toThrow(
+      /non-negative integer/,
+    );
+  });
+});

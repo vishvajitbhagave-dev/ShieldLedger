@@ -2,10 +2,10 @@
 //
 // Circuit assertion failures surface as raw engine errors, e.g.
 // `Error: failed assert: not creditworthy`. This module maps the specific
-// `registerInvoice` assertions to friendly messages, maps any other circuit
-// assertion at registration to a generic fallback, and leaves genuinely
-// different failures (proof-server outages, network errors) untouched so they
-// keep their own distinct wording.
+// `registerInvoice` and `confirmInvoice` assertions to friendly messages, maps
+// any other circuit assertion on those operations to a generic fallback, and
+// leaves genuinely different failures (proof-server outages, network errors)
+// untouched so they keep their own distinct wording.
 
 export const NOT_CREDITWORTHY_MESSAGE =
   "This invoice doesn't meet the lender's minimum credit threshold. Try a lower value.";
@@ -15,6 +15,14 @@ export const ALREADY_REGISTERED_MESSAGE =
 
 export const GENERIC_REGISTER_FAILURE_MESSAGE =
   'Something went wrong registering this invoice. Please try again.';
+
+export const CONFIRM_AMOUNT_MISMATCH_MESSAGE =
+  "The amount you entered doesn't match what the SME registered. The buyer can only confirm the exact claimed amount.";
+
+export const ALREADY_BUYER_VERIFIED_MESSAGE = 'This invoice has already been buyer-verified.';
+
+export const GENERIC_CONFIRM_FAILURE_MESSAGE =
+  'Something went wrong confirming this invoice. Please try again.';
 
 /** Extract the assertion text after `failed assert:` (wrapped variants included), or null. */
 function assertionDetail(message: string): string | null {
@@ -40,6 +48,18 @@ export function userFacingFailureMessage(label: string, error: unknown): string 
         return ALREADY_REGISTERED_MESSAGE;
       }
       return GENERIC_REGISTER_FAILURE_MESSAGE;
+    }
+  }
+  if (label === 'confirmInvoice') {
+    const detail = assertionDetail(raw);
+    if (detail !== null) {
+      if (/amount mismatch/i.test(detail)) {
+        return CONFIRM_AMOUNT_MISMATCH_MESSAGE;
+      }
+      if (/already buyer verified/i.test(detail)) {
+        return ALREADY_BUYER_VERIFIED_MESSAGE;
+      }
+      return GENERIC_CONFIRM_FAILURE_MESSAGE;
     }
   }
   return `${label} failed: ${raw}`;

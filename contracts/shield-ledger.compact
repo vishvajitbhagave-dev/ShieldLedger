@@ -9,7 +9,11 @@
 //                       hash of invoice id + issue date) plus, once
 //                       financed, a public receipt (winning lender
 //                       pseudonym, financed amount, financed due date,
-//                       winning interest rate). Invoice contents themselves
+//                       winning interest rate). Each invoice also carries a
+//                       public buyer-verification flag ("buyer verified:
+//                       true/false") and the SME's *claimed* face amount,
+//                       so a corporate buyer can cryptographically vouch
+//                       for the invoice. Invoice contents themselves
 //                       stay private.
 //    • bids          — Map<Bytes<32>, SealedBid>: one *sealed* bid per
 //                       (invoice, lender) pair, keyed by a derived bid key
@@ -45,17 +49,31 @@
 //      the whole financial history behind it, never touch the ledger.
 //    • lenderExposureCap  — a private lending limit: bids are rejected
 //      circuit-side when they would exceed the cap.
+//    • buyerSecret      — the corporate buyer's private secret. At
+//      confirmation the buyer proves knowledge of this secret for the given
+//      invoice nullifier, so the confirmation is bound to the specific
+//      invoice and cannot be reused or forged for another one. The buyer's
+//      identity, its other supplier relationships, and the full contract
+//      terms never touch the ledger — only an opaque per-invoice
+//      buyerCommitment and the boolean flag do.
 //
 //  AUCTION FLOW (sealed-bid, lowest rate wins):
-//    1. registerInvoice(nullifier, creditThreshold) — SME lists the invoice
-//       (BIDDING), proving score >= creditThreshold in ZK; the threshold is
-//       the only credit data revealed.
-//    2. submitBid(nullifier, commitment)— each lender posts a *seal*; no
-//       other lender can read their terms.
-//    3. revealBid(nullifier, amt, due, rateBps) — a lender proves ownership
+//    1. registerInvoice(nullifier, creditThreshold, invoiceAmount) — SME lists
+//       the invoice (BIDDING), proving score >= creditThreshold in ZK; the
+//       threshold is the only credit data revealed, and the *claimed* face
+//       amount becomes public so the buyer can vouch for it.
+//    2. confirmInvoice(nullifier, confirmedAmount) — the corporate buyer
+//       proves it acknowledges owing exactly the claimed amount for this
+//       invoice (a mismatch fails in-circuit). Only a boolean
+//       buyerVerified flag and an opaque per-invoice commitment become
+//       public; the buyer's identity and terms stay private.
+//    3. submitBid(nullifier, commitment)— each lender posts a *seal*; no
+//       other lender can read their terms. Lenders see the buyer-verification
+//       status before bidding.
+//    4. revealBid(nullifier, amt, due, rateBps) — a lender proves ownership
 //       of their seal and, if their bid beats the running best, becomes the
 //       leading bid. Repeated for every bidder; last best bid wins.
-//    4. settleInvoice(nullifier, amt, due) — SME proves ownership and the
+//    5. settleInvoice(nullifier, amt, due) — SME proves ownership and the
 //       contract pays the *best* bid only; the SME cannot choose a loser.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -71,6 +89,9 @@ export enum InvoiceStatus { BIDDING, FINANCED }
 export struct Invoice {
   smeCommitment: Bytes<32>,
   creditThreshold: Uint<64>,
+  invoiceAmount: Uint<64>,
+  buyerVerified: Boolean,
+  buyerCommitment: Bytes<32>,
   lender: Maybe<Bytes<32>>,
   amount: Uint<64>,
   dueDate: Uint<64>,
@@ -108,18 +129,40 @@ witness smeCreditScore(): Uint<64>;
 witness lenderSecret(): Bytes<32>;
 witness lenderCreditScore(): Uint<64>;
 witness lenderExposureCap(): Uint<64>;
+witness buyerSecret(): Bytes<32>;
 
 // Lists the invoice. The SME proves score >= creditThreshold in zero knowledge
 // (the exact score never leaves the wallet); only the proven threshold is
 // disclosed, so lenders can see "credit-checked: score >= 650" without ever
 // learning the score. creditThreshold is public, but it is a *bound* — the
-// attestation the SME chose to reveal, gated by the contract's floor.
-export circuit registerInvoice(nullifier: Bytes<32>, creditThreshold: Uint<64>): [] {
+// attestation the SME chose to reveal, gated by the contract's floor. The
+// claimed face amount (invoiceAmount) is also public: it is the amount a
+// corporate buyer must later vouch for, and the amount lenders will finance.
+export circuit registerInvoice(nullifier: Bytes<32>, creditThreshold: Uint<64>, invoiceAmount: Uint<64>): [] {
   assert(!invoices.member(disclose(nullifier)), "invoice already registered");
   assert(disclose(creditThreshold) >= 650, "threshold below minimum");
   assert(smeCreditScore() >= disclose(creditThreshold), "not creditworthy");
   const commitment = disclose(deriveCommitment(smeSecret(), disclose(nullifier)));
-  invoices.insert(disclose(nullifier), Invoice { smeCommitment: commitment, creditThreshold: disclose(creditThreshold), lender: none<Bytes<32>>(), amount: 0, dueDate: 0, rateBps: 0 });
+  invoices.insert(disclose(nullifier), Invoice { smeCommitment: commitment, creditThreshold: disclose(creditThreshold), invoiceAmount: disclose(invoiceAmount), buyerVerified: false, buyerCommitment: pad(32, "shieldledger:unverified"), lender: none<Bytes<32>>(), amount: 0, dueDate: 0, rateBps: 0 });
+  invoiceCount.increment(1);
+}
+
+// Buyer confirmation: the corporate buyer proves it acknowledges owing exactly
+// the claimed amount for this specific invoice. Knowledge of buyerSecret is
+// proven by disclosing deriveBuyerCommitment(buyerSecret, nullifier), so the
+// confirmation is bound to the nullifier and cannot be forged or replayed for
+// another invoice. Only the boolean flag and the opaque per-invoice commitment
+// become public — the buyer's identity, other supplier relationships and the
+// full contract terms never touch the ledger. An amount that differs from the
+// SME's claim fails the assert inside the circuit (not application logic).
+export circuit confirmInvoice(nullifier: Bytes<32>, confirmedAmount: Uint<64>): [] {
+  assert(invoices.member(disclose(nullifier)), "unknown invoice");
+  assert(!invoices.lookup(disclose(nullifier)).lender.is_some, "invoice not in bidding");
+  assert(!invoices.lookup(disclose(nullifier)).buyerVerified, "already buyer verified");
+  assert(disclose(confirmedAmount) == invoices.lookup(disclose(nullifier)).invoiceAmount, "amount mismatch");
+  const current = invoices.lookup(disclose(nullifier));
+  const buyerCommitment = disclose(deriveBuyerCommitment(buyerSecret(), disclose(nullifier)));
+  invoices.insert(disclose(nullifier), Invoice { smeCommitment: current.smeCommitment, creditThreshold: current.creditThreshold, invoiceAmount: current.invoiceAmount, buyerVerified: true, buyerCommitment: buyerCommitment, lender: current.lender, amount: current.amount, dueDate: current.dueDate, rateBps: current.rateBps });
   invoiceCount.increment(1);
 }
 
@@ -176,12 +219,17 @@ export circuit settleInvoice(nullifier: Bytes<32>, financedAmount: Uint<64>, fin
   const receiptAmount = disclose(financedAmount);
   const receiptDueDate = disclose(financedDueDate);
   const receiptRate = disclose(best.rateBps);
-  invoices.insert(disclose(nullifier), Invoice { smeCommitment: invoices.lookup(disclose(nullifier)).smeCommitment, creditThreshold: invoices.lookup(disclose(nullifier)).creditThreshold, lender: some<Bytes<32>>(receiptLender), amount: receiptAmount, dueDate: receiptDueDate, rateBps: receiptRate });
+  const invoice = invoices.lookup(disclose(nullifier));
+  invoices.insert(disclose(nullifier), Invoice { smeCommitment: invoice.smeCommitment, creditThreshold: invoice.creditThreshold, invoiceAmount: invoice.invoiceAmount, buyerVerified: invoice.buyerVerified, buyerCommitment: invoice.buyerCommitment, lender: some<Bytes<32>>(receiptLender), amount: receiptAmount, dueDate: receiptDueDate, rateBps: receiptRate });
   invoiceCount.increment(1);
 }
 
 export circuit deriveCommitment(secret: Bytes<32>, nullifier: Bytes<32>): Bytes<32> {
   return persistentHash<Vector<2, Bytes<32>>>([nullifier, secret]);
+}
+
+export circuit deriveBuyerCommitment(secret: Bytes<32>, nullifier: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([secret, nullifier]);
 }
 
 export circuit derivePseudonym(secret: Bytes<32>): Bytes<32> {

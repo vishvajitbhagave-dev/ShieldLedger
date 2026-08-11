@@ -63,11 +63,25 @@ export class ShieldLedgerSimulator {
     return this.circuitContext.currentPrivateState;
   }
 
-  registerInvoice(nullifier: Uint8Array, creditThreshold: bigint = MIN_CREDIT_SCORE): Ledger {
+  registerInvoice(
+    nullifier: Uint8Array,
+    creditThreshold: bigint = MIN_CREDIT_SCORE,
+    invoiceAmount: bigint = 0n,
+  ): Ledger {
     this.circuitContext = this.contract.impureCircuits.registerInvoice(
       this.circuitContext,
       nullifier,
       creditThreshold,
+      invoiceAmount,
+    ).context;
+    return this.getLedger();
+  }
+
+  confirmInvoice(nullifier: Uint8Array, confirmedAmount: bigint): Ledger {
+    this.circuitContext = this.contract.impureCircuits.confirmInvoice(
+      this.circuitContext,
+      nullifier,
+      confirmedAmount,
     ).context;
     return this.getLedger();
   }
@@ -114,6 +128,10 @@ export class ShieldLedgerSimulator {
 
 export function deriveCommitment(secret: Uint8Array, nullifier: Uint8Array): Uint8Array {
   return pureCircuits.deriveCommitment(secret, nullifier);
+}
+
+export function deriveBuyerCommitment(secret: Uint8Array, nullifier: Uint8Array): Uint8Array {
+  return pureCircuits.deriveBuyerCommitment(secret, nullifier);
 }
 
 export function derivePseudonym(secret: Uint8Array): Uint8Array {

@@ -29,10 +29,20 @@ globalThis.WebSocket = WebSocket;
 
 const PRIVATE_STATE_ID = 'shieldLedgerPrivateState';
 
-// Optional `--sme-credit-threshold <N>`: pass the credit bound the SME must
-// prove at registration without being prompted. The score itself is never a
-// CLI argument — only the bound the SME chooses to attest.
-const { smeCreditThreshold: SME_CREDIT_THRESHOLD, unknown: UNKNOWN_ARGS } = parseShieldLedgerCliArgs(process.argv.slice(2));
+// Optional flags:
+//   --sme-credit-threshold <N>   pass the credit bound the SME must prove at
+//                                registration without being prompted. The score
+//                                itself is never a CLI argument — only the bound
+//                                the SME chooses to attest.
+//   --confirm-invoice <hex>      run one-shot as the buyer: confirm a pending
+//                                invoice by its public nullifier (optionally
+//                                with --confirm-amount <N>), then exit.
+const {
+  smeCreditThreshold: SME_CREDIT_THRESHOLD,
+  confirmInvoiceNullifier: CONFIRM_INVOICE_NULLIFIER,
+  confirmAmount: CONFIRM_AMOUNT,
+  unknown: UNKNOWN_ARGS,
+} = parseShieldLedgerCliArgs(process.argv.slice(2));
 if (UNKNOWN_ARGS.length > 0) {
   console.warn(`  ⚠ Ignoring unrecognized arguments: ${UNKNOWN_ARGS.join(', ')}`);
 }
@@ -106,7 +116,8 @@ async function main() {
   console.log('\n╔══════════════════════════════════════════════════════════════╗');
   console.log('║                   ShieldLedger CLI                            ║');
   console.log('╚══════════════════════════════════════════════════════════════╝\n');
-  console.log('  Usage: npm run cli [-- --sme-credit-threshold <N>]\n');
+  console.log('  Usage: npm run cli [-- --sme-credit-threshold <N>]');
+  console.log('          npm run cli [-- --confirm-invoice <hex> [--confirm-amount <N>]]\n');
 
   const rl = createInterface({ input: stdin, output: stdout });
 
@@ -161,6 +172,57 @@ async function main() {
 
     console.log('  ✅ Connected!\n');
 
+    // ─── Buyer role: one-shot confirmation ───────────────────────────────────
+    // `npm run cli -- --confirm-invoice <hex>` confirms a pending invoice by its
+    // public nullifier and exits. The amount the buyer attests to must match the
+    // SME's on-chain claim exactly — otherwise the circuit's "amount mismatch"
+    // assert makes proof generation fail.
+    if (CONFIRM_INVOICE_NULLIFIER !== undefined) {
+      console.log('  Buyer role: confirming an invoice the corporate buyer owes.\n');
+      const contractState = await providers.publicDataProvider.queryContractState(deployment.address);
+      const nf = parseHex(CONFIRM_INVOICE_NULLIFIER);
+      let claimed: bigint | undefined;
+      let verified = false;
+      if (contractState) {
+        const { ledger: lgFactory } = await import('../contracts/managed/shield-ledger/contract/index.js');
+        const lg = lgFactory(contractState.data);
+        if (lg.invoices.member(nf)) {
+          const invoice = lg.invoices.lookup(nf);
+          claimed = invoice.invoiceAmount;
+          verified = invoice.buyerVerified;
+          console.log(`  Invoice       ${CONFIRM_INVOICE_NULLIFIER}`);
+          console.log(`  Claimed amount ${claimed} (posted by the SME at registration)`);
+          console.log(`  Buyer verified ${verified ? 'true' : 'false'}\n`);
+        }
+      }
+      if (claimed === undefined) {
+        console.error(`  ❌ No invoice with nullifier ${CONFIRM_INVOICE_NULLIFIER} on the ledger.`);
+        await persistWalletState(network, walletCtx);
+        await walletCtx.wallet.stop();
+        rl.close();
+        return;
+      }
+      let amount: bigint;
+      if (CONFIRM_AMOUNT !== undefined) {
+        amount = CONFIRM_AMOUNT;
+        console.log(`  Using --confirm-amount ${amount}`);
+      } else {
+        const raw = await rl.question('  Amount the buyer confirms owing: ');
+        amount = BigInt(raw.trim() || claimed.toString());
+      }
+      if (amount !== claimed) {
+        console.log('  ⚠ That amount differs from the SME claim — the circuit will reject this proof ("amount mismatch").');
+      }
+      if (verified) {
+        console.log('  ⚠ This invoice is already buyer-verified ("already buyer verified").');
+      }
+      await sendAndShow('confirmInvoice', deployed.callTx.confirmInvoice(nf, amount));
+      await persistWalletState(network, walletCtx);
+      await walletCtx.wallet.stop();
+      rl.close();
+      return;
+    }
+
     const readLedger = async () => {
       const contractState = await providers.publicDataProvider.queryContractState(deployment.address);
       if (!contractState) return console.log('  (contract state empty)');
@@ -168,7 +230,7 @@ async function main() {
       const lg = ledger(contractState.data);
       const rows: string[] = [];
       for (const [nullifier, invoice] of lg.invoices) {
-        rows.push(`    nullifier=${toHex(nullifier)}  lender=${invoice.lender.is_some ? toHex(invoice.lender.value) : '(none)'}  credit=${invoice.creditThreshold}+  amount=${invoice.amount}  due=${invoice.dueDate}  rate=${invoice.rateBps}bps  commitment=${toHex(invoice.smeCommitment)}`);
+        rows.push(`    nullifier=${toHex(nullifier)}  lender=${invoice.lender.is_some ? toHex(invoice.lender.value) : '(none)'}  credit=${invoice.creditThreshold}+  claim=${invoice.invoiceAmount}  buyerVerified=${invoice.buyerVerified}  amount=${invoice.amount}  due=${invoice.dueDate}  rate=${invoice.rateBps}bps  commitment=${toHex(invoice.smeCommitment)}`);
         for (const [bidKey, bid] of lg.bids) {
           if (bid.nullifier.length !== nullifier.length || !bid.nullifier.every((v, i) => v === nullifier[i])) continue;
           rows.push(`        sealed bid ${toHex(bidKey).slice(0, 16)}…  by ${toHex(bid.lender).slice(0, 16)}…  commitment=${toHex(bid.commitment).slice(0, 16)}…`);
@@ -181,13 +243,13 @@ async function main() {
       console.log(`\n  📋 Ledger — invoiceCount=${lg.invoiceCount}, invoices=${lg.invoices.size()}, sealed bids=${lg.bids.size()}\n${rows.join('\n')}\n`);
     };
 
-    const sendAndShow = async (label: string, txPromise: Promise<any>) => {
+    async function sendAndShow(label: string, txPromise: Promise<any>) {
       console.log(`\n  Submitting ${label} (this may take 30-60 seconds)...`);
       const tx = await txPromise;
       console.log(`  ✅ ${label} succeeded`);
       console.log(`  Transaction ID: ${tx.public.txId}`);
       console.log(`  Block height: ${tx.public.blockHeight}\n`);
-    };
+    }
 
     let running = true;
     while (running) {
@@ -198,7 +260,8 @@ async function main() {
       console.log('  4. Settle invoice (SME — pays the lowest-rate winner)');
       console.log('  5. View ledger');
       console.log('  6. Check wallet balance');
-      console.log('  7. Exit\n');
+      console.log('  7. Confirm invoice (Buyer — proves the invoice is genuine)');
+      console.log('  8. Exit\n');
 
       const choice = await rl.question('  Your choice: ');
 
@@ -206,6 +269,7 @@ async function main() {
         switch (choice.trim()) {
           case '1': {
             const nullifier = await rl.question('  Invoice nullifier (64 hex chars): ');
+            const amountRaw = await rl.question('  Invoice claimed amount (the corporate buyer will vouch for this): ');
             let creditThreshold: bigint;
             if (SME_CREDIT_THRESHOLD !== undefined) {
               creditThreshold = SME_CREDIT_THRESHOLD;
@@ -215,7 +279,7 @@ async function main() {
               creditThreshold = BigInt(thresholdRaw.trim() || '650');
             }
             console.log(`  Proving "credit score >= ${creditThreshold}" in zero knowledge — the score itself never leaves the wallet.`);
-            await sendAndShow('registerInvoice', deployed.callTx.registerInvoice(parseHex(nullifier), creditThreshold));
+            await sendAndShow('registerInvoice', deployed.callTx.registerInvoice(parseHex(nullifier), creditThreshold, BigInt(amountRaw.trim())));
             break;
           }
 
@@ -274,13 +338,21 @@ async function main() {
             break;
           }
 
-          case '7':
+          case '7': {
+            const nullifier = await rl.question('  Invoice nullifier (64 hex chars): ');
+            const amountRaw = await rl.question('  Amount the buyer confirms owing (must match the SME claim): ');
+            console.log('  Proving "the buyer acknowledges owing exactly this amount for this invoice" in zero knowledge — buyer identity and terms stay private.');
+            await sendAndShow('confirmInvoice', deployed.callTx.confirmInvoice(parseHex(nullifier), BigInt(amountRaw.trim())));
+            break;
+          }
+
+          case '8':
             running = false;
             console.log('\n  👋 Goodbye!\n');
             break;
 
           default:
-            console.log('\n  ❌ Invalid choice. Please enter 1-7.\n');
+            console.log('\n  ❌ Invalid choice. Please enter 1-8.\n');
         }
       } catch (error) {
         console.error('\n  ❌ Failed:', error instanceof Error ? error.message : error);

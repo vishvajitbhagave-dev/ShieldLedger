@@ -8,6 +8,12 @@ const formatDate = (unixSeconds: bigint): string => {
   return new Date(Number(unixSeconds) * 1000).toLocaleString();
 };
 
+const BuyerVerifiedBadge: React.FC = () => (
+  <span className="sl-badge" title="The corporate buyer proved in zero knowledge that this invoice is genuine and that it owes the claimed amount.">
+    Buyer-verified ✓
+  </span>
+);
+
 export const LedgerView: React.FC = () => {
   const { state, error } = useLedgerState();
 
@@ -26,7 +32,8 @@ export const LedgerView: React.FC = () => {
           <h3 style={{ fontSize: 14, margin: '14px 0 8px', color: '#93b4e4' }}>Invoices</h3>
           <p className="sl-meta" style={{ marginBottom: 8 }}>
             <strong>Credit (ZK-proof)</strong> is the bound the SME proved in zero knowledge — the actual credit
-            score is never revealed to anyone.
+            score is never revealed to anyone. A <strong>Buyer-verified ✓</strong> badge means a corporate buyer
+            proved the invoice genuine; the buyer's identity and terms stay private.
           </p>
           {state.invoices.length === 0 ? (
             <p className="sl-empty">No invoices registered yet.</p>
@@ -37,6 +44,8 @@ export const LedgerView: React.FC = () => {
                   <th>Nullifier</th>
                   <th>Commitment</th>
                   <th>Credit (ZK-proof)</th>
+                  <th>Claimed</th>
+                  <th>Buyer-verified</th>
                   <th>Financed by</th>
                   <th>Amount</th>
                   <th>Rate</th>
@@ -51,6 +60,8 @@ export const LedgerView: React.FC = () => {
                     <td title="The SME proved this bound in zero knowledge; the score itself is never revealed.">
                       score ≥ {inv.creditThreshold.toString()}
                     </td>
+                    <td>{inv.invoiceAmount.toString()}</td>
+                    <td>{inv.buyerVerified ? <BuyerVerifiedBadge /> : <span className="sl-meta">—</span>}</td>
                     <td className="sl-mono">{inv.lender ? short(inv.lender) : '— (bidding)'}</td>
                     <td>{inv.amount.toString()}</td>
                     <td>{inv.rateBps > 0n ? `${inv.rateBps.toString()} bps` : '—'}</td>

@@ -13,13 +13,14 @@ import {
 import type { ShieldLedgerProviders } from './shield-ledger-types.js';
 
 /** User role in the invoice-financing workflow. */
-export type Role = 'sme' | 'lender';
+export type Role = 'sme' | 'lender' | 'buyer';
 
 const ROLE_STORAGE_KEY = 'shieldledger.role';
 
 const loadRole = (): Role => {
   if (typeof localStorage === 'undefined') return 'sme';
-  return localStorage.getItem(ROLE_STORAGE_KEY) === 'lender' ? 'lender' : 'sme';
+  const stored = localStorage.getItem(ROLE_STORAGE_KEY);
+  return stored === 'lender' || stored === 'buyer' ? stored : 'sme';
 };
 
 export interface ShieldLedgerContextValue {

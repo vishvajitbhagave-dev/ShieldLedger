@@ -57,12 +57,12 @@ Escrow:        smeCommitment = hash(nullifier, smeSecret)   ──┘ same value
 | 1 | Advanced ZK smart-contract development with a private/public data split | ✅ | `contracts/shield-ledger.compact` — every circuit, split annotated; bids, invoices, credit score stay private |
 | 2 | Event streaming & real-time updates on a public ledger | ✅ | DApp subscribes to `state$` (`frontend/src/use-ledger-state.ts`); live badge + last-update time in the header |
 | 3 | Deployment and interaction with the deployed contract | ✅ | `src/setup.ts`, `src/deploy.ts`, CLI, live **preview** deployment, `state$` interactions, `scripts/e2e-check.ts` |
-| 4 | Writing tests for contracts and frontend | ✅ | `tests/shield-ledger.test.ts` (33), `tests/inter-contract.test.ts` (14), `tests/invoice-nullifier.test.ts` (8), `tests/invoice-status.test.ts` (6) = **61** |
+| 4 | Writing tests for contracts and frontend | ✅ | `tests/` — 8 suites, **107 tests**: `shield-ledger` (31), `inter-contract` (14), `cli-args` (13), `error-messages` (13), `buyer-verification` (10), `private-keys` (9), `invoice-status` (9), `invoice-nullifier` (8) |
 | 5 | Error handling and loading states | ✅ | deploy/connect errors + dismissible banner, busy/working states, `wallet-locked` retry, new React `ErrorBoundary`, ledger-stream error badge |
 | 6 | Inter-contract communication | ✅ (platform-equivalent) | Second `Escrow` contract + off-chain communication layer (see above); on-chain cross-contract calls are not yet implemented by the Compact compiler |
 | 7 | Production deployment architecture | ✅ | CI + Pages CD, env-driven config, TS strict, single-version WASM override, gitignored secrets, public site at `/ShieldLedger/` |
 | 8 | Documentation and demo/presentation | ✅ | This file + README (architecture, demo script, privacy properties, live links) |
-| 9 | Advanced smart-contract development | ✅ | sealed-bid auction, commitment/reveal, ZK credit check & exposure cap, contract-enforced settlement fairness |
+| 9 | Advanced smart-contract development | ✅ | sealed-bid auction, commitment/reveal, ZK credit check & exposure cap, **ZK buyer verification**, contract-enforced settlement fairness |
 
 ### Notes on honest platform limits
 
@@ -80,9 +80,10 @@ Escrow:        smeCommitment = hash(nullifier, smeSecret)   ──┘ same value
 Only these ever touch the public ledger: invoice **nullifiers** (SHA-256 of
 private details + secret), **commitments** (hashes binding an owner to a
 nullifier), a **credit attestation** per invoice ("score ≥ N" — the proven
-bound), lender **pseudonyms**, **sealed-bid commitments**, and the
-**winning** bid's terms. Everything else — invoice contents, bid terms until the
-owner reveals, both secrets, and both credit scores — stays in the wallet.
+bound), lender **pseudonyms**, **sealed-bid commitments**, the **buyer-verified
+flag** with its opaque per-invoice **buyer commitment**, and the **winning**
+bid's terms. Everything else — invoice contents, bid terms until the owner
+reveals, both secrets, and both credit scores — stays in the wallet.
 
 ### ZK credit scoring (SME)
 
@@ -109,3 +110,31 @@ threshold makes **proof generation fail**. Registration is a proof of
 creditworthiness, not a claim an SME can make or fake through application
 logic: only a threshold at or below the true score is cryptographically
 provable, and the verifier checks that proof on-chain.
+
+### ZK buyer verification
+
+`confirmInvoice(nullifier, confirmedAmount)` lets a corporate buyer prove, in
+zero knowledge, that an invoice is genuine and that it owes the SME's claimed
+amount. The circuit asserts the invoice exists, is not already financed, is not
+already verified, and that `confirmedAmount == invoiceAmount` — a mismatch makes
+proof generation fail. On success the ledger stores
+`buyerCommitment = hash(buyerSecret, nullifier)` and flips the public
+`buyerVerified` flag.
+
+**What is public:** only the boolean flag and the opaque per-invoice commitment.
+**What stays private:** the buyer's identity, its other supplier relationships,
+and the full contract terms. Because the commitment binds the confirmation to
+the specific nullifier, a confirmation cannot be forged for, or replayed on, a
+different invoice. The flag and commitment survive settlement (carried on the
+`Invoice` struct) and are shown to lenders in the DApp's Open-invoices and
+Public-ledger tables.
+
+#### Privacy model: buyer verification — what an observer can and cannot learn
+
+| Can an observer learn… | Yes / No | How |
+| --- | --- | --- |
+| That the invoice is buyer-verified | **Yes** | Public `buyerVerified` flag on the `Invoice` struct. |
+| The buyer's identity | **No** | `buyerSecret` is a private witness consumed only inside the ZK circuit; the stored commitment is `hash(buyerSecret, nullifier)`, which reveals neither. |
+| Which other invoices the buyer confirmed | **No** | Every commitment is keyed by its own nullifier; no field links two confirmations to one buyer. |
+| The confirmed terms (e.g. exact liability) | **No** | The only public amount is the SME's claimed `invoiceAmount`; the confirmation adds no new public data. |
+| Whether the buyer really owes the claimed amount | **Yes** | The circuit asserts `confirmedAmount == invoiceAmount` — the buyer cannot vouch for a different amount. |

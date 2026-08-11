@@ -5,6 +5,9 @@ import {
   NOT_CREDITWORTHY_MESSAGE,
   ALREADY_REGISTERED_MESSAGE,
   GENERIC_REGISTER_FAILURE_MESSAGE,
+  CONFIRM_AMOUNT_MISMATCH_MESSAGE,
+  ALREADY_BUYER_VERIFIED_MESSAGE,
+  GENERIC_CONFIRM_FAILURE_MESSAGE,
 } from '../frontend/src/lib/errorMessages.js';
 
 describe('userFacingFailureMessage — registerInvoice circuit assertions', () => {
@@ -66,5 +69,27 @@ describe('userFacingFailureMessage — distinct errors are not swallowed', () =>
   it('keeps the raw message for other operations', () => {
     const err = new Error("failed assert: amount exceeds winning bid");
     expect(userFacingFailureMessage('settleInvoice', err)).toContain('amount exceeds winning bid');
+  });
+});
+
+describe('userFacingFailureMessage — confirmInvoice circuit assertions', () => {
+  it('maps the "amount mismatch" assert to the friendly confirmation message', () => {
+    const err = new Error("Unexpected error executing scoped transaction '<unnamed>': Error: failed assert: amount mismatch");
+    expect(userFacingFailureMessage('confirmInvoice', err)).toBe(CONFIRM_AMOUNT_MISMATCH_MESSAGE);
+  });
+
+  it('maps the "already buyer verified" assert to the friendly message', () => {
+    const err = new Error("failed assert: already buyer verified");
+    expect(userFacingFailureMessage('confirmInvoice', err)).toBe(ALREADY_BUYER_VERIFIED_MESSAGE);
+  });
+
+  it('maps any other confirmInvoice circuit assertion to the generic fallback', () => {
+    const err = new Error("failed assert: unknown invoice");
+    expect(userFacingFailureMessage('confirmInvoice', err)).toBe(GENERIC_CONFIRM_FAILURE_MESSAGE);
+  });
+
+  it('does not swallow proof-server failures on confirmation', () => {
+    const err = new Error('Failed Proof Server response: url="http://localhost:6300/check", code="400", status="Bad Request"');
+    expect(userFacingFailureMessage('confirmInvoice', err)).toContain('Failed Proof Server response');
   });
 });
