@@ -12,6 +12,7 @@ import { type ContractAddress } from '@midnight-ntwrk/midnight-js-protocol/compa
 import { from, map, type Observable } from 'rxjs';
 
 import { compiledShieldLedgerContract } from '../../src/compiled.js';
+import { currentUnixSeconds } from '../../src/time.js';
 import { createShieldLedgerPrivateState, type ShieldLedgerPrivateState } from '../../src/witnesses.js';
 import {
   applyReputationUpdate,
@@ -135,7 +136,7 @@ export class ShieldLedgerAPI {
    * state. Returns the new reputation view (or null if no private state).
    */
   async settleInvoice(nullifierHex: string, amount: bigint, dueDate: bigint): Promise<ReputationView | null> {
-    const settledAt = BigInt(Date.now());
+    const settledAt = currentUnixSeconds();
     const results = await this.deployedContract.callTx.settleInvoice(
       fromHex(nullifierHex),
       amount,

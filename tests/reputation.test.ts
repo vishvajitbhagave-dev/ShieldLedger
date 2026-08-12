@@ -124,6 +124,29 @@ describe('Cross-deal reputation — wallet scoring (0..100)', () => {
     expect(reputationView(sim.getPrivateState()).lateCount).toBe(0n);
   });
 
+  it('a far-future due date (year 2100) settles as on-time at the current epoch time', () => {
+    const sim = new ShieldLedgerSimulator(
+      createShieldLedgerPrivateState({ smeSecret: SME_SECRET, lenderSecret: LENDER_SECRET }),
+    );
+    // 2100-01-01T00:00:00Z in unix SECONDS. Settling "now" (seconds) must be
+    // classified on-time: the circuit compares settledAt <= financedDueDate in
+    // the same (second) units. A ms-vs-seconds mix-up (settledAt ~1.75e12)
+    // would blow past this and be misclassified as LATE.
+    const dueDate2100 = 4_102_444_800n;
+    const nowSeconds = BigInt(Math.floor(Date.now() / 1000));
+    const nullifier = bytes32(20);
+    sim.registerInvoice(nullifier, MIN_CREDIT_SCORE, 1000n, 0n);
+    sim.switchIdentity({ lenderSecret: LENDER_SECRET });
+    sim.submitBid(nullifier, deriveBidCommitment(LENDER_SECRET, nullifier, AMOUNT, dueDate2100, RATE));
+    sim.revealBid(nullifier, AMOUNT, dueDate2100, RATE);
+    sim.switchIdentity({ smeSecret: SME_SECRET });
+    sim.settleInvoice(nullifier, AMOUNT, dueDate2100, nowSeconds);
+    const view = reputationView(sim.getPrivateState());
+    expect(view.score).toBe(REPUTATION_ON_TIME_INCREMENT);
+    expect(view.onTimeCount).toBe(1n);
+    expect(view.lateCount).toBe(0n);
+  });
+
   it('the score accumulates across invoices in the same wallet (cross-deal)', () => {
     const sim = new ShieldLedgerSimulator(
       createShieldLedgerPrivateState({ smeSecret: SME_SECRET, lenderSecret: LENDER_SECRET }),

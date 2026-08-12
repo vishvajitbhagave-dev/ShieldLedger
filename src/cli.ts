@@ -25,6 +25,7 @@ import { resolveNetwork, getOrCreateWallet, formatWalletBackupNotice, getDeploym
 import { createWallet, persistWalletState, unshieldedToken, type WalletContext } from './wallet';
 import { loadOrCreatePrivateState, savePrivateState } from './private-state';
 import { applyReputationUpdate, reputationView } from './reputation';
+import { currentUnixSeconds } from './time';
 import { compiledShieldLedgerContract } from './compiled';
 import { parseShieldLedgerCliArgs } from './cli-args';
 import { runReputationCycleDemo } from '../scripts/demo-reputation-cycle.js';
@@ -374,7 +375,7 @@ async function main() {
             const nullifier = await rl.question('  Invoice nullifier (64 hex chars): ');
             const amountRaw = await rl.question('  Financed amount: ');
             const dueRaw = await rl.question('  Financed due date (unix seconds): ');
-            const settledAt = BigInt(Math.floor(Date.now() / 1000));
+            const settledAt = currentUnixSeconds();
             await sendAndShow('settleInvoice', deployed.callTx.settleInvoice(parseHex(nullifier), BigInt(amountRaw.trim()), BigInt(dueRaw.trim()), settledAt));
             // The circuit returned "on-time" (settledAt <= financedDueDate); the
             // wallet applies the reputation update locally and persists it. The
