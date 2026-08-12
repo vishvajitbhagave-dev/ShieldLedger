@@ -160,7 +160,7 @@ export const initializeProviders = async (connectedAPI: ConnectedAPI): Promise<S
   return {
     privateStateProvider,
     zkConfigProvider,
-    proofProvider: httpClientProofProvider(config.proverServerUri!, zkConfigProvider),
+    proofProvider: httpClientProofProvider(config.proverServerUri!, zkConfigProvider, { timeout: 600_000 }),
     publicDataProvider: indexerPublicDataProvider(config.indexerUri, config.indexerWsUri),
     walletProvider: {
       getCoinPublicKey(): string {
