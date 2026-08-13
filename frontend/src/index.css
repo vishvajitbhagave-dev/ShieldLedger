@@ -33,14 +33,20 @@
   --shadow-sm: 0 1px 2px rgba(2, 6, 17, 0.5);
   --shadow-md: 0 8px 24px rgba(2, 6, 17, 0.45);
 
-  /* One spacing scale */
+  /* Spacing scale — 4px grid, extended:
+   *   sp-1  4  · sp-2  8  · sp-3 12  · sp-4 16
+   *   sp-5 20  · sp-6 24  · sp-7 32  · sp-8 40  · sp-9 48
+   *  Tight within a field group (sp-2/sp-3), medium between
+   *  related fields (sp-4/sp-5), large between steps (sp-7/sp-8). */
   --sp-1: 4px;
   --sp-2: 8px;
   --sp-3: 12px;
   --sp-4: 16px;
   --sp-5: 20px;
   --sp-6: 24px;
-  --sp-8: 32px;
+  --sp-7: 32px;
+  --sp-8: 40px;
+  --sp-9: 48px;
 
   /* Typography */
   --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -79,9 +85,9 @@ body {
 
 .sl-app {
   min-height: 100vh;
-  max-width: 1320px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: var(--sp-8) var(--sp-6) 56px;
+  padding: var(--sp-8) var(--sp-6) 64px;
 }
 
 /* ─── Header ────────────────────────────────────────────────────────────── */
@@ -94,7 +100,7 @@ body {
   flex-wrap: wrap;
   border-bottom: 1px solid var(--border);
   padding-bottom: var(--sp-5);
-  margin-bottom: var(--sp-6);
+  margin-bottom: var(--sp-7);
 }
 
 .sl-brand {
@@ -214,6 +220,18 @@ body {
   box-shadow: 0 0 10px rgba(91, 140, 255, 0.5);
 }
 
+.sl-panel > h2 {
+  margin-bottom: var(--sp-5);
+}
+
+.sl-panel > .sl-meta {
+  margin-bottom: var(--sp-4);
+}
+
+.sl-panel > .sl-row:last-of-type {
+  margin-bottom: var(--sp-4);
+}
+
 /* ─── Section titles ────────────────────────────────────────────────────── */
 
 .sl-section-title {
@@ -222,7 +240,36 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--text-muted);
-  margin: var(--sp-5) 0 var(--sp-3);
+  margin: var(--sp-7) 0 var(--sp-4);
+}
+
+/* ─── Workflow steps (stages) ───────────────────────────────────────────── */
+
+.sl-stage {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0) 60%);
+  padding: var(--sp-5) var(--sp-5) var(--sp-6);
+  margin-bottom: var(--sp-5);
+  transition: border-color 0.15s ease;
+}
+
+.sl-stage:hover {
+  border-color: var(--border-strong);
+}
+
+.sl-stage:last-child {
+  margin-bottom: 0;
+}
+
+.sl-stage > .sl-section-title {
+  margin: 0 0 var(--sp-4);
+  padding-left: 12px;
+  border-left: 3px solid var(--accent);
+  color: var(--text);
+  font-size: 13px;
+  letter-spacing: 0.04em;
 }
 
 /* ─── Text helpers ──────────────────────────────────────────────────────── */
@@ -259,14 +306,14 @@ body {
 /* ─── Callouts / notes ──────────────────────────────────────────────────── */
 
 .sl-note {
-  background: var(--surface);
+  background: rgba(255, 255, 255, 0.014);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--border-strong);
+  border-left: 2px solid var(--border-strong);
   border-radius: var(--radius);
   padding: var(--sp-3) var(--sp-4);
-  margin: var(--sp-3) 0;
+  margin: var(--sp-4) 0 var(--sp-5);
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 12.5px;
   line-height: 1.65;
   overflow-wrap: anywhere;
 }
@@ -274,6 +321,26 @@ body {
 .sl-note strong {
   color: var(--text);
   font-weight: 600;
+}
+
+.sl-note:last-child {
+  margin-bottom: 0;
+}
+
+.sl-stage > .sl-note {
+  margin-top: var(--sp-2);
+}
+
+.sl-stage > .sl-button {
+  margin-top: var(--sp-1);
+}
+
+.sl-stage > .sl-table {
+  margin-top: var(--sp-2);
+}
+
+.sl-stage > .sl-empty {
+  padding-top: var(--sp-1);
 }
 
 /* ─── Status banners ────────────────────────────────────────────────────── */
@@ -327,6 +394,10 @@ body {
   align-items: center;
   gap: var(--sp-3);
   margin-bottom: var(--sp-3);
+}
+
+.sl-field:last-of-type {
+  margin-bottom: var(--sp-4);
 }
 
 .sl-field-label {
@@ -468,7 +539,7 @@ select.sl-input {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  margin-bottom: var(--sp-5);
+  margin-bottom: var(--sp-7);
 }
 
 .sl-tab {
@@ -508,15 +579,20 @@ select.sl-input {
 
 .sl-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.012);
+  overflow: hidden;
 }
 
 .sl-table th,
 .sl-table td {
   text-align: left;
-  padding: var(--sp-3) 14px;
+  padding: var(--sp-3) var(--sp-4);
   vertical-align: middle;
 }
 
@@ -528,25 +604,24 @@ select.sl-input {
   letter-spacing: 0.06em;
   white-space: nowrap;
   border-bottom: 1px solid var(--border-strong);
-  padding-top: var(--sp-2);
-  padding-bottom: var(--sp-2);
+  background: var(--surface-2);
+  padding: var(--sp-3) var(--sp-4);
 }
 
 .sl-table tbody tr {
-  border-bottom: 1px solid var(--border);
   transition: background 0.12s ease;
 }
 
-.sl-table tbody tr:last-child {
-  border-bottom: none;
-}
-
-.sl-table tbody tr:nth-child(even) {
-  background: rgba(255, 255, 255, 0.014);
+.sl-table tbody tr + tr > td {
+  border-top: 1px solid var(--border);
 }
 
 .sl-table tbody tr:hover {
   background: var(--accent-soft);
+}
+
+.sl-table tbody tr:hover > td {
+  border-top-color: rgba(91, 140, 255, 0.22);
 }
 
 .sl-table td .sl-mono {
@@ -580,8 +655,8 @@ select.sl-input {
 
 .sl-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
-  gap: var(--sp-6);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: var(--sp-7);
   align-items: start;
 }
 
@@ -619,6 +694,10 @@ select.sl-input {
     padding: var(--sp-4);
   }
 
+  .sl-stage {
+    padding: var(--sp-4);
+  }
+
   .sl-row {
     flex-direction: column;
     align-items: stretch;
@@ -627,7 +706,7 @@ select.sl-input {
   .sl-field {
     flex-direction: column;
     align-items: stretch;
-    gap: 6px;
+    gap: var(--sp-2);
   }
 
   .sl-field-label {

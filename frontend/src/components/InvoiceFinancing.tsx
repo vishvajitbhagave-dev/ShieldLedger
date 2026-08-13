@@ -263,6 +263,7 @@ export const InvoiceFinancing: React.FC = () => {
       {role === 'sme' ? (
         <>
           <form
+            className="sl-stage"
             onSubmit={(e) => {
               e.preventDefault();
               if (!api) return;
@@ -313,90 +314,95 @@ export const InvoiceFinancing: React.FC = () => {
             </button>
           </form>
 
-          <h3 className={sectionHeading}>2 · Your private reputation</h3>
-          <p className="sl-note">
-            Stored only in this browser session. Settling <em>on or before</em> the due date earns you{' '}
-            <strong>+10</strong>; a late settlement costs <strong>−20</strong> (clamped to 0–100). Every
-            registration proves "score ≥ threshold" in zero knowledge, so lenders are bound to what you really
-            have — without ever seeing the score.
-          </p>
-          {reputation === null ? (
-            <p className="sl-empty">No private reputation available in this browser session.</p>
-          ) : (
-            <table className="sl-table">
-              <thead>
-                <tr>
-                  <th>Score</th>
-                  <th>On-time settlements</th>
-                  <th>Late settlements</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>
-                    <span className={reputation.score >= 50n ? 'sl-badge' : 'sl-badge sl-badge-warn'}>
-                      {reputation.score.toString()} / 100
-                    </span>
-                  </td>
-                  <td>{reputation.onTimeCount.toString()}</td>
-                  <td>{reputation.lateCount.toString()}</td>
-                </tr>
-              </tbody>
-            </table>
-          )}
-
-          <h3 className={sectionHeading}>3 · Your invoices</h3>
-          {invoices.length === 0 ? (
-            <p className="sl-empty">No invoices registered in this browser yet.</p>
-          ) : (
-            <table className="sl-table">
-              <thead>
-                <tr>
-                  <th>Reference</th>
-                  <th>Nullifier</th>
-                  <th>Amount</th>
-                  <th>Due date</th>
-                  <th>Status</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoices.map((inv) => (
-                  <tr key={inv.nullifier}>
-                    <td>{inv.reference || '—'}</td>
-                    <td className="sl-mono">{short(inv.nullifier)}</td>
-                    <td>{inv.amount} tNight</td>
-                    <td>{formatDate(BigInt(inv.dueDate))}</td>
-                    <td>{statusOf(inv)}</td>
-                    <td>
-                      {statusOf(inv) === 'Bidding' &&
-                        (resolved(inv.nullifier) ? (
-                          <button
-                            className="sl-button sl-button-secondary"
-                            type="button"
-                            disabled={busy || working !== null}
-                            onClick={() => {
-                              setForm((f) => ({
-                                ...f,
-                                settleNullifier: inv.nullifier,
-                                settleAmount: inv.amount,
-                                settleDue: inv.dueDate,
-                              }));
-                            }}
-                          >
-                            Settle ↓
-                          </button>
-                        ) : (
-                          <span className="sl-meta">awaiting winning bid</span>
-                        ))}
-                    </td>
+          <section className="sl-stage">
+            <h3 className={sectionHeading}>2 · Your private reputation</h3>
+            <p className="sl-note">
+              Stored only in this browser session. Settling <em>on or before</em> the due date earns you{' '}
+              <strong>+10</strong>; a late settlement costs <strong>−20</strong> (clamped to 0–100). Every
+              registration proves "score ≥ threshold" in zero knowledge, so lenders are bound to what you really
+              have — without ever seeing the score.
+            </p>
+            {reputation === null ? (
+              <p className="sl-empty">No private reputation available in this browser session.</p>
+            ) : (
+              <table className="sl-table">
+                <thead>
+                  <tr>
+                    <th>Score</th>
+                    <th>On-time settlements</th>
+                    <th>Late settlements</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <span className={reputation.score >= 50n ? 'sl-badge' : 'sl-badge sl-badge-warn'}>
+                        {reputation.score.toString()} / 100
+                      </span>
+                    </td>
+                    <td>{reputation.onTimeCount.toString()}</td>
+                    <td>{reputation.lateCount.toString()}</td>
+                  </tr>
+                </tbody>
+              </table>
+            )}
+          </section>
+
+          <section className="sl-stage">
+            <h3 className={sectionHeading}>3 · Your invoices</h3>
+            {invoices.length === 0 ? (
+              <p className="sl-empty">No invoices registered in this browser yet.</p>
+            ) : (
+              <table className="sl-table">
+                <thead>
+                  <tr>
+                    <th>Reference</th>
+                    <th>Nullifier</th>
+                    <th>Amount</th>
+                    <th>Due date</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invoices.map((inv) => (
+                    <tr key={inv.nullifier}>
+                      <td>{inv.reference || '—'}</td>
+                      <td className="sl-mono">{short(inv.nullifier)}</td>
+                      <td>{inv.amount} tNight</td>
+                      <td>{formatDate(BigInt(inv.dueDate))}</td>
+                      <td>{statusOf(inv)}</td>
+                      <td>
+                        {statusOf(inv) === 'Bidding' &&
+                          (resolved(inv.nullifier) ? (
+                            <button
+                              className="sl-button sl-button-secondary"
+                              type="button"
+                              disabled={busy || working !== null}
+                              onClick={() => {
+                                setForm((f) => ({
+                                  ...f,
+                                  settleNullifier: inv.nullifier,
+                                  settleAmount: inv.amount,
+                                  settleDue: inv.dueDate,
+                                }));
+                              }}
+                            >
+                              Settle ↓
+                            </button>
+                          ) : (
+                            <span className="sl-meta">awaiting winning bid</span>
+                          ))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
 
           <form
+            className="sl-stage"
             onSubmit={(e) => {
               e.preventDefault();
               if (!api) return;
@@ -437,54 +443,57 @@ export const InvoiceFinancing: React.FC = () => {
         </>
       ) : role === 'buyer' ? (
         <>
-          <h3 className={sectionHeading}>1 · Pending invoices (open for bidding)</h3>
-          <p className="sl-note">
-            As the <strong>corporate buyer</strong> you can cryptographically confirm that an invoice is genuine and
-            that you owe its claimed amount. Only a <strong>Buyer-verified ✓</strong> flag and an opaque per-invoice
-            commitment go on-chain — your identity, your other supplier relationships and the full contract terms
-            never do.
-          </p>
-          {openInvoices.length === 0 ? (
-            <p className="sl-empty">No pending invoices on the ledger to confirm.</p>
-          ) : (
-            <table className="sl-table">
-              <thead>
-                <tr>
-                  <th>Invoice (nullifier)</th>
-                  <th>Claimed amount</th>
-                  <th>Credit (ZK-proof)</th>
-                  <th>Buyer status</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {openInvoices.map((inv) => (
-                  <tr key={inv.nullifier}>
-                    <td className="sl-mono">{short(inv.nullifier)}</td>
-                    <td>{inv.invoiceAmount.toString()} tNight</td>
-                    <td>score ≥ {inv.creditThreshold.toString()}</td>
-                    <td>{inv.buyerVerified ? <BuyerVerifiedBadge /> : <span className="sl-meta">not verified</span>}</td>
-                    <td>
-                      {inv.buyerVerified ? (
-                        <span className="sl-meta">confirmed</span>
-                      ) : (
-                        <button
-                          className="sl-button sl-button-secondary"
-                          type="button"
-                          disabled={busy || working !== null}
-                          onClick={() => pickForConfirm(inv)}
-                        >
-                          Confirm ↓
-                        </button>
-                      )}
-                    </td>
+          <section className="sl-stage">
+            <h3 className={sectionHeading}>1 · Pending invoices (open for bidding)</h3>
+            <p className="sl-note">
+              As the <strong>corporate buyer</strong> you can cryptographically confirm that an invoice is genuine and
+              that you owe its claimed amount. Only a <strong>Buyer-verified ✓</strong> flag and an opaque per-invoice
+              commitment go on-chain — your identity, your other supplier relationships and the full contract terms
+              never do.
+            </p>
+            {openInvoices.length === 0 ? (
+              <p className="sl-empty">No pending invoices on the ledger to confirm.</p>
+            ) : (
+              <table className="sl-table">
+                <thead>
+                  <tr>
+                    <th>Invoice (nullifier)</th>
+                    <th>Claimed amount</th>
+                    <th>Credit (ZK-proof)</th>
+                    <th>Buyer status</th>
+                    <th></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                </thead>
+                <tbody>
+                  {openInvoices.map((inv) => (
+                    <tr key={inv.nullifier}>
+                      <td className="sl-mono">{short(inv.nullifier)}</td>
+                      <td>{inv.invoiceAmount.toString()} tNight</td>
+                      <td>score ≥ {inv.creditThreshold.toString()}</td>
+                      <td>{inv.buyerVerified ? <BuyerVerifiedBadge /> : <span className="sl-meta">not verified</span>}</td>
+                      <td>
+                        {inv.buyerVerified ? (
+                          <span className="sl-meta">confirmed</span>
+                        ) : (
+                          <button
+                            className="sl-button sl-button-secondary"
+                            type="button"
+                            disabled={busy || working !== null}
+                            onClick={() => pickForConfirm(inv)}
+                          >
+                            Confirm ↓
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
 
           <form
+            className="sl-stage"
             onSubmit={(e) => {
               e.preventDefault();
               if (!api) return;
@@ -511,86 +520,91 @@ export const InvoiceFinancing: React.FC = () => {
             </button>
           </form>
 
-          <h3 className={sectionHeading}>3 · Already buyer-verified</h3>
-          {stateBuyerVerified.length === 0 ? (
-            <p className="sl-empty">No invoices confirmed yet.</p>
-          ) : (
-            <table className="sl-table">
-              <thead>
-                <tr>
-                  <th>Invoice (nullifier)</th>
-                  <th>Claimed amount</th>
-                  <th>Buyer status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stateBuyerVerified.map((inv) => (
-                  <tr key={inv.nullifier}>
-                    <td className="sl-mono">{short(inv.nullifier)}</td>
-                    <td>{inv.invoiceAmount.toString()} tNight</td>
-                    <td><BuyerVerifiedBadge /></td>
+          <section className="sl-stage">
+            <h3 className={sectionHeading}>3 · Already buyer-verified</h3>
+            {stateBuyerVerified.length === 0 ? (
+              <p className="sl-empty">No invoices confirmed yet.</p>
+            ) : (
+              <table className="sl-table">
+                <thead>
+                  <tr>
+                    <th>Invoice (nullifier)</th>
+                    <th>Claimed amount</th>
+                    <th>Buyer status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                </thead>
+                <tbody>
+                  {stateBuyerVerified.map((inv) => (
+                    <tr key={inv.nullifier}>
+                      <td className="sl-mono">{short(inv.nullifier)}</td>
+                      <td>{inv.invoiceAmount.toString()} tNight</td>
+                      <td><BuyerVerifiedBadge /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
         </>
       ) : (
         <>
-          <h3 className={sectionHeading}>1 · Open invoices available for financing</h3>
-          <p className="sl-note">
-            The <strong>Credit</strong> column shows the <em>proven bound</em> the SME attested in zero knowledge at
-            registration (e.g. "score ≥ 650"). The <strong>Reputation</strong> column shows the <em>proven
-            reputation bound</em> ("score ≥ N"; <strong>any</strong> means no minimum). Neither the credit score nor
-            the reputation score is ever revealed — only the proven lower bound. The{' '}
-            <strong>Buyer-verified ✓</strong> badge means the corporate buyer proved in zero knowledge that the
-            invoice is genuine — its identity and the terms never appear.
-          </p>
-          {openInvoices.length === 0 ? (
-            <p className="sl-empty">No invoices are currently open for bidding.</p>
-          ) : (
-            <table className="sl-table">
-              <thead>
-                <tr>
-                  <th>Invoice (nullifier)</th>
-                  <th>Credit (ZK-proof)</th>
-                  <th>Reputation (ZK-proof)</th>
-                  <th>Buyer-verified</th>
-                  <th>Commitment</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {openInvoices.map((inv) => (
-                  <tr key={inv.nullifier}>
-                    <td className="sl-mono">{short(inv.nullifier)}</td>
-                    <td>score ≥ {inv.creditThreshold.toString()}</td>
-                    <td title="The SME proved its reputation is at least this bound; the actual score is never revealed.">
-                      {inv.reputationThreshold > 0n ? (
-                        `score ≥ ${inv.reputationThreshold.toString()}`
-                      ) : (
-                        <span className="sl-meta">any</span>
-                      )}
-                    </td>
-                    <td>{inv.buyerVerified ? <BuyerVerifiedBadge /> : <span className="sl-meta">—</span>}</td>
-                    <td className="sl-mono">{short(inv.smeCommitment)}</td>
-                    <td>
-                      <button
-                        className="sl-button sl-button-secondary"
-                        type="button"
-                        disabled={busy || working !== null}
-                        onClick={() => setForm((f) => ({ ...f, bidNullifier: inv.nullifier }))}
-                      >
-                        Bid on this ↓
-                      </button>
-                    </td>
+          <section className="sl-stage">
+            <h3 className={sectionHeading}>1 · Open invoices available for financing</h3>
+            <p className="sl-note">
+              The <strong>Credit</strong> column shows the <em>proven bound</em> the SME attested in zero knowledge at
+              registration (e.g. "score ≥ 650"). The <strong>Reputation</strong> column shows the <em>proven
+              reputation bound</em> ("score ≥ N"; <strong>any</strong> means no minimum). Neither the credit score nor
+              the reputation score is ever revealed — only the proven lower bound. The{' '}
+              <strong>Buyer-verified ✓</strong> badge means the corporate buyer proved in zero knowledge that the
+              invoice is genuine — its identity and the terms never appear.
+            </p>
+            {openInvoices.length === 0 ? (
+              <p className="sl-empty">No invoices are currently open for bidding.</p>
+            ) : (
+              <table className="sl-table">
+                <thead>
+                  <tr>
+                    <th>Invoice (nullifier)</th>
+                    <th>Credit (ZK-proof)</th>
+                    <th>Reputation (ZK-proof)</th>
+                    <th>Buyer-verified</th>
+                    <th>Commitment</th>
+                    <th></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                </thead>
+                <tbody>
+                  {openInvoices.map((inv) => (
+                    <tr key={inv.nullifier}>
+                      <td className="sl-mono">{short(inv.nullifier)}</td>
+                      <td>score ≥ {inv.creditThreshold.toString()}</td>
+                      <td title="The SME proved its reputation is at least this bound; the actual score is never revealed.">
+                        {inv.reputationThreshold > 0n ? (
+                          `score ≥ ${inv.reputationThreshold.toString()}`
+                        ) : (
+                          <span className="sl-meta">any</span>
+                        )}
+                      </td>
+                      <td>{inv.buyerVerified ? <BuyerVerifiedBadge /> : <span className="sl-meta">—</span>}</td>
+                      <td className="sl-mono">{short(inv.smeCommitment)}</td>
+                      <td>
+                        <button
+                          className="sl-button sl-button-secondary"
+                          type="button"
+                          disabled={busy || working !== null}
+                          onClick={() => setForm((f) => ({ ...f, bidNullifier: inv.nullifier }))}
+                        >
+                          Bid on this ↓
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
 
           <form
+            className="sl-stage"
             onSubmit={(e) => {
               e.preventDefault();
               if (!api) return;
@@ -619,6 +633,7 @@ export const InvoiceFinancing: React.FC = () => {
           </form>
 
           <form
+            className="sl-stage"
             onSubmit={(e) => {
               e.preventDefault();
               if (!api) return;

@@ -44,7 +44,7 @@ export const WalletConnect: React.FC = () => {
         Shielded address: <span className="sl-mono">{walletInfo?.shieldedAddress}</span>
       </p>
 
-      <div className="sl-row" style={{ marginTop: 14 }}>
+      <div className="sl-row" style={{ marginTop: 'var(--sp-5)' }}>
         <button className="sl-button" onClick={() => void deploy()} disabled={busy}>
           Deploy new contract
         </button>
@@ -66,7 +66,7 @@ export const WalletConnect: React.FC = () => {
       </div>
 
       {deployment.status === 'deployed' && (
-        <p className="sl-meta" style={{ marginTop: 12 }}>
+        <p className="sl-meta" style={{ marginTop: 'var(--sp-4)' }}>
           Contract: <span className="sl-mono">{deployment.address}</span>
         </p>
       )}
