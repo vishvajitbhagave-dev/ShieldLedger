@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useShieldLedger } from '../context.js';
+import { HexBadge } from './HexBadge.js';
 
 export const WalletConnect: React.FC = () => {
   const { connecting, connected, walletLocked, walletInfo, deployment, connect, deploy, join } = useShieldLedger();
@@ -7,6 +8,7 @@ export const WalletConnect: React.FC = () => {
 
   const busy = deployment.status === 'in-progress';
 
+  // If not connected to wallet, show full connect view
   if (!connected) {
     return (
       <div className="sl-panel">
@@ -34,42 +36,78 @@ export const WalletConnect: React.FC = () => {
     );
   }
 
-  return (
-    <div className="sl-panel">
-      <h2>Wallet connected</h2>
-      <p className="sl-meta">
-        Unshielded address: <span className="sl-mono">{walletInfo?.unshieldedAddress}</span>
-      </p>
-      <p className="sl-meta">
-        Shielded address: <span className="sl-mono">{walletInfo?.shieldedAddress}</span>
-      </p>
+  // If connected but contract not deployed/joined, show the Deploy/Join panel
+  if (deployment.status !== 'deployed') {
+    return (
+      <div className="sl-panel">
+        <h2>Wallet connected</h2>
+        <div className="sl-row" style={{ gap: 'var(--sp-4)' }}>
+          <div style={{ flex: '1 1 auto', minWidth: '200px' }}>
+            <p className="sl-meta" style={{ margin: 0 }}>
+              Unshielded: <HexBadge hex={walletInfo?.unshieldedAddress ?? ''} />
+            </p>
+          </div>
+          <div style={{ flex: '1 1 auto', minWidth: '200px' }}>
+            <p className="sl-meta" style={{ margin: 0 }}>
+              Shielded: <HexBadge hex={walletInfo?.shieldedAddress ?? ''} />
+            </p>
+          </div>
+        </div>
 
-      <div className="sl-row" style={{ marginTop: 'var(--sp-5)' }}>
-        <button className="sl-button" onClick={() => void deploy()} disabled={busy}>
-          Deploy new contract
-        </button>
-        <span className="sl-or">or</span>
-        <input
-          className="sl-input"
-          placeholder="Existing contract address (hex)"
-          value={joinAddress}
-          onChange={(e) => setJoinAddress(e.target.value)}
-          disabled={busy}
-        />
-        <button
-          className="sl-button sl-button-secondary"
-          onClick={() => void join(joinAddress)}
-          disabled={busy || joinAddress.trim().length === 0}
-        >
-          Join
-        </button>
+        <div className="sl-row" style={{ marginTop: 'var(--sp-5)' }}>
+          <button className="sl-button" onClick={() => void deploy()} disabled={busy}>
+            Deploy new contract
+          </button>
+          <span className="sl-or">or</span>
+          <input
+            className="sl-input"
+            placeholder="Existing contract address (hex)"
+            value={joinAddress}
+            onChange={(e) => setJoinAddress(e.target.value)}
+            disabled={busy}
+          />
+          <button
+            className="sl-button sl-button-secondary"
+            onClick={() => void join(joinAddress)}
+            disabled={busy || joinAddress.trim().length === 0}
+          >
+            Join
+          </button>
+        </div>
       </div>
+    );
+  }
 
-      {deployment.status === 'deployed' && (
-        <p className="sl-meta" style={{ marginTop: 'var(--sp-4)' }}>
-          Contract: <span className="sl-mono">{deployment.address}</span>
-        </p>
-      )}
+  // If connected and contract is deployed, render a sleek shared dashboard status bar
+  return (
+    <div className="sl-status-bar">
+      <div className="sl-status-group">
+        <div className="sl-status-item">
+          <span className="sl-status-label">Lace Wallet</span>
+          <span className="sl-status-value">
+            <span className="sl-live" style={{ marginRight: '6px' }} />
+            Connected
+          </span>
+        </div>
+        <div className="sl-status-item">
+          <span className="sl-status-label">Unshielded Address</span>
+          <span className="sl-status-value">
+            <HexBadge hex={walletInfo?.unshieldedAddress ?? ''} />
+          </span>
+        </div>
+        <div className="sl-status-item">
+          <span className="sl-status-label">Shielded Address</span>
+          <span className="sl-status-value">
+            <HexBadge hex={walletInfo?.shieldedAddress ?? ''} />
+          </span>
+        </div>
+        <div className="sl-status-item">
+          <span className="sl-status-label">Contract Address</span>
+          <span className="sl-status-value">
+            <HexBadge hex={deployment.address} />
+          </span>
+        </div>
+      </div>
     </div>
   );
 };

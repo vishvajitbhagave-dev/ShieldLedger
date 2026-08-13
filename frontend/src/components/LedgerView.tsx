@@ -1,7 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLedgerState } from '../use-ledger-state.js';
-
-const short = (hex: string): string => (hex.length > 16 ? `${hex.slice(0, 10)}…${hex.slice(-6)}` : hex);
+import { HexBadge } from './HexBadge.js';
 
 const formatDate = (unixSeconds: bigint): string => {
   if (unixSeconds <= 0n) return '—';
@@ -16,6 +15,62 @@ const BuyerVerifiedBadge: React.FC = () => (
 
 export const LedgerView: React.FC = () => {
   const { state, error } = useLedgerState();
+  const [firstSeen, setFirstSeen] = useState<Record<string, number>>({});
+
+  // Track when elements are first seen in ledger state to trigger flash highlight animation
+  useEffect(() => {
+    if (!state) return;
+    const now = Date.now();
+    setFirstSeen((prev) => {
+      const next = { ...prev };
+      let changed = false;
+
+      // Invoices
+      for (const inv of state.invoices) {
+        if (!(inv.nullifier in next)) {
+          next[inv.nullifier] = now;
+          changed = true;
+        }
+        // Track state change triggers (buyer verification and lender financing)
+        const buyerVerifyKey = `${inv.nullifier}-buyerVerified-${inv.buyerVerified}`;
+        if (!(buyerVerifyKey in next)) {
+          next[buyerVerifyKey] = now;
+          changed = true;
+        }
+        const lenderKey = `${inv.nullifier}-lender-${inv.lender ?? ''}`;
+        if (!(lenderKey in next)) {
+          next[lenderKey] = now;
+          changed = true;
+        }
+      }
+
+      // Sealed bids
+      for (const bid of state.bids) {
+        if (!(bid.bidKey in next)) {
+          next[bid.bidKey] = now;
+          changed = true;
+        }
+      }
+
+      // Leading bids (revealed)
+      for (const best of state.bestBids) {
+        const bestKey = `best-${best.nullifier}-${best.lender}-${best.rateBps}`;
+        if (!(bestKey in next)) {
+          next[bestKey] = now;
+          changed = true;
+        }
+      }
+
+      return changed ? next : prev;
+    });
+  }, [state]);
+
+  const isHighlighted = (key: string): boolean => {
+    const time = firstSeen[key];
+    if (!time) return false;
+    // Highlight if first seen in the last 4 seconds
+    return Date.now() - time < 4000;
+  };
 
   return (
     <div className="sl-panel">
@@ -40,46 +95,54 @@ export const LedgerView: React.FC = () => {
             {state.invoices.length === 0 ? (
               <p className="sl-empty">No invoices registered yet.</p>
             ) : (
-              <table className="sl-table">
-                <thead>
-                  <tr>
-                    <th>Nullifier</th>
-                    <th>Commitment</th>
-                    <th>Credit (ZK-proof)</th>
-                    <th>Reputation (ZK-proof)</th>
-                    <th>Claimed</th>
-                    <th>Buyer-verified</th>
-                    <th>Financed by</th>
-                    <th>Amount</th>
-                    <th>Rate</th>
-                    <th>Due</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {state.invoices.map((inv) => (
-                    <tr key={inv.nullifier}>
-                      <td className="sl-mono">{short(inv.nullifier)}</td>
-                      <td className="sl-mono">{short(inv.smeCommitment)}</td>
-                      <td title="The SME proved this bound in zero knowledge; the score itself is never revealed.">
-                        score ≥ {inv.creditThreshold.toString()}
-                      </td>
-                      <td title="The SME proved its reputation is at least this bound; the actual score is never revealed.">
-                        {inv.reputationThreshold > 0n ? (
-                          `score ≥ ${inv.reputationThreshold.toString()}`
-                        ) : (
-                          <span className="sl-meta">any</span>
-                        )}
-                      </td>
-                      <td>{inv.invoiceAmount.toString()}</td>
-                      <td>{inv.buyerVerified ? <BuyerVerifiedBadge /> : <span className="sl-meta">—</span>}</td>
-                      <td className="sl-mono">{inv.lender ? short(inv.lender) : '— (bidding)'}</td>
-                      <td>{inv.amount.toString()}</td>
-                      <td>{inv.rateBps > 0n ? `${inv.rateBps.toString()} bps` : '—'}</td>
-                      <td>{formatDate(inv.dueDate)}</td>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="sl-table">
+                  <thead>
+                    <tr>
+                      <th>Nullifier</th>
+                      <th>Commitment</th>
+                      <th>Credit (ZK-proof)</th>
+                      <th>Reputation (ZK-proof)</th>
+                      <th>Claimed</th>
+                      <th>Buyer-verified</th>
+                      <th>Financed by</th>
+                      <th>Amount</th>
+                      <th>Rate</th>
+                      <th>Due</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {state.invoices.map((inv) => {
+                      const highlighted =
+                        isHighlighted(inv.nullifier) ||
+                        isHighlighted(`${inv.nullifier}-buyerVerified-${inv.buyerVerified}`) ||
+                        isHighlighted(`${inv.nullifier}-lender-${inv.lender ?? ''}`);
+                      return (
+                        <tr key={inv.nullifier} className={highlighted ? 'sl-row-highlight' : ''}>
+                          <td><HexBadge hex={inv.nullifier} /></td>
+                          <td><HexBadge hex={inv.smeCommitment} /></td>
+                          <td title="The SME proved this bound in zero knowledge; the score itself is never revealed.">
+                            score ≥ {inv.creditThreshold.toString()}
+                          </td>
+                          <td title="The SME proved its reputation is at least this bound; the actual score is never revealed.">
+                            {inv.reputationThreshold > 0n ? (
+                              `score ≥ ${inv.reputationThreshold.toString()}`
+                            ) : (
+                              <span className="sl-meta">any</span>
+                            )}
+                          </td>
+                          <td>{inv.invoiceAmount.toString()}</td>
+                          <td>{inv.buyerVerified ? <BuyerVerifiedBadge /> : <span className="sl-meta">—</span>}</td>
+                          <td>{inv.lender ? <HexBadge hex={inv.lender} /> : <span className="sl-meta">— (bidding)</span>}</td>
+                          <td style={{ fontWeight: 'bold' }}>{inv.amount.toString()}</td>
+                          <td>{inv.rateBps > 0n ? `${inv.rateBps.toString()} bps` : '—'}</td>
+                          <td>{formatDate(inv.dueDate)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </section>
 
@@ -88,24 +151,29 @@ export const LedgerView: React.FC = () => {
             {state.bids.length === 0 ? (
               <p className="sl-empty">No bids submitted yet.</p>
             ) : (
-              <table className="sl-table">
-                <thead>
-                  <tr>
-                    <th>Invoice</th>
-                    <th>Lender (pseudonym)</th>
-                    <th>Commitment (terms hidden)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {state.bids.map((bid) => (
-                    <tr key={bid.bidKey}>
-                      <td className="sl-mono">{short(bid.nullifier)}</td>
-                      <td className="sl-mono">{short(bid.lender)}</td>
-                      <td className="sl-mono">{short(bid.commitment)}</td>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="sl-table">
+                  <thead>
+                    <tr>
+                      <th>Invoice</th>
+                      <th>Lender (pseudonym)</th>
+                      <th>Commitment (terms hidden)</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {state.bids.map((bid) => {
+                      const highlighted = isHighlighted(bid.bidKey);
+                      return (
+                        <tr key={bid.bidKey} className={highlighted ? 'sl-row-highlight' : ''}>
+                          <td><HexBadge hex={bid.nullifier} /></td>
+                          <td><HexBadge hex={bid.lender} /></td>
+                          <td><HexBadge hex={bid.commitment} /></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </section>
 
@@ -114,28 +182,34 @@ export const LedgerView: React.FC = () => {
             {state.bestBids.length === 0 ? (
               <p className="sl-empty">Nothing revealed yet — bids stay sealed until a lender reveals.</p>
             ) : (
-              <table className="sl-table">
-                <thead>
-                  <tr>
-                    <th>Invoice</th>
-                    <th>Lender (pseudonym)</th>
-                    <th>Amount</th>
-                    <th>Rate</th>
-                    <th>Due</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {state.bestBids.map((best) => (
-                    <tr key={best.nullifier}>
-                      <td className="sl-mono">{short(best.nullifier)}</td>
-                      <td className="sl-mono">{short(best.lender)}</td>
-                      <td>{best.amount.toString()}</td>
-                      <td>{best.rateBps.toString()} bps</td>
-                      <td>{formatDate(best.dueDate)}</td>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="sl-table">
+                  <thead>
+                    <tr>
+                      <th>Invoice</th>
+                      <th>Lender (pseudonym)</th>
+                      <th>Amount</th>
+                      <th>Rate</th>
+                      <th>Due</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {state.bestBids.map((best) => {
+                      const bestKey = `best-${best.nullifier}-${best.lender}-${best.rateBps}`;
+                      const highlighted = isHighlighted(bestKey);
+                      return (
+                        <tr key={best.nullifier} className={highlighted ? 'sl-row-highlight' : ''}>
+                          <td><HexBadge hex={best.nullifier} /></td>
+                          <td><HexBadge hex={best.lender} /></td>
+                          <td style={{ fontWeight: 'bold' }}>{best.amount.toString()}</td>
+                          <td style={{ color: 'var(--accent)', fontWeight: 'bold' }}>{best.rateBps.toString()} bps</td>
+                          <td>{formatDate(best.dueDate)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </section>
         </>

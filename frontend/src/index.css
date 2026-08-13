@@ -751,3 +751,266 @@ select.sl-input {
     height: 38px;
   }
 }
+
+/* ─── Modern Fintech Redesign Additions ─────────────────────────────────── */
+
+/* Hex Badge Component */
+.sl-hex-badge-container {
+  display: inline-block;
+  position: relative;
+}
+
+.sl-hex-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+  font: inherit;
+  transition: all 0.15s ease;
+  vertical-align: middle;
+}
+
+.sl-hex-badge:hover {
+  background: var(--surface-2);
+  border-color: var(--accent);
+}
+
+.sl-hex-badge:active {
+  background: var(--surface-3);
+  transform: scale(0.97);
+}
+
+.sl-hex-badge-icon {
+  color: var(--text-faint);
+  transition: color 0.15s ease;
+}
+
+.sl-hex-badge:hover .sl-hex-badge-icon {
+  color: var(--text-muted);
+}
+
+.sl-hex-badge-tooltip {
+  position: absolute;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  color: #fff;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  white-space: nowrap;
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+  z-index: 99;
+  animation: tooltipFadeIn 0.15s ease forwards;
+}
+
+@keyframes tooltipFadeIn {
+  from { opacity: 0; transform: translate(-50%, 4px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* Unified Top Status Dashboard */
+.sl-status-bar {
+  background: linear-gradient(135deg, var(--surface-2), var(--surface) 80%);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: var(--sp-4) var(--sp-5);
+  margin-bottom: var(--sp-6);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+}
+
+.sl-status-group {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  flex-wrap: wrap;
+}
+
+.sl-status-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.sl-status-label {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sl-status-value {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Horizontal sub-tabs for workflow steps */
+.sl-sub-tabs {
+  display: flex;
+  gap: var(--sp-2);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--sp-6);
+  padding-bottom: 2px;
+}
+
+.sl-sub-tab {
+  padding: var(--sp-3) var(--sp-4);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sl-sub-tab:hover:not(:disabled) {
+  color: var(--text);
+  border-bottom-color: var(--border-strong);
+}
+
+.sl-sub-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.sl-sub-tab:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Workflow Stepper Progress Indicator */
+.sl-stepper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--sp-6);
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--sp-4) var(--sp-5);
+  position: relative;
+}
+
+.sl-stepper-track {
+  position: absolute;
+  top: calc(var(--sp-4) + 14px);
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  background: var(--border);
+  z-index: 1;
+}
+
+.sl-stepper-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+  flex: 1;
+}
+
+.sl-stepper-node {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: var(--sp-2);
+  transition: all 0.2s ease;
+}
+
+.sl-stepper-step.active .sl-stepper-node {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 10px rgba(91, 140, 255, 0.3);
+}
+
+.sl-stepper-step.completed .sl-stepper-node {
+  background: var(--success-soft);
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.sl-stepper-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.sl-stepper-step.active .sl-stepper-label {
+  color: var(--text);
+}
+
+/* Row Flash / Pulsing Highlight */
+@keyframes row-highlight-animation {
+  0% {
+    background-color: rgba(91, 140, 255, 0.25);
+    box-shadow: inset 0 0 12px rgba(91, 140, 255, 0.2);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: none;
+  }
+}
+
+.sl-row-highlight {
+  animation: row-highlight-animation 3s ease-out forwards;
+}
+
+/* Responsive Status Bar & Stepper */
+@media (max-width: 720px) {
+  .sl-status-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sp-4);
+  }
+  .sl-status-group {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sp-3);
+  }
+  .sl-stepper {
+    flex-direction: column;
+    gap: var(--sp-4);
+    align-items: flex-start;
+  }
+  .sl-stepper-track {
+    display: none;
+  }
+  .sl-stepper-step {
+    flex-direction: row;
+    gap: var(--sp-3);
+    align-items: center;
+  }
+  .sl-stepper-node {
+    margin-bottom: 0;
+  }
+}
+
