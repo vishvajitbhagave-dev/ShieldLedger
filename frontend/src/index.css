@@ -97,7 +97,8 @@ body {
 
 .sl-app {
   min-height: 100vh;
-  max-width: 1600px;
+  width: 95%;
+  max-width: 1800px;
   margin: 0 auto;
   padding: var(--sp-7) 20px var(--sp-9);
   display: flex;
@@ -326,6 +327,11 @@ body {
   grid-template-columns: 1fr 1.1fr;
   gap: var(--sp-7);
   align-items: start;
+}
+
+.sl-grid > .sl-panel:nth-child(2) {
+  position: sticky;
+  top: var(--sp-6);
 }
 
 .sl-stage {
@@ -1037,6 +1043,9 @@ select.sl-input {
 @media (max-width: 1140px) {
   .sl-grid {
     grid-template-columns: 1fr;
+  }
+  .sl-grid > .sl-panel:nth-child(2) {
+    position: static;
   }
 }
 
