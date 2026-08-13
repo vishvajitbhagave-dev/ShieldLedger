@@ -89,11 +89,7 @@ const formatDate = (unixSeconds: bigint): string => {
   return new Date(Number(unixSeconds) * 1000).toLocaleString();
 };
 
-const sectionHeading = (text: string, margin = '18px'): React.CSSProperties => ({
-  fontSize: 14,
-  margin: `${margin} 0 8px`,
-  color: '#93b4e4',
-});
+const sectionHeading = 'sl-section-title';
 
 const Field: React.FC<{ label: string; value: string; placeholder?: string; onChange: (v: string) => void; disabled?: boolean }> = ({
   label,
@@ -102,10 +98,8 @@ const Field: React.FC<{ label: string; value: string; placeholder?: string; onCh
   onChange,
   disabled,
 }) => (
-  <div className="sl-row">
-    <label className="sl-meta" style={{ minWidth: 90 }}>
-      {label}
-    </label>
+  <div className="sl-field">
+    <label className="sl-field-label">{label}</label>
     <input
       className="sl-input"
       value={value}
@@ -121,10 +115,8 @@ const InvoicePicker: React.FC<{
   disabled?: boolean;
   onPick: (inv: RegisteredInvoice) => void;
 }> = ({ invoices, disabled, onPick }) => (
-  <div className="sl-row">
-    <label className="sl-meta" style={{ minWidth: 90 }}>
-      Your invoice
-    </label>
+  <div className="sl-field">
+    <label className="sl-field-label">Your invoice</label>
     <select
       className="sl-input"
       value=""
@@ -288,13 +280,13 @@ export const InvoiceFinancing: React.FC = () => {
               });
             }}
           >
-            <h3 style={sectionHeading('1 · Register an invoice', '14px')}>1 · Register an invoice</h3>
+            <h3 className={sectionHeading}>1 · Register an invoice</h3>
             <Field label="Reference" value={form.registerReference} placeholder="optional, private — e.g. INV-001" onChange={set('registerReference')} disabled={busy || working !== null} />
             <Field label="Amount" value={form.registerAmount} placeholder="tNight units" onChange={set('registerAmount')} disabled={busy || working !== null} />
             <Field label="Due date" value={form.registerDue} placeholder="unix seconds" onChange={set('registerDue')} disabled={busy || working !== null} />
             <Field label="Credit check" value={form.registerThreshold} placeholder="e.g. 650 — your score stays private" onChange={set('registerThreshold')} disabled={busy || working !== null} />
             <Field label="Reputation check" value={form.registerReputation} placeholder="e.g. 30 — proven in zero knowledge" onChange={set('registerReputation')} disabled={busy || working !== null} />
-            <p className="sl-meta" style={{ marginBottom: 0 }}>
+            <p className="sl-note">
               Only a <em>nullifier</em> — a blinded hash of these details plus a random secret — is posted on-chain.
               The invoice details never leave this browser; the nullifier is saved locally so you can reuse it later.
               The <em>credit check</em> proves "my credit score is at least {form.registerThreshold.trim() || '…'}" in zero
@@ -321,8 +313,8 @@ export const InvoiceFinancing: React.FC = () => {
             </button>
           </form>
 
-          <h3 style={sectionHeading('2 · Your private reputation', '14px')}>2 · Your private reputation</h3>
-          <p className="sl-meta" style={{ marginBottom: 8 }}>
+          <h3 className={sectionHeading}>2 · Your private reputation</h3>
+          <p className="sl-note">
             Stored only in this browser session. Settling <em>on or before</em> the due date earns you{' '}
             <strong>+10</strong>; a late settlement costs <strong>−20</strong> (clamped to 0–100). Every
             registration proves "score ≥ threshold" in zero knowledge, so lenders are bound to what you really
@@ -353,7 +345,7 @@ export const InvoiceFinancing: React.FC = () => {
             </table>
           )}
 
-          <h3 style={sectionHeading('3 · Your invoices')}>3 · Your invoices</h3>
+          <h3 className={sectionHeading}>3 · Your invoices</h3>
           {invoices.length === 0 ? (
             <p className="sl-empty">No invoices registered in this browser yet.</p>
           ) : (
@@ -419,12 +411,12 @@ export const InvoiceFinancing: React.FC = () => {
               });
             }}
           >
-            <h3 style={sectionHeading('4 · Settle invoice')}>4 · Settle invoice</h3>
+            <h3 className={sectionHeading}>4 · Settle invoice</h3>
             <InvoicePicker invoices={invoices} disabled={busy || working !== null} onPick={pick('settle')} />
             <Field label="Nullifier" value={form.settleNullifier} placeholder="64 hex chars" onChange={set('settleNullifier')} disabled={busy || working !== null} />
             <Field label="Amount" value={form.settleAmount} placeholder="financed amount (≤ winning bid)" onChange={set('settleAmount')} disabled={busy || working !== null} />
             <Field label="Due date" value={form.settleDue} placeholder="unix seconds" onChange={set('settleDue')} disabled={busy || working !== null} />
-            <p className="sl-meta" style={{ marginBottom: 0 }}>
+            <p className="sl-note">
               The contract pays the lowest-rate winner automatically — you cannot pick a different lender. You can
               settle as soon as a lender has revealed a winning bid.
             </p>
@@ -445,8 +437,8 @@ export const InvoiceFinancing: React.FC = () => {
         </>
       ) : role === 'buyer' ? (
         <>
-          <h3 style={sectionHeading('1 · Pending invoices to confirm', '14px')}>1 · Pending invoices (open for bidding)</h3>
-          <p className="sl-meta" style={{ marginBottom: 8 }}>
+          <h3 className={sectionHeading}>1 · Pending invoices (open for bidding)</h3>
+          <p className="sl-note">
             As the <strong>corporate buyer</strong> you can cryptographically confirm that an invoice is genuine and
             that you owe its claimed amount. Only a <strong>Buyer-verified ✓</strong> flag and an opaque per-invoice
             commitment go on-chain — your identity, your other supplier relationships and the full contract terms
@@ -502,10 +494,10 @@ export const InvoiceFinancing: React.FC = () => {
               );
             }}
           >
-            <h3 style={sectionHeading('2 · Confirm an invoice')}>2 · Confirm an invoice</h3>
+            <h3 className={sectionHeading}>2 · Confirm an invoice</h3>
             <Field label="Nullifier" value={form.confirmNullifier} placeholder="64 hex chars" onChange={set('confirmNullifier')} disabled={busy || working !== null} />
             <Field label="Amount owed" value={form.confirmAmount} placeholder="must match the SME's claimed amount" onChange={set('confirmAmount')} disabled={busy || working !== null} />
-            <p className="sl-meta" style={{ marginBottom: 0 }}>
+            <p className="sl-note">
               The circuit verifies the amount you enter matches the SME's on-chain claim exactly — a mismatch fails
               the proof. Only a boolean flag and an opaque per-invoice commitment become public; nobody learns who you
               are or what the invoice is.
@@ -519,7 +511,7 @@ export const InvoiceFinancing: React.FC = () => {
             </button>
           </form>
 
-          <h3 style={sectionHeading('3 · Already buyer-verified')}>3 · Already buyer-verified</h3>
+          <h3 className={sectionHeading}>3 · Already buyer-verified</h3>
           {stateBuyerVerified.length === 0 ? (
             <p className="sl-empty">No invoices confirmed yet.</p>
           ) : (
@@ -545,8 +537,8 @@ export const InvoiceFinancing: React.FC = () => {
         </>
       ) : (
         <>
-          <h3 style={sectionHeading('1 · Open invoices', '14px')}>1 · Open invoices available for financing</h3>
-          <p className="sl-meta" style={{ marginBottom: 8 }}>
+          <h3 className={sectionHeading}>1 · Open invoices available for financing</h3>
+          <p className="sl-note">
             The <strong>Credit</strong> column shows the <em>proven bound</em> the SME attested in zero knowledge at
             registration (e.g. "score ≥ 650"). The <strong>Reputation</strong> column shows the <em>proven
             reputation bound</em> ("score ≥ N"; <strong>any</strong> means no minimum). Neither the credit score nor
@@ -608,13 +600,13 @@ export const InvoiceFinancing: React.FC = () => {
               );
             }}
           >
-            <h3 style={sectionHeading('2 · Submit sealed bid')}>2 · Submit sealed bid</h3>
+            <h3 className={sectionHeading}>2 · Submit sealed bid</h3>
             <InvoicePicker invoices={invoices} disabled={busy || working !== null} onPick={pick('bid')} />
             <Field label="Nullifier" value={form.bidNullifier} placeholder="64 hex chars" onChange={set('bidNullifier')} disabled={busy || working !== null} />
             <Field label="Amount" value={form.bidAmount} placeholder="tNight units" onChange={set('bidAmount')} disabled={busy || working !== null} />
             <Field label="Due date" value={form.bidDue} placeholder="unix seconds" onChange={set('bidDue')} disabled={busy || working !== null} />
             <Field label="Rate" value={form.bidRate} placeholder="basis points, e.g. 400 = 4%" onChange={set('bidRate')} disabled={busy || working !== null} />
-            <p className="sl-meta" style={{ marginBottom: 0 }}>
+            <p className="sl-note">
               Your bid is sealed on-chain — other lenders only see a commitment.
             </p>
             <button
@@ -636,13 +628,13 @@ export const InvoiceFinancing: React.FC = () => {
               );
             }}
           >
-            <h3 style={sectionHeading('3 · Reveal your bid')}>3 · Reveal your bid</h3>
+            <h3 className={sectionHeading}>3 · Reveal your bid</h3>
             <InvoicePicker invoices={invoices} disabled={busy || working !== null} onPick={pick('reveal')} />
             <Field label="Nullifier" value={form.revealNullifier} placeholder="64 hex chars" onChange={set('revealNullifier')} disabled={busy || working !== null} />
             <Field label="Amount" value={form.revealAmount} placeholder="must match your sealed bid" onChange={set('revealAmount')} disabled={busy || working !== null} />
             <Field label="Due date" value={form.revealDue} placeholder="must match your sealed bid" onChange={set('revealDue')} disabled={busy || working !== null} />
             <Field label="Rate" value={form.revealRate} placeholder="must match your sealed bid" onChange={set('revealRate')} disabled={busy || working !== null} />
-            <p className="sl-meta" style={{ marginBottom: 0 }}>
+            <p className="sl-note">
               The contract verifies these terms against your commitment and, if they beat the running best, you take
               the lead. The lowest rate wins.
             </p>

@@ -29,7 +29,7 @@ export const LedgerView: React.FC = () => {
             sealed bid(s) · {state.bestBids.length} leading bid(s)
           </p>
 
-          <h3 style={{ fontSize: 14, margin: '14px 0 8px', color: '#93b4e4' }}>Invoices</h3>
+          <h3 className="sl-section-title">Invoices</h3>
           <p className="sl-meta" style={{ marginBottom: 8 }}>
             <strong>Credit (ZK-proof)</strong> and <strong>Reputation (ZK-proof)</strong> are the bounds the SME
             proved in zero knowledge — the actual scores are never revealed to anyone. A{' '}
@@ -81,7 +81,7 @@ export const LedgerView: React.FC = () => {
             </table>
           )}
 
-          <h3 style={{ fontSize: 14, margin: '18px 0 8px', color: '#93b4e4' }}>Sealed bids</h3>
+          <h3 className="sl-section-title">Sealed bids</h3>
           {state.bids.length === 0 ? (
             <p className="sl-empty">No bids submitted yet.</p>
           ) : (
@@ -105,7 +105,7 @@ export const LedgerView: React.FC = () => {
             </table>
           )}
 
-          <h3 style={{ fontSize: 14, margin: '18px 0 8px', color: '#93b4e4' }}>Leading bids (revealed)</h3>
+          <h3 className="sl-section-title">Leading bids (revealed)</h3>
           {state.bestBids.length === 0 ? (
             <p className="sl-empty">Nothing revealed yet — bids stay sealed until a lender reveals.</p>
           ) : (

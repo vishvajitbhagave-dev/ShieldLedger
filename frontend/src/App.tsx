@@ -25,11 +25,19 @@ const Body: React.FC = () => {
   return (
     <div className="sl-app">
       <header className="sl-header">
-        <div>
-          <h1 className="sl-title">ShieldLedger</h1>
-          <p className="sl-subtitle">
-            Confidential invoice financing on the Midnight Network — commitments on-chain, invoice details private.
-          </p>
+        <div className="sl-brand">
+          <span className="sl-logo" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2 4 5v6c0 5.25 3.4 9.74 8 11 4.6-1.26 8-5.75 8-11V5l-8-3Z" />
+              <path d="m9 11.5 2 2 4-4" />
+            </svg>
+          </span>
+          <div>
+            <h1 className="sl-title">ShieldLedger</h1>
+            <p className="sl-subtitle">
+              Confidential invoice financing on the Midnight Network — commitments on-chain, invoice details private.
+            </p>
+          </div>
         </div>
         <div className="sl-header-actions">
           {deployment.status === 'deployed' && (

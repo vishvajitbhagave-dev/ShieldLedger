@@ -48,7 +48,7 @@ export const WalletConnect: React.FC = () => {
         <button className="sl-button" onClick={() => void deploy()} disabled={busy}>
           Deploy new contract
         </button>
-        <span style={{ color: '#64748b' }}>or</span>
+        <span className="sl-or">or</span>
         <input
           className="sl-input"
           placeholder="Existing contract address (hex)"
