@@ -310,9 +310,16 @@ export const InvoiceFinancing: React.FC = () => {
                 (step.key === 'verify' && invoices.some((i) => statusOf(i) !== 'Unconfirmed')) ||
                 (step.key === 'bid' && invoices.some((i) => resolved(i.nullifier)));
               const isActive = activeSmeStep === step.key;
+              const stepIcon = isCompleted ? (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              ) : (
+                idx + 1
+              );
               return (
                 <div key={step.key} className={`sl-stepper-step ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}>
-                  <div className="sl-stepper-node">{idx + 1}</div>
+                  <div className="sl-stepper-node">{stepIcon}</div>
                   <div className="sl-stepper-label">{step.label}</div>
                 </div>
               );
@@ -462,7 +469,7 @@ export const InvoiceFinancing: React.FC = () => {
                         <tr key={inv.nullifier}>
                           <td>{inv.reference || '—'}</td>
                           <td><HexBadge hex={inv.nullifier} /></td>
-                          <td style={{ fontWeight: 'bold' }}>{inv.amount} tNight</td>
+                          <td style={{ fontWeight: 'bold', color: 'var(--text)' }}>{inv.amount} tNight</td>
                           <td>{formatDate(BigInt(inv.dueDate))}</td>
                           <td>
                             <span className={`sl-badge ${statusOf(inv) === 'Financed' ? '' : 'sl-badge-warn'}`}>
@@ -557,9 +564,16 @@ export const InvoiceFinancing: React.FC = () => {
                 (step.key === 'pending' && openInvoices.length === 0 && stateBuyerVerified.length > 0) ||
                 (step.key === 'confirm' && stateBuyerVerified.length > 0);
               const isActive = activeBuyerStep === step.key;
+              const stepIcon = isCompleted ? (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              ) : (
+                idx + 1
+              );
               return (
                 <div key={step.key} className={`sl-stepper-step ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}>
-                  <div className="sl-stepper-node">{idx + 1}</div>
+                  <div className="sl-stepper-node">{stepIcon}</div>
                   <div className="sl-stepper-label">{step.label}</div>
                 </div>
               );
@@ -622,7 +636,7 @@ export const InvoiceFinancing: React.FC = () => {
                       {openInvoices.map((inv) => (
                         <tr key={inv.nullifier}>
                           <td><HexBadge hex={inv.nullifier} /></td>
-                          <td style={{ fontWeight: 'bold' }}>{inv.invoiceAmount.toString()} tNight</td>
+                          <td style={{ fontWeight: 'bold', color: 'var(--text)' }}>{inv.invoiceAmount.toString()} tNight</td>
                           <td>score ≥ {inv.creditThreshold.toString()}</td>
                           <td>{inv.buyerVerified ? <BuyerVerifiedBadge /> : <span className="sl-meta">not verified</span>}</td>
                           <td>
@@ -701,7 +715,7 @@ export const InvoiceFinancing: React.FC = () => {
                       {stateBuyerVerified.map((inv) => (
                         <tr key={inv.nullifier}>
                           <td><HexBadge hex={inv.nullifier} /></td>
-                          <td style={{ fontWeight: 'bold' }}>{inv.invoiceAmount.toString()} tNight</td>
+                          <td style={{ fontWeight: 'bold', color: 'var(--text)' }}>{inv.invoiceAmount.toString()} tNight</td>
                           <td><BuyerVerifiedBadge /></td>
                         </tr>
                       ))}
@@ -725,9 +739,16 @@ export const InvoiceFinancing: React.FC = () => {
                 (step.key === 'browse' && openInvoices.length === 0) ||
                 (step.key === 'bid' && bestBids.length > 0);
               const isActive = activeLenderStep === step.key;
+              const stepIcon = isCompleted ? (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              ) : (
+                idx + 1
+              );
               return (
                 <div key={step.key} className={`sl-stepper-step ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}>
-                  <div className="sl-stepper-node">{idx + 1}</div>
+                  <div className="sl-stepper-node">{stepIcon}</div>
                   <div className="sl-stepper-label">{step.label}</div>
                 </div>
               );
