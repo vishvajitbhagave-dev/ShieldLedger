@@ -8,6 +8,7 @@ type TickerItem = {
 };
 
 const TICKER_ITEMS: TickerItem[] = [
+  { invoice: 'Midnight', status: 'Preview', amount: 'public testnet', meta: 'zero-knowledge proofs' },
   { invoice: 'INV-1042', status: 'Registered', amount: '12,400 tNight', meta: '0x91f3…4a7c' },
   { invoice: 'INV-1042', status: 'Buyer-verified', amount: '12,400 tNight', meta: '0x91f3…4a7c' },
   { invoice: 'INV-1038', status: 'Sealed bid', amount: '8,950 tNight', meta: '3 commitments' },
