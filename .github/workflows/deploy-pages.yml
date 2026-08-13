@@ -54,6 +54,9 @@ jobs:
           VITE_BASE_PATH: /ShieldLedger/
           VITE_NETWORK_ID: preview
           VITE_PROOF_SERVER_URL: http://localhost:6300
+          VITE_APP_RELEASE: ${{ github.sha }}
+          VITE_SENTRY_DSN: ${{ vars.SENTRY_DSN }}
+          VITE_ANALYTICS_DOMAIN: ${{ vars.ANALYTICS_DOMAIN }}
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

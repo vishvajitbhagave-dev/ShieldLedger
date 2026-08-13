@@ -10,6 +10,8 @@ import { invoiceStatusOf, isAuctionResolved, isOpenInvoice } from '../invoice-st
 import type { InvoiceView } from '../shield-ledger-types.js';
 import type { ReputationView } from '../../../src/reputation.js';
 import { userFacingFailureMessage } from '../lib/errorMessages.js';
+import { track } from '../lib/analytics.js';
+import { captureError } from '../lib/monitoring.js';
 import { HexBadge } from './HexBadge.js';
 
 type FormState = {
@@ -227,12 +229,21 @@ export const InvoiceFinancing: React.FC = () => {
     try {
       await op();
       setMessage({ ok: true, text: `${label} succeeded` });
+      track(label, { outcome: 'success', role });
     } catch (e) {
       console.error(`${label} failed:`, e);
       setMessage({ ok: false, text: userFacingFailureMessage(label, e) });
+      captureError(e, { step: label });
+      track(label, { outcome: 'error', role });
     } finally {
       setWorking(null);
     }
+  };
+
+  const changeRole = (next: Role) => {
+    if (next === role) return;
+    setRole(next);
+    track('role_switch', { role: next });
   };
 
   const openInvoices = (ledgerState?.invoices ?? []).filter(isOpenInvoice);
@@ -296,7 +307,7 @@ export const InvoiceFinancing: React.FC = () => {
         <span className="sl-meta">Fills the forms with sample values.</span>
       </div>
 
-      <RoleTabs role={role} disabled={busy || working !== null} onChange={setRole} />
+      <RoleTabs role={role} disabled={busy || working !== null} onChange={changeRole} />
 
       {/* SME Workflow */}
       {role === 'sme' && (

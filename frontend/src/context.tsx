@@ -11,6 +11,8 @@ import {
   type WalletInfo,
 } from './manager.js';
 import type { ShieldLedgerProviders } from './shield-ledger-types.js';
+import { track } from './lib/analytics.js';
+import { captureError } from './lib/monitoring.js';
 
 /** User role in the invoice-financing workflow. */
 export type Role = 'sme' | 'lender' | 'buyer';
@@ -87,8 +89,11 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
       const ps = await initializeProviders(api);
       setWalletInfo(info);
       setProviders(ps);
+      track('wallet_connect', { outcome: 'success', network: networkId });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      captureError(e, { step: 'connect' });
+      track('wallet_connect', { outcome: 'error' });
     } finally {
       setConnecting(false);
       setWalletLocked(false);
@@ -111,8 +116,11 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
     try {
       const api = await deployShieldLedger(providers);
       setDeployment({ status: 'deployed', api, address: api.deployedContractAddress });
+      track('contract_deploy', { outcome: 'success' });
     } catch (e) {
       setDeployment({ status: 'failed', error: e instanceof Error ? e.message : String(e) });
+      captureError(e, { step: 'deploy' });
+      track('contract_deploy', { outcome: 'error' });
     }
   }, [providers]);
 
@@ -123,8 +131,11 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
     try {
       const api = await joinShieldLedger(providers, contractAddress.trim());
       setDeployment({ status: 'deployed', api, address: api.deployedContractAddress });
+      track('contract_join', { outcome: 'success' });
     } catch (e) {
       setDeployment({ status: 'failed', error: e instanceof Error ? e.message : String(e) });
+      captureError(e, { step: 'join' });
+      track('contract_join', { outcome: 'error' });
     }
   }, [providers]);
 
