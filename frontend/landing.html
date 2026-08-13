@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="ShieldLedger — confidential invoice financing on the Midnight Network. Prove your credit, reputation, and invoice authenticity in zero knowledge. Lenders see bounds, never your books." />
+    <meta name="theme-color" content="#f7f7f5" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%230f766e' d='M12 2l8 3v6c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V5l8-3z'/%3E%3Cpath fill='%23f7f7f5' d='M12 5.5l5 1.9v3.9c0 3.5-2.2 6.3-5 7.6-2.8-1.3-5-4.1-5-7.6V7.4l5-1.9z'/%3E%3C/svg%3E" />
+    <meta property="og:title" content="ShieldLedger — confidential invoice financing on Midnight" />
+    <meta property="og:description" content="Prove your credit and reputation in zero knowledge. Lenders see bounds, never your books. Sealed-bid invoice financing on the Midnight Network." />
+    <meta property="og:type" content="website" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <title>ShieldLedger — Confidential invoice financing on Midnight</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#how-it-works">Skip to content</a>
+
+    <!-- 1 · Navigation -->
+    <header class="nav">
+      <div class="nav-inner">
+        <a class="brand" href="#top" aria-label="ShieldLedger home">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path fill="#0f766e" d="M12 2l8 3v6c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V5l8-3z" />
+            <path fill="#f7f7f5" d="M12 5.5l5 1.9v3.9c0 3.5-2.2 6.3-5 7.6-2.8-1.3-5-4.1-5-7.6V7.4l5-1.9z" />
+          </svg>
+          <span class="brand-name">ShieldLedger</span>
+        </a>
+
+        <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links" aria-label="Toggle navigation">
+          <span></span><span></span><span></span>
+        </button>
+
+        <nav class="nav-links" id="nav-links" aria-label="Primary">
+          <a href="#how-it-works">How it works</a>
+          <a href="#features">Features</a>
+          <a href="#security">Security</a>
+          <a href="#faq">FAQ</a>
+        </nav>
+
+        <div class="nav-cta">
+          <a class="btn btn-ghost" href="./">Launch app</a>
+          <a class="btn btn-solid" href="#how-it-works">Get started</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="top">
+      <!-- 2 · Hero -->
+      <section class="hero">
+        <div class="hero-inner">
+          <p class="hero-eyebrow">
+            <span class="eyebrow-dot" aria-hidden="true"></span>
+            Confidential invoice financing · built on the Midnight Network
+          </p>
+          <h1 class="hero-title">
+            Get your invoices financed
+            <span class="hero-accent">without revealing a thing.</span>
+          </h1>
+          <p class="hero-sub">
+            Prove your credit score, reputation, and invoice authenticity in zero knowledge — only commitments go
+            on-chain. Lenders see bounds, never numbers. The lowest rate wins, and your financials stay yours.
+          </p>
+          <div class="hero-cta">
+            <a class="btn btn-solid btn-lg" href="#demo">Get started</a>
+            <a class="btn btn-outline btn-lg" href="#how-it-works">See how it works</a>
+          </div>
+
+          <div class="hero-stats">
+            <div class="hero-stat">
+              <span class="hero-stat-num">0</span>
+              <span class="hero-stat-label">financial scores ever revealed — only proven bounds go on-chain</span>
+            </div>
+            <div class="hero-stat">
+              <span class="hero-stat-num">100</span>
+              <span class="hero-stat-label">private reputation scale (0–100)</span>
+            </div>
+            <div class="hero-stat">
+              <span class="hero-stat-num">3</span>
+              <span class="hero-stat-label">roles in one auction: SME · buyer · lender</span>
+            </div>
+            <div class="hero-stat">
+              <span class="hero-stat-num">Lowest</span>
+              <span class="hero-stat-label">bid wins, paid automatically by the contract</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3 · Showcase + live demo -->
+      <section class="section section-alt" id="demo">
+        <div class="section-inner showcase">
+          <div class="showcase-visual">
+            <div class="mock-ledger">
+              <div class="mock-ledger-head">
+                <span>Public ledger</span>
+                <span class="mock-chip">live demo</span>
+              </div>
+              <div class="mock-row">
+                <span class="mock-mono">0x91f3…4a7c</span>
+                <span class="mock-amount">12,400 tNight</span>
+              </div>
+              <div class="mock-row">
+                <span class="mock-label">Credit (ZK-proof)</span>
+                <span class="mock-mono">≥ 650</span>
+              </div>
+              <div class="mock-row">
+                <span class="mock-label">Reputation (ZK-proof)</span>
+                <span class="mock-mono">≥ 30</span>
+              </div>
+              <div class="mock-row">
+                <span class="mock-label">Buyer</span>
+                <span class="mock-badge">Buyer-verified ✓</span>
+              </div>
+              <div class="mock-row">
+                <span class="mock-label">Sealed bids</span>
+                <span class="mock-mono">3 commitments</span>
+              </div>
+              <div class="mock-row">
+                <span class="mock-label">Leading bid</span>
+                <span class="mock-mono">400 bps (4.00%)</span>
+              </div>
+            </div>
+
+            <div class="overlay-card overlay-card-a">
+              <span class="overlay-icon">✓</span>
+              <div>
+                <strong>Invoice registered</strong>
+                <span>Only a nullifier went on-chain — the details never left the browser.</span>
+              </div>
+            </div>
+            <div class="overlay-card overlay-card-b">
+              <span class="overlay-icon">✓</span>
+              <div>
+                <strong>Buyer-verified</strong>
+                <span>A ✓ flag and a commitment. Not who you are, not the terms.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="showcase-demo">
+            <p class="eyebrow eyebrow-dark">Try it yourself</p>
+            <h2 class="section-title">A zero-knowledge check, live.</h2>
+            <p class="section-sub">
+              When you register an invoice, lenders see a proven lower bound — never your score. Try it: set a score
+              and a threshold, and see exactly what gets "proven".
+            </p>
+
+            <div class="zk-demo">
+              <div class="zk-field">
+                <label for="zk-score">Your credit score</label>
+                <input id="zk-score" type="number" inputmode="numeric" min="300" max="850" step="1" value="712" />
+              </div>
+              <div class="zk-field">
+                <label for="zk-threshold">Prove it's at least</label>
+                <input id="zk-threshold" type="number" inputmode="numeric" min="300" max="850" step="1" value="650" />
+              </div>
+              <div class="zk-result" id="zk-result" role="status" aria-live="polite"></div>
+              <p class="zk-note">
+                Demo only — in the live dApp this proof is generated by the zero-knowledge circuit inside your browser;
+                the score itself never leaves it.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4 · Activity ticker -->
+      <section class="ticker" aria-label="Illustrative platform activity">
+        <div class="ticker-label">Illustrative activity</div>
+        <div class="ticker-viewport">
+          <div class="ticker-track" id="ticker-track">
+            <!-- items injected by landing.ts -->
+          </div>
+        </div>
+      </section>
+
+      <!-- 5 · How it works -->
+      <section class="section" id="how-it-works">
+        <div class="section-inner">
+          <div class="section-head">
+            <p class="eyebrow eyebrow-dark">How it works</p>
+            <h2 class="section-title">From invoice to paid, privately.</h2>
+            <p class="section-sub">
+              Three parties, one confidential auction. Nothing about your financials is ever public.
+            </p>
+          </div>
+
+          <div class="steps">
+            <article class="step">
+              <span class="step-num" aria-hidden="true">01</span>
+              <span class="step-icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+                  <path d="M14 2v6h6" />
+                  <path d="M9 13h6M9 17h6" />
+                </svg>
+              </span>
+              <h3>Register your invoice</h3>
+              <p>
+                Prove your credit score and reputation in zero knowledge. Only a <em>nullifier</em> — a blinded hash
+                plus a random secret — is posted on-chain; your invoice details never leave your browser.
+              </p>
+            </article>
+            <article class="step">
+              <span class="step-num" aria-hidden="true">02</span>
+              <span class="step-icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="m8 12 3 3 5-6" />
+                </svg>
+              </span>
+              <h3>Get buyer-verified</h3>
+              <p>
+                Your corporate buyer cryptographically confirms the invoice is genuine and owed. Only a
+                <strong>Buyer-verified ✓</strong> flag and an opaque commitment become public — identity and terms
+                stay private.
+              </p>
+            </article>
+            <article class="step">
+              <span class="step-num" aria-hidden="true">03</span>
+              <span class="step-icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 7v10M15 9.5c0-1-1.2-1.8-3-1.8s-3 .8-3 1.8c0 3.4 6 2 6 5.4 0 1-1.2 1.8-3 1.8s-3-.8-3-1.8" />
+                </svg>
+              </span>
+              <h3>Get financed</h3>
+              <p>
+                Lenders submit sealed bids. The contract reveals the lowest rate and pays that winner automatically —
+                the SME cannot play favorites.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6 · Features -->
+      <section class="section section-alt" id="features">
+        <div class="section-inner">
+          <div class="section-head">
+            <p class="eyebrow eyebrow-dark">Features</p>
+            <h2 class="section-title">Privacy you can prove.</h2>
+            <p class="section-sub">Every feature is a zero-knowledge guarantee, enforced by the contract on-chain.</p>
+          </div>
+
+          <div class="features">
+            <article class="feature">
+              <span class="feature-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="4" y="11" width="16" height="10" rx="2" />
+                  <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                </svg>
+              </span>
+              <h3>ZK credit scoring</h3>
+              <p>
+                Prove "my credit score is at least 650" without ever revealing the score. Only the proven bound appears
+                on-chain.
+              </p>
+            </article>
+            <article class="feature">
+              <span class="feature-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="m8 12 3 3 5-6" />
+                </svg>
+              </span>
+              <h3>Buyer verification</h3>
+              <p>
+                Buyers vouch for invoices cryptographically. A Buyer-verified ✓ badge and an opaque commitment are all
+                that's ever public.
+              </p>
+            </article>
+            <article class="feature">
+              <span class="feature-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3v18" />
+                  <path d="M5.5 6.5h13" />
+                  <path d="M5.5 6.5a3.5 3.5 0 0 1 7 0v4.5" />
+                  <path d="M5.5 6.5a3.5 3.5 0 0 0 7 0" />
+                  <path d="M8 14h8l-2 6h-4l-2-6Z" />
+                </svg>
+              </span>
+              <h3>Sealed-bid auctions</h3>
+              <p>
+                Lenders post only commitments to their terms — no lender can see another's bid. The lowest rate wins,
+                enforced by the contract.
+              </p>
+            </article>
+            <article class="feature">
+              <span class="feature-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 17l5-6 4 4 9-10" />
+                  <path d="M15 5h6v6" />
+                </svg>
+              </span>
+              <h3>Private reputation</h3>
+              <p>
+                Reputation lives in your wallet state: +10 for on-time settlement, −20 for late, clamped 0–100 — and
+                proven, never shown, to lenders.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- 7 · Security -->
+      <section class="section" id="security">
+        <div class="section-inner security">
+          <div class="security-copy">
+            <p class="eyebrow eyebrow-dark">Security</p>
+            <h2 class="section-title">Zero knowledge by default.</h2>
+            <p class="section-sub">
+              ShieldLedger runs on the Midnight Network, where transactions are validated with zero-knowledge proofs.
+              Here's what that means for your data.
+            </p>
+            <ul class="security-list">
+              <li>
+                <strong>Only commitments, never facts.</strong>
+                A nullifier — a blinded hash of your invoice details plus a secret — is the only thing posted on-chain.
+              </li>
+              <li>
+                <strong>Proven bounds, not scores.</strong>
+                Credit and reputation checks prove "score ≥ N" in zero knowledge. The scores themselves are never
+                revealed to anyone.
+              </li>
+              <li>
+                <strong>Anonymous buyers.</strong>
+                A buyer's identity, other supplier relationships, and full contract terms never appear on-chain — only
+                a ✓ flag and an opaque commitment.
+              </li>
+              <li>
+                <strong>Sealed bids.</strong>
+                Lenders commit to terms they keep hidden until reveal; no lender sees any other bid before the winner
+                is determined.
+              </li>
+            </ul>
+          </div>
+
+          <div class="security-table">
+            <div class="sec-col sec-private">
+              <h4>Stays private</h4>
+              <ul>
+                <li>Credit &amp; reputation scores</li>
+                <li>Invoice reference, due date &amp; secret</li>
+                <li>Buyer identity &amp; contract terms</li>
+                <li>Other lenders' bids</li>
+              </ul>
+            </div>
+            <div class="sec-col sec-public">
+              <h4>Goes on-chain</h4>
+              <ul>
+                <li>Invoice nullifier</li>
+                <li>Proven bounds (e.g. "score ≥ 650")</li>
+                <li>Claimed amount &amp; ✓ verification flags</li>
+                <li>Sealed bid commitments &amp; leading bid</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 8 · FAQ -->
+      <section class="section section-alt" id="faq">
+        <div class="section-inner">
+          <div class="section-head">
+            <p class="eyebrow eyebrow-dark">FAQ</p>
+            <h2 class="section-title">Questions, answered.</h2>
+          </div>
+
+          <div class="faq">
+            <details class="faq-item" open>
+              <summary>What exactly goes on-chain?</summary>
+              <p>
+                An invoice nullifier, the proven lower bounds for credit and reputation, the claimed amount, buyer
+                verification flags, and sealed bid commitments. Your actual credit or reputation score, your identity,
+                invoice reference, due date, and the terms of your contracts never appear on-chain.
+              </p>
+            </details>
+            <details class="faq-item">
+              <summary>How is the lowest rate guaranteed?</summary>
+              <p>
+                Bids are sealed on-chain — lenders post only a commitment to their terms, so no lender can see another
+                bid. Whoever reveals the lowest interest rate wins, and the contract pays that winner automatically.
+              </p>
+            </details>
+            <details class="faq-item">
+              <summary>How does reputation work?</summary>
+              <p>
+                Your reputation is stored in your own private wallet state. Settling on or before the due date earns you
+                +10; a late settlement costs −20, clamped to 0–100. When you register, you prove "score ≥ threshold" in
+                zero knowledge — lenders are bound to what you really have without ever seeing the score.
+              </p>
+            </details>
+            <details class="faq-item">
+              <summary>Who can participate?</summary>
+              <p>
+                Three roles share one workflow: the SME registers invoices and seeks financing, the corporate buyer
+                verifies invoices, and lenders bid to finance them. You'll need the Midnight Lace wallet to sign
+                transactions.
+              </p>
+            </details>
+            <details class="faq-item">
+              <summary>Is this a live financial product?</summary>
+              <p>
+                ShieldLedger is a working demonstration running on the Midnight public preview network using testnet
+                funds — not a regulated financial service. It's a real contract with real zero-knowledge proofs, made
+                to show what confidential invoice financing can look like.
+              </p>
+            </details>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- 9 · Footer -->
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path fill="#0f766e" d="M12 2l8 3v6c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V5l8-3z" />
+            <path fill="#f7f7f5" d="M12 5.5l5 1.9v3.9c0 3.5-2.2 6.3-5 7.6-2.8-1.3-5-4.1-5-7.6V7.4l5-1.9z" />
+          </svg>
+          <span>ShieldLedger</span>
+        </div>
+        <p class="footer-tagline">Confidential invoice financing on the Midnight Network — zero knowledge by design.</p>
+        <a class="btn btn-solid" href="./">Launch the app</a>
+        <p class="footer-note">Built on Midnight · Zero-knowledge proofs · Sealed-bid auctions</p>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/landing/landing.ts"></script>
+  </body>
+</html>

@@ -13,6 +13,10 @@ export default defineConfig({
     target: 'esnext',
     minify: false,
     rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        landing: fileURLToPath(new URL('./landing.html', import.meta.url)),
+      },
       output: {
         manualChunks: (id) => {
           if (id.includes('onchain-runtime-v3')) return 'wasm';
