@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useShieldLedger, type Role } from '../context.js';
+import { useShieldLedger } from '../context.js';
 import {
   loadRegisteredInvoices,
   registerInvoiceLocally,
@@ -111,65 +111,116 @@ const Field: React.FC<{ label: string; value: string; placeholder?: string; onCh
   </div>
 );
 
+const Icon: React.FC<{ className?: string; strokeWidth?: number; children: React.ReactNode }> = ({
+  className = '',
+  strokeWidth = 2,
+  children,
+}) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={strokeWidth}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    {children}
+  </svg>
+);
+
+const ChevronRightIcon: React.FC<{ className?: string }> = ({ className = 'sl-row-arrow' }) => (
+  <Icon className={className} strokeWidth={2.5}>
+    <path d="m9 6 6 6-6 6" />
+  </Icon>
+);
+
 const InvoicePicker: React.FC<{
   invoices: RegisteredInvoice[];
   disabled?: boolean;
   onPick: (inv: RegisteredInvoice) => void;
 }> = ({ invoices, disabled, onPick }) => (
-  <div className="sl-field">
-    <label className="sl-field-label">Your invoice</label>
-    <select
-      className="sl-input"
-      value=""
-      disabled={disabled}
-      onChange={(e) => {
-        const inv = invoices.find((i) => i.nullifier === e.target.value);
-        if (inv) onPick(inv);
-      }}
-    >
-      <option value="" disabled>
-        {invoices.length > 0 ? 'Pick a registered invoice…' : 'No invoices registered in this browser'}
-      </option>
-      {invoices.map((inv) => (
-        <option key={inv.nullifier} value={inv.nullifier}>
-          {inv.reference || '(no reference)'} · {inv.amount} tNight · {inv.nullifier.slice(0, 10)}…
-        </option>
-      ))}
-    </select>
+  <div className="sl-list">
+    <span className="sl-list-label">Your invoice</span>
+    {invoices.length === 0 ? (
+      <p className="sl-meta">No invoices registered in this browser yet.</p>
+    ) : (
+      invoices.map((inv) => (
+        <button
+          key={inv.nullifier}
+          type="button"
+          className="sl-row-item"
+          disabled={disabled}
+          onClick={() => onPick(inv)}
+        >
+          <span className="sl-row-icon">
+            <Icon>
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+              <path d="M14 2v6h6" />
+              <path d="M9 13h6M9 17h6" />
+            </Icon>
+          </span>
+          <span className="sl-row-body">
+            <span className="sl-row-title">{inv.reference || '(no reference)'}</span>
+            <span className="sl-row-sub">
+              {inv.amount} tNight · {inv.nullifier.slice(0, 10)}…
+            </span>
+          </span>
+          <ChevronRightIcon />
+        </button>
+      ))
+    )}
   </div>
 );
 
-const RoleTabs: React.FC<{ role: Role; disabled?: boolean; onChange: (role: Role) => void }> = ({
-  role,
-  disabled,
-  onChange,
-}) => (
-  <div className="sl-tabs">
-    <button
-      className={role === 'sme' ? 'sl-tab sl-tab-active' : 'sl-tab'}
-      type="button"
-      onClick={() => onChange('sme')}
-      disabled={disabled}
-    >
-      I'm an SME · sell invoices
-    </button>
-    <button
-      className={role === 'buyer' ? 'sl-tab sl-tab-active' : 'sl-tab'}
-      type="button"
-      onClick={() => onChange('buyer')}
-      disabled={disabled}
-    >
-      I'm a Buyer · confirm invoices
-    </button>
-    <button
-      className={role === 'lender' ? 'sl-tab sl-tab-active' : 'sl-tab'}
-      type="button"
-      onClick={() => onChange('lender')}
-      disabled={disabled}
-    >
-      I'm a Lender · bid on invoices
+const HeroCard: React.FC<{
+  label: string;
+  number: string;
+  unit?: string;
+  sub: string;
+  actionLabel: string;
+  onAction: () => void;
+  disabled: boolean;
+}> = ({ label, number, unit, sub, actionLabel, onAction, disabled }) => (
+  <div className="sl-hero">
+    <div className="sl-hero-content">
+      <span className="sl-hero-label">{label}</span>
+      <div className="sl-hero-number-line">
+        <span className="sl-hero-number">{number}</span>
+        {unit !== undefined && <span className="sl-hero-unit">{unit}</span>}
+      </div>
+      <span className="sl-hero-sub">{sub}</span>
+    </div>
+    <button type="button" className="sl-hero-action" onClick={onAction} disabled={disabled}>
+      {actionLabel}
     </button>
   </div>
+);
+
+type ActionSpec = {
+  key: string;
+  label: string;
+  icon: React.ReactNode;
+  active: boolean;
+  onClick: () => void;
+};
+
+const ActionCard: React.FC<{
+  active: boolean;
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}> = ({ active, icon, label, onClick, disabled }) => (
+  <button
+    type="button"
+    className={active ? 'sl-action-card sl-action-card-active' : 'sl-action-card'}
+    onClick={onClick}
+    disabled={disabled}
+  >
+    {icon}
+    <span className="sl-action-label">{label}</span>
+  </button>
 );
 
 const BuyerVerifiedBadge: React.FC = () => (
@@ -179,7 +230,7 @@ const BuyerVerifiedBadge: React.FC = () => (
 );
 
 export const InvoiceFinancing: React.FC = () => {
-  const { deployment, connected, role, setRole } = useShieldLedger();
+  const { deployment, connected, role } = useShieldLedger();
   const api = deployment.status === 'deployed' ? deployment.api : null;
   const busy = deployment.status === 'in-progress' || !connected || api === null;
 
@@ -240,14 +291,158 @@ export const InvoiceFinancing: React.FC = () => {
     }
   };
 
-  const changeRole = (next: Role) => {
-    if (next === role) return;
-    setRole(next);
-    track('role_switch', { role: next });
-  };
-
   const openInvoices = (ledgerState?.invoices ?? []).filter(isOpenInvoice);
   const stateBuyerVerified = (ledgerState?.invoices ?? []).filter((inv) => inv.buyerVerified);
+  const pendingBuyerCount = openInvoices.filter((inv) => !inv.buyerVerified).length;
+
+  const hero =
+    role === 'sme'
+      ? {
+          label: 'Private reputation',
+          number: reputation ? reputation.score.toString() : '—',
+          unit: reputation ? '/ 100' : undefined,
+          sub: reputation
+            ? `${reputation.onTimeCount.toString()} on-time · ${reputation.lateCount.toString()} late`
+            : 'No reputation in this browser yet — settle on time to earn +10.',
+          actionLabel: 'Register invoice',
+          onAction: () => setSmeTab('register'),
+        }
+      : role === 'buyer'
+        ? {
+            label: 'Awaiting your confirmation',
+            number: pendingBuyerCount.toString(),
+            unit: undefined,
+            sub: 'Open invoices you can verify in zero knowledge — your identity stays private.',
+            actionLabel: 'Confirm invoice',
+            onAction: () => setBuyerTab('confirm'),
+          }
+        : {
+            label: 'Open to finance',
+            number: openInvoices.length.toString(),
+            unit: undefined,
+            sub: 'Invoices accepting sealed bids — your terms stay hidden until you reveal.',
+            actionLabel: 'Browse & bid',
+            onAction: () => setLenderTab('browse'),
+          };
+
+  const actions: ActionSpec[] =
+    role === 'sme'
+      ? [
+          {
+            key: 'register',
+            label: 'Register Invoice',
+            icon: (
+              <Icon className="sl-action-icon">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+                <path d="M14 2v6h6" />
+                <path d="M12 11v6M9 14h6" />
+              </Icon>
+            ),
+            active: smeTab === 'register',
+            onClick: () => setSmeTab('register'),
+          },
+          {
+            key: 'track',
+            label: `Track Invoices (${invoices.length})`,
+            icon: (
+              <Icon className="sl-action-icon">
+                <path d="M8 6h13M8 12h13M8 18h13" />
+                <path d="M3 6h.01M3 12h.01M3 18h.01" />
+              </Icon>
+            ),
+            active: smeTab === 'track',
+            onClick: () => setSmeTab('track'),
+          },
+          {
+            key: 'settle',
+            label: 'Settle Invoice',
+            icon: (
+              <Icon className="sl-action-icon">
+                <path d="M12 3v18" />
+                <path d="M7 8h10M7 12h10M7 16h6" />
+              </Icon>
+            ),
+            active: smeTab === 'settle',
+            onClick: () => setSmeTab('settle'),
+          },
+        ]
+      : role === 'buyer'
+        ? [
+            {
+              key: 'pending',
+              label: `Pending (${openInvoices.length})`,
+              icon: (
+                <Icon className="sl-action-icon">
+                  <path d="M22 12h-6l-2 3h-4l-2-3H2" />
+                  <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z" />
+                </Icon>
+              ),
+              active: buyerTab === 'pending',
+              onClick: () => setBuyerTab('pending'),
+            },
+            {
+              key: 'confirm',
+              label: 'Confirm Invoice',
+              icon: (
+                <Icon className="sl-action-icon">
+                  <path d="M12 2 4 5v6c0 5.25 3.4 9.74 8 11 4.6-1.26 8-5.75 8-11V5l-8-3Z" />
+                  <path d="m9 11.5 2 2 4-4" />
+                </Icon>
+              ),
+              active: buyerTab === 'confirm',
+              onClick: () => setBuyerTab('confirm'),
+            },
+            {
+              key: 'confirmed',
+              label: `Confirmed (${stateBuyerVerified.length})`,
+              icon: (
+                <Icon className="sl-action-icon">
+                  <path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z" />
+                  <path d="m9 12 2 2 4-4" />
+                </Icon>
+              ),
+              active: buyerTab === 'confirmed',
+              onClick: () => setBuyerTab('confirmed'),
+            },
+          ]
+        : [
+            {
+              key: 'browse',
+              label: `Browse (${openInvoices.length})`,
+              icon: (
+                <Icon className="sl-action-icon">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m21 21-4.35-4.35" />
+                </Icon>
+              ),
+              active: lenderTab === 'browse',
+              onClick: () => setLenderTab('browse'),
+            },
+            {
+              key: 'bid',
+              label: 'Submit Bid',
+              icon: (
+                <Icon className="sl-action-icon">
+                  <rect x="4" y="11" width="16" height="10" rx="2" />
+                  <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                </Icon>
+              ),
+              active: lenderTab === 'bid',
+              onClick: () => setLenderTab('bid'),
+            },
+            {
+              key: 'reveal',
+              label: 'Reveal',
+              icon: (
+                <Icon className="sl-action-icon">
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </Icon>
+              ),
+              active: lenderTab === 'reveal',
+              onClick: () => setLenderTab('reveal'),
+            },
+          ];
 
   const statusOf = (inv: RegisteredInvoice): string => invoiceStatusOf(inv, ledgerState?.invoices ?? []);
 
@@ -307,7 +502,20 @@ export const InvoiceFinancing: React.FC = () => {
         <span className="sl-meta">Fills the forms with sample values.</span>
       </div>
 
-      <RoleTabs role={role} disabled={busy || working !== null} onChange={changeRole} />
+      <HeroCard
+        label={hero.label}
+        number={hero.number}
+        unit={hero.unit}
+        sub={hero.sub}
+        actionLabel={hero.actionLabel}
+        onAction={hero.onAction}
+        disabled={busy || working !== null}
+      />
+      <div className="sl-actions">
+        {actions.map((a) => (
+          <ActionCard key={a.key} active={a.active} icon={a.icon} label={a.label} onClick={a.onClick} disabled={busy || working !== null} />
+        ))}
+      </div>
 
       {/* SME Workflow */}
       {role === 'sme' && (
@@ -335,34 +543,6 @@ export const InvoiceFinancing: React.FC = () => {
                 </div>
               );
             })}
-          </div>
-
-          {/* Sub Navigation Tabs */}
-          <div className="sl-sub-tabs">
-            <button
-              type="button"
-              className={`sl-sub-tab ${smeTab === 'register' ? 'active' : ''}`}
-              onClick={() => setSmeTab('register')}
-              disabled={busy || working !== null}
-            >
-              Register Invoice
-            </button>
-            <button
-              type="button"
-              className={`sl-sub-tab ${smeTab === 'track' ? 'active' : ''}`}
-              onClick={() => setSmeTab('track')}
-              disabled={busy || working !== null}
-            >
-              Track Invoices ({invoices.length})
-            </button>
-            <button
-              type="button"
-              className={`sl-sub-tab ${smeTab === 'settle' ? 'active' : ''}`}
-              onClick={() => setSmeTab('settle')}
-              disabled={busy || working !== null}
-            >
-              Settle Invoice {settleNullifier && `(${settleNullifier.slice(0, 8)}…)`}
-            </button>
           </div>
 
           {/* Sme Tab Content */}
@@ -591,34 +771,6 @@ export const InvoiceFinancing: React.FC = () => {
             })}
           </div>
 
-          {/* Sub Navigation Tabs */}
-          <div className="sl-sub-tabs">
-            <button
-              type="button"
-              className={`sl-sub-tab ${buyerTab === 'pending' ? 'active' : ''}`}
-              onClick={() => setBuyerTab('pending')}
-              disabled={busy || working !== null}
-            >
-              Pending Invoices ({openInvoices.length})
-            </button>
-            <button
-              type="button"
-              className={`sl-sub-tab ${buyerTab === 'confirm' ? 'active' : ''}`}
-              onClick={() => setBuyerTab('confirm')}
-              disabled={busy || working !== null}
-            >
-              Confirm Invoice {form.confirmNullifier && `(${form.confirmNullifier.slice(0, 8)}…)`}
-            </button>
-            <button
-              type="button"
-              className={`sl-sub-tab ${buyerTab === 'confirmed' ? 'active' : ''}`}
-              onClick={() => setBuyerTab('confirmed')}
-              disabled={busy || working !== null}
-            >
-              Confirmed Invoices ({stateBuyerVerified.length})
-            </button>
-          </div>
-
           {/* Buyer Tab Content */}
           {buyerTab === 'pending' && (
             <section className="sl-stage">
@@ -764,34 +916,6 @@ export const InvoiceFinancing: React.FC = () => {
                 </div>
               );
             })}
-          </div>
-
-          {/* Sub Navigation Tabs */}
-          <div className="sl-sub-tabs">
-            <button
-              type="button"
-              className={`sl-sub-tab ${lenderTab === 'browse' ? 'active' : ''}`}
-              onClick={() => setLenderTab('browse')}
-              disabled={busy || working !== null}
-            >
-              Browse Invoices ({openInvoices.length})
-            </button>
-            <button
-              type="button"
-              className={`sl-sub-tab ${lenderTab === 'bid' ? 'active' : ''}`}
-              onClick={() => setLenderTab('bid')}
-              disabled={busy || working !== null}
-            >
-              Submit Sealed Bid
-            </button>
-            <button
-              type="button"
-              className={`sl-sub-tab ${lenderTab === 'reveal' ? 'active' : ''}`}
-              onClick={() => setLenderTab('reveal')}
-              disabled={busy || working !== null}
-            >
-              Reveal Bid
-            </button>
           </div>
 
           {/* Lender Tab Content */}
