@@ -492,8 +492,7 @@ export const InvoiceFinancing: React.FC = () => {
     <div className="sl-panel">
       <h2>Invoice financing</h2>
       <p className="sl-meta">
-        A sealed-bid auction: lenders post only a <em>commitment</em> to their terms, so no lender can see any other
-        bid. Whoever reveals the lowest interest rate wins — the contract enforces it, the SME cannot play favorites.
+        Lowest revealed rate wins — bids stay sealed until reveal.
       </p>
       <div className="sl-row" style={{ marginBottom: 'var(--sp-5)' }}>
         <button className="sl-button sl-button-secondary" type="button" onClick={() => setForm(sampleForm)} disabled={busy || working !== null}>
@@ -575,15 +574,22 @@ export const InvoiceFinancing: React.FC = () => {
                 <Field label="Credit check" value={form.registerThreshold} placeholder="e.g. 650 — your score stays private" onChange={set('registerThreshold')} disabled={busy || working !== null} />
                 <Field label="Reputation check" value={form.registerReputation} placeholder="e.g. 30 — proven in zero knowledge" onChange={set('registerReputation')} disabled={busy || working !== null} />
                 <p className="sl-note">
-                  Only a <em>nullifier</em> — a blinded hash of these details plus a random secret — is posted on-chain.
-                  The invoice details never leave this browser; the nullifier is saved locally so you can reuse it later.
-                  The <em>credit check</em> proves "my credit score is at least {form.registerThreshold.trim() || '…'}" in zero
-                  knowledge — the score itself is never revealed, only the proven bound. The <em>reputation check</em>
-                  proves "my reputation is at least {form.registerReputation.trim() || '…'}" (set 0 for no requirement) — the
-                  current score is read from your private wallet state and never disclosed. The <em>claimed amount</em> is
-                  posted publicly so your corporate buyer can later vouch for it in zero knowledge; your reference, due
-                  date and secret stay private.
+                  Only a <em>nullifier</em> goes on-chain — your invoice details stay private.
                 </p>
+                <details className="sl-details">
+                  <summary>Learn more</summary>
+                  <p>
+                    Only a <em>nullifier</em> — a blinded hash of these details plus a random secret — is posted
+                    on-chain. The invoice details never leave this browser; the nullifier is saved locally so you can
+                    reuse it later. The <em>credit check</em> proves "my credit score is at least{' '}
+                    {form.registerThreshold.trim() || '…'}" in zero knowledge — the score itself is never revealed, only
+                    the proven bound. The <em>reputation check</em> proves "my reputation is at least{' '}
+                    {form.registerReputation.trim() || '…'}" (set 0 for no requirement) — the current score is read from
+                    your private wallet state and never disclosed. The <em>claimed amount</em> is posted publicly so your
+                    corporate buyer can later vouch for it in zero knowledge; your reference, due date and secret stay
+                    private.
+                  </p>
+                </details>
                 <button
                   className="sl-button"
                   type="submit"
@@ -604,10 +610,7 @@ export const InvoiceFinancing: React.FC = () => {
               <section className="sl-stage">
                 <h3 className={sectionHeading}>2 · Your private reputation</h3>
                 <p className="sl-note">
-                  Stored only in this browser session. Settling <em>on or before</em> the due date earns you{' '}
-                  <strong>+10</strong>; a late settlement costs <strong>−20</strong> (clamped to 0–100). Every
-                  registration proves "score ≥ threshold" in zero knowledge, so lenders are bound to what you really
-                  have — without ever seeing the score.
+                  +10 on-time, −20 late (clamped 0–100) — proven to lenders in zero knowledge.
                 </p>
                 {reputation === null ? (
                   <p className="sl-empty">No private reputation available in this browser session.</p>
@@ -723,13 +726,11 @@ export const InvoiceFinancing: React.FC = () => {
               <Field label="Amount" value={form.settleAmount} placeholder="financed amount (≤ winning bid)" onChange={set('settleAmount')} disabled={busy || working !== null} />
               <Field label="Due date" value={form.settleDue} placeholder="unix seconds" onChange={set('settleDue')} disabled={busy || working !== null} />
               <p className="sl-note">
-                The contract pays the lowest-rate winner automatically — you cannot pick a different lender. You can
-                settle as soon as a lender has revealed a winning bid.
+                The contract pays the lowest-rate winner automatically.
               </p>
               {settleNullifier !== '' && !settleReady && (
                 <p className="sl-info" style={{ marginBottom: 0 }}>
-                  No winning bid yet for this invoice — the auction is still open. Settlement is possible only once a
-                  lender has revealed the lowest-rate bid (see <strong>Public ledger → Leading bids</strong>).
+                  No winning bid yet — the auction is still open (see <strong>Public ledger → Leading bids</strong>).
                 </p>
               )}
               <button
@@ -776,11 +777,17 @@ export const InvoiceFinancing: React.FC = () => {
             <section className="sl-stage">
               <h3 className={sectionHeading}>Pending invoices (open for bidding)</h3>
               <p className="sl-note">
-                As the <strong>corporate buyer</strong> you can cryptographically confirm that an invoice is genuine and
-                that you owe its claimed amount. Only a <strong>Buyer-verified ✓</strong> flag and an opaque per-invoice
-                commitment go on-chain — your identity, your other supplier relationships and the full contract terms
-                never do.
+                Confirm invoices you owe in zero knowledge — only a <strong>Buyer-verified ✓</strong> flag goes on-chain.
               </p>
+              <details className="sl-details">
+                <summary>Learn more</summary>
+                <p>
+                  As the <strong>corporate buyer</strong> you can cryptographically confirm that an invoice is genuine
+                  and that you owe its claimed amount. Only a <strong>Buyer-verified ✓</strong> flag and an opaque
+                  per-invoice commitment go on-chain — your identity, your other supplier relationships and the full
+                  contract terms never do.
+                </p>
+              </details>
               {openInvoices.length === 0 ? (
                 <p className="sl-empty">No pending invoices on the ledger to confirm.</p>
               ) : (
@@ -845,10 +852,16 @@ export const InvoiceFinancing: React.FC = () => {
               <Field label="Nullifier" value={form.confirmNullifier} placeholder="64 hex chars" onChange={set('confirmNullifier')} disabled={busy || working !== null} />
               <Field label="Amount owed" value={form.confirmAmount} placeholder="must match the SME's claimed amount" onChange={set('confirmAmount')} disabled={busy || working !== null} />
               <p className="sl-note">
-                The circuit verifies the amount you enter matches the SME's on-chain claim exactly — a mismatch fails
-                the proof. Only a boolean flag and an opaque per-invoice commitment become public; nobody learns who you
-                are or what the invoice is.
+                Must match the SME's on-chain claim exactly — only a ✓ flag and a commitment go public.
               </p>
+              <details className="sl-details">
+                <summary>Learn more</summary>
+                <p>
+                  The circuit verifies the amount you enter matches the SME's on-chain claim exactly — a mismatch fails
+                  the proof. Only a boolean flag and an opaque per-invoice commitment become public; nobody learns who
+                  you are or what the invoice is.
+                </p>
+              </details>
               <button
                 className="sl-button"
                 type="submit"
@@ -923,13 +936,20 @@ export const InvoiceFinancing: React.FC = () => {
             <section className="sl-stage">
               <h3 className={sectionHeading}>Open invoices available for financing</h3>
               <p className="sl-note">
-                The <strong>Credit</strong> column shows the <em>proven bound</em> the SME attested in zero knowledge at
-                registration (e.g. "score ≥ 650"). The <strong>Reputation</strong> column shows the <em>proven
-                reputation bound</em> ("score ≥ N"; <strong>any</strong> means no minimum). Neither the credit score nor
-                the reputation score is ever revealed — only the proven lower bound. The{' '}
-                <strong>Buyer-verified ✓</strong> badge means the corporate buyer proved in zero knowledge that the
-                invoice is genuine — its identity and the terms never appear.
+                <strong>Credit</strong> &amp; <strong>Reputation</strong> show proven lower bounds only — the scores are
+                never revealed.
               </p>
+              <details className="sl-details">
+                <summary>Learn more</summary>
+                <p>
+                  The <strong>Credit</strong> column shows the <em>proven bound</em> the SME attested in zero knowledge
+                  at registration (e.g. "score ≥ 650"). The <strong>Reputation</strong> column shows the <em>proven
+                  reputation bound</em> ("score ≥ N"; <strong>any</strong> means no minimum). Neither the credit score
+                  nor the reputation score is ever revealed — only the proven lower bound. The{' '}
+                  <strong>Buyer-verified ✓</strong> badge means the corporate buyer proved in zero knowledge that the
+                  invoice is genuine — its identity and the terms never appear.
+                </p>
+              </details>
               {openInvoices.length === 0 ? (
                 <p className="sl-empty">No invoices are currently open for bidding.</p>
               ) : (
@@ -1033,8 +1053,7 @@ export const InvoiceFinancing: React.FC = () => {
               <Field label="Due date" value={form.revealDue} placeholder="must match your sealed bid" onChange={set('revealDue')} disabled={busy || working !== null} />
               <Field label="Rate" value={form.revealRate} placeholder="must match your sealed bid" onChange={set('revealRate')} disabled={busy || working !== null} />
               <p className="sl-note">
-                The contract verifies these terms against your commitment and, if they beat the running best, you take
-                the lead. The lowest rate wins.
+                Beat the current lead and you take it — the lowest rate wins.
               </p>
               <button
                 className="sl-button"

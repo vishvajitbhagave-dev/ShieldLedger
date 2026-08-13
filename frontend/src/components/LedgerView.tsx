@@ -87,11 +87,17 @@ export const LedgerView: React.FC = () => {
           <section className="sl-stage">
             <h3 className="sl-section-title">Invoices</h3>
             <p className="sl-note">
-              <strong>Credit (ZK-proof)</strong> and <strong>Reputation (ZK-proof)</strong> are the bounds the SME
-              proved in zero knowledge — the actual scores are never revealed to anyone. A{' '}
-              <strong>Buyer-verified ✓</strong> badge means a corporate buyer proved the invoice genuine; the buyer's
-              identity and terms stay private.
+              ZK-proof bounds only — scores stay private; <strong>✓</strong> = a buyer verified it.
             </p>
+            <details className="sl-details">
+              <summary>Learn more</summary>
+              <p>
+                <strong>Credit (ZK-proof)</strong> and <strong>Reputation (ZK-proof)</strong> are the bounds the SME
+                proved in zero knowledge — the actual scores are never revealed to anyone. A{' '}
+                <strong>Buyer-verified ✓</strong> badge means a corporate buyer proved the invoice genuine; the buyer's
+                identity and terms stay private.
+              </p>
+            </details>
             {state.invoices.length === 0 ? (
               <p className="sl-empty">No invoices registered yet.</p>
             ) : (

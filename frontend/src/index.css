@@ -733,6 +733,49 @@ select.sl-input {
   color: var(--text);
 }
 
+.sl-details {
+  margin-top: var(--sp-2);
+}
+
+.sl-details summary {
+  cursor: pointer;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 600;
+  user-select: none;
+}
+
+.sl-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.sl-details summary::before {
+  content: 'ⓘ';
+}
+
+.sl-details[open] summary {
+  margin-bottom: var(--sp-2);
+}
+
+.sl-details p {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  background: var(--surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-4);
+}
+
+.sl-details p strong {
+  color: var(--text);
+}
+
 .sl-info {
   font-size: 12.5px;
   color: var(--text);

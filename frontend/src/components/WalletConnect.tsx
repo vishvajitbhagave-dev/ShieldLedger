@@ -35,13 +35,11 @@ export const WalletConnect: React.FC = () => {
       <div className="sl-panel">
         <h2>Connect wallet</h2>
         <p className="sl-meta">
-          Connect the Midnight Lace wallet to deploy or join a ShieldLedger contract. The wallet signs and balances
-          every transaction in your browser — private state never leaves it.
+          Your wallet signs every transaction in the browser — private state never leaves Lace.
         </p>
         {walletLocked && (
           <div className="sl-info">
-            Lace is locked. Click the <strong>Lace extension icon</strong> in your browser toolbar to unlock it — the
-            connection continues automatically as soon as you do.
+            Lace is locked — click the <strong>Lace icon</strong> to unlock; the connection resumes automatically.
           </div>
         )}
         <div className="sl-row">
