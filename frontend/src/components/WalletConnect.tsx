@@ -22,8 +22,36 @@ const ChevronRightIcon: React.FC = () => (
   </svg>
 );
 
+const WalletIcon: React.FC = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1" />
+    <path d="M3 5v14a2 2 0 0 0 2 2h15" />
+  </svg>
+);
+
+const StoreIcon: React.FC = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 7 6 4h12l2 3v3a2 2 0 0 1-2 2 2 2 0 0 1-4 0 2 2 0 0 1-4 0 2 2 0 0 1-4 0 2 2 0 0 1-2-2V7Z" />
+    <path d="M5 12v8h14v-8" />
+  </svg>
+);
+
+const ShieldCheckIcon: React.FC = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2 4 5v6c0 5.25 3.4 9.74 8 11 4.6-1.26 8-5.75 8-11V5l-8-3Z" />
+    <path d="m9 11.5 2 2 4-4" />
+  </svg>
+);
+
+const TrendUpIcon: React.FC = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m3 17 6-6 4 4 8-8" />
+    <path d="M14 7h7v7" />
+  </svg>
+);
+
 export const WalletConnect: React.FC = () => {
-  const { connecting, connected, walletLocked, walletInfo, deployment, connect, deploy, join } = useShieldLedger();
+  const { networkId, connecting, connected, walletLocked, walletInfo, deployment, connect, deploy, join } = useShieldLedger();
   const [joinAddress, setJoinAddress] = useState('');
   const [joining, setJoining] = useState(false);
 
@@ -32,24 +60,90 @@ export const WalletConnect: React.FC = () => {
   // If not connected to wallet, show full connect view
   if (!connected) {
     return (
-      <div className="sl-panel">
-        <h2>Connect wallet</h2>
-        <p className="sl-meta">
-          Your wallet signs every transaction in the browser — private state never leaves Lace.
-        </p>
+      <div className="sl-panel sl-connect">
+        <div className="sl-connect-brand">
+          <span className="sl-connect-logo" aria-hidden="true">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2 4 5v6c0 5.25 3.4 9.74 8 11 4.6-1.26 8-5.75 8-11V5l-8-3Z" />
+              <path d="m9 11.5 2 2 4-4" />
+            </svg>
+          </span>
+          <div className="sl-connect-brand-text">
+            <span className="sl-connect-brand-title">ShieldLedger</span>
+            <p className="sl-connect-brand-tagline">
+              Confidential invoice financing on the Midnight Network — commitments on-chain, invoice details private.
+            </p>
+          </div>
+        </div>
+
+        <span className="sl-status-pill">
+          <span className="sl-live-dot" aria-hidden="true" />
+          {networkId}
+        </span>
+
+        <div className="sl-connect-head">
+          <h2>Connect wallet</h2>
+          <p className="sl-meta">
+            Your wallet signs every transaction in the browser — private state never leaves Lace.
+          </p>
+        </div>
+
         {walletLocked && (
           <div className="sl-info">
             Lace is locked — click the <strong>Lace icon</strong> to unlock; the connection resumes automatically.
           </div>
         )}
-        <div className="sl-row">
-          <button className="sl-button" onClick={() => void connect()} disabled={connecting}>
-            {walletLocked
-              ? 'Waiting for Lace to be unlocked…'
-              : connecting
-                ? 'Connecting…'
-                : 'Connect Midnight Lace wallet'}
-          </button>
+
+        <button className="sl-button sl-connect-cta" onClick={() => void connect()} disabled={connecting}>
+          <WalletIcon />
+          {walletLocked
+            ? 'Waiting for Lace to be unlocked…'
+            : connecting
+              ? 'Connecting…'
+              : 'Connect Midnight Lace wallet'}
+        </button>
+
+        <div className="sl-connect-divider" role="separator">
+          <span>What happens next</span>
+        </div>
+
+        <ol className="sl-connect-steps">
+          <li>
+            <span className="sl-connect-step-num">1</span>
+            Connect wallet
+          </li>
+          <li>
+            <span className="sl-connect-step-num">2</span>
+            Choose your role
+          </li>
+          <li>
+            <span className="sl-connect-step-num">3</span>
+            Start financing · confirming · bidding
+          </li>
+        </ol>
+
+        <div className="sl-connect-roles">
+          <div className="sl-connect-role">
+            <span className="sl-connect-role-icon" aria-hidden="true">
+              <StoreIcon />
+            </span>
+            <span className="sl-connect-role-title">SME</span>
+            <span className="sl-connect-role-sub">sell invoices</span>
+          </div>
+          <div className="sl-connect-role">
+            <span className="sl-connect-role-icon" aria-hidden="true">
+              <ShieldCheckIcon />
+            </span>
+            <span className="sl-connect-role-title">Buyer</span>
+            <span className="sl-connect-role-sub">confirm invoices</span>
+          </div>
+          <div className="sl-connect-role">
+            <span className="sl-connect-role-icon" aria-hidden="true">
+              <TrendUpIcon />
+            </span>
+            <span className="sl-connect-role-title">Lender</span>
+            <span className="sl-connect-role-sub">bid on invoices</span>
+          </div>
         </div>
       </div>
     );
