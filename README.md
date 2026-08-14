@@ -2,7 +2,58 @@
 
 [![CI](https://github.com/vishvajitbhagave-dev/ShieldLedger/actions/workflows/ci.yml/badge.svg)](https://github.com/vishvajitbhagave-dev/ShieldLedger/actions/workflows/ci.yml)
 
+## Project Description
+
 Confidential invoice-financing marketplace on the [Midnight Network](https://docs.midnight.network). SMEs register invoices without revealing their contents; lenders compete in a **sealed-bid private auction** under pseudonyms — bids are commitments, only the winner's terms are ever revealed — and the **lowest interest rate wins**, enforced by the contract. Settlement is proven in zero knowledge. Only opaque nullifiers, commitments, pseudonyms, and the winning terms ever touch the public ledger.
+
+## Project Vision
+
+ShieldLedger's vision is a financing market where creditworthiness is a **provable property, not a dossier**. An SME should be able to get its invoices financed on the best available terms without publishing financial history; a lender should be able to underwrite with confidence while seeing only proven bounds; and a buyer should be able to vouch for an invoice without exposing its commercial relationships. This is only achievable on a chain where zero knowledge is the default, so we treat the ZK circuits as the trust boundary and keep every sensitive value inside the wallet.
+
+## Key Features
+
+- **Confidential invoice financing** — SMEs register invoices on-chain as opaque nullifiers; invoice contents, terms, and secrets never leave the browser.
+- **ZK credit scoring** — registration proves *"my credit score is ≥ N"* inside the circuit (contract floor 650); lenders see the bound, never the score.
+- **Private cross-deal reputation** — a 0–100 wallet-side score (+10 on-time, −20 late) that accrues across deals and is proven, never shown.
+- **Buyer verification** — buyers confirm invoices in zero knowledge; only a **Buyer-verified ✓** flag and an opaque commitment become public.
+- **Sealed-bid private auction** — lenders post only commitments to their terms; no lender sees another's bid. The **lowest rate wins**, enforced by the contract.
+- **Settlement fairness** — the contract pays the running-best bid automatically; the SME cannot play favorites. On-time/late classification drives reputation.
+- **Browser DApp** — a React/Vite app that connects through the Midnight Lace wallet with dedicated SME, Buyer, and Lender workflows.
+- **Multi-contract design** — a separate escrow contract holds financing per invoice, coordinated off-chain via a shared commitment.
+
+## Mainnet/Testnet
+
+ShieldLedger is a **working demonstration on the Midnight Preview testnet** — not a regulated financial service.
+
+| Environment | Status | Details |
+| --- | --- | --- |
+| Midnight **Preview** (testnet) | **Active** | Live contract + DApp; funded with free test tokens (tNight/tDUST) from the [Midnight Preview faucet](https://faucet.preview.midnight.network/). |
+| Midnight **Mainnet** | Not deployed | Requires Midnight mainnet tooling/requirements; nothing has been deployed there. |
+
+## Contract Details
+
+The current recorded Preview deployment of the auction contract:
+
+| | |
+| --- | --- |
+| **Contract ID** | `18737084144f6482d529fdb8fa357966c9c2eb2c3734d1753f4b42648a4dc4a6` |
+| **Deployer** | `mn_addr_preview1t3te36lz6uwlvgu5tnlq9h3w7c5upgcvgvcyexns8638w3jme5uqnepcmz` |
+| **Deployed** | 2026-08-12 |
+| **Network** | Preview |
+
+Latest on-chain activity (from the Preview indexer): the contract state was last updated by transaction `a6ebab49c760994e09e619f9223f0574ab4e3e7f7b243fda5c48087565d6fa68` in block `385916`.
+
+View the deployed contract in a block explorer:
+
+- [1AM Explorer — contract](https://explorer.1am.xyz/contract/18737084144f6482d529fdb8fa357966c9c2eb2c3734d1753f4b42648a4dc4a6?network=preview)
+- [1AM Explorer — latest contract transaction](https://explorer.1am.xyz/tx/a6ebab49c760994e09e619f9223f0574ab4e3e7f7b243fda5c48087565d6fa68?network=preview)
+- [Midnight Explorer (Preview)](https://preview.midnightexplorer.com/) — search the contract ID above
+
+![ShieldLedger auction contract on the Preview block explorer](docs/contract-preview-explorer.png)
+
+![Latest contract transaction on the Preview block explorer](docs/contract-tx-explorer.png)
+
+> The DApp deploys a fresh contract each time you Connect → Deploy, so this is the currently recorded deployment. An earlier pre-credit-scoring deployment (`25d5118f…0689`) is preserved for reference in the setup section below.
 
 ## How it works
 
