@@ -2,6 +2,11 @@
 
 [![CI](https://github.com/vishvajitbhagave-dev/ShieldLedger/actions/workflows/ci.yml/badge.svg)](https://github.com/vishvajitbhagave-dev/ShieldLedger/actions/workflows/ci.yml)
 
+## Live demo
+
+- **Web app** — https://vishvajitbhagave-dev.github.io/ShieldLedger/ (connect with the Midnight Lace wallet on the Preview network)
+- **Landing page** — https://vishvajitbhagave-dev.github.io/ShieldLedger/landing.html
+
 ## Project Description
 
 Confidential invoice-financing marketplace on the [Midnight Network](https://docs.midnight.network). SMEs register invoices without revealing their contents; lenders compete in a **sealed-bid private auction** under pseudonyms — bids are commitments, only the winner's terms are ever revealed — and the **lowest interest rate wins**, enforced by the contract. Settlement is proven in zero knowledge. Only opaque nullifiers, commitments, pseudonyms, and the winning terms ever touch the public ledger.
@@ -365,6 +370,28 @@ until a lender reveals.
    drives the same auction through `contracts/shield-ledger.compact` and then
    releases the matching escrow on `contracts/escrow.compact` via the
    communication layer — see `docs/architecture.md`.
+
+## Demonstration
+
+**Mobile responsive UI** — the landing page and the DApp connect screen at a phone viewport (390×844):
+
+![ShieldLedger landing page on a phone viewport](docs/mobile-landing.png)
+
+![ShieldLedger DApp connect screen on a phone viewport](docs/mobile-app.png)
+
+**CI/CD pipeline** — GitHub Actions: the `CI` workflow (contract tests + typecheck + DApp build) and `Deploy DApp to GitHub Pages` both passing on `main`:
+
+![GitHub Actions CI/CD pipeline passing](docs/ci-cd-pipeline.png)
+
+**Test output** — the contract simulator suite (the same `npm test` the CI workflow runs), 136/136 tests passing:
+
+![ShieldLedger test suite: 136 tests passing](docs/test-output.png)
+
+**Contract deployment on-chain** — see the explorer screenshots under [Contract Details](#contract-details).
+
+**Demo video** — watch the full walkthrough on the Preview testnet (1–2 minutes):
+
+_Demo video link coming soon._
 
 ## Testing
 
