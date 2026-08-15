@@ -603,6 +603,8 @@ body {
 
 .sl-row-arrow {
   flex: none;
+  width: 18px;
+  height: 18px;
   color: var(--text-faint);
   transition: color 0.15s ease;
 }
