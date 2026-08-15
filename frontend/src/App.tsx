@@ -35,11 +35,6 @@ const NAV_ITEMS: Array<{ role: Role; label: string; icon: React.FC }> = [
   { role: 'lender', label: "I'm a Lender · bid on invoices", icon: TrendUpIcon },
 ];
 
-const initialOf = (address: string): string => {
-  const first = address.replace(/^0x/, '').charAt(0);
-  return /^[0-9a-fA-F]$/.test(first) ? first.toUpperCase() : 'S';
-};
-
 const Body: React.FC = () => {
   const { networkId, connected, disconnect, deployment, role, setRole, walletInfo, error, clearError } = useShieldLedger();
   const { state: ledgerState, error: ledgerError } = useLedgerState();
@@ -68,50 +63,68 @@ const Body: React.FC = () => {
     <div className="sl-app">
       {connected && (
         <header className="sl-header">
-          <div className="sl-brand">
-            <span className="sl-logo" aria-hidden="true">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2 4 5v6c0 5.25 3.4 9.74 8 11 4.6-1.26 8-5.75 8-11V5l-8-3Z" />
-                <path d="m9 11.5 2 2 4-4" />
-              </svg>
-            </span>
-            <div className="sl-brand-text">
-              <h1 className="sl-title">ShieldLedger</h1>
-              <p className="sl-subtitle">Confidential invoice financing on the Midnight Network — commitments on-chain, invoice details private.</p>
+          <div className="sl-header-top">
+            <div className="sl-brand">
+              <span className="sl-logo" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2 4 5v6c0 5.25 3.4 9.74 8 11 4.6-1.26 8-5.75 8-11V5l-8-3Z" />
+                  <path d="m9 11.5 2 2 4-4" />
+                </svg>
+              </span>
+              <div className="sl-brand-text">
+                <h1 className="sl-title">ShieldLedger</h1>
+                <p className="sl-subtitle">Confidential invoice financing on the Midnight Network — commitments on-chain, invoice details private.</p>
+              </div>
             </div>
-          </div>
-          <div className="sl-header-actions">
-            <span className="sl-status-pill">
-              <span className="sl-live-dot" aria-hidden="true" />
-              {networkId}
-            </span>
-            {deployed && (
-              <span className={ledgerError != null ? 'sl-status-pill sl-error' : 'sl-status-pill sl-live'}>{streamStatus}</span>
-            )}
-            {connected && (
-              <>
-                <span className="sl-avatar" aria-hidden="true">
-                  {initialOf(walletInfo?.unshieldedAddress ?? '')}
+            <div className="sl-header-actions">
+              <span className="sl-status-pill">
+                <span className="sl-live-dot" aria-hidden="true" />
+                {networkId}
+              </span>
+              <div className="sl-wallet-group">
+                <span className="sl-verified">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2 4 5v6c0 5.25 3.4 9.74 8 11 4.6-1.26 8-5.75 8-11V5l-8-3Z" />
+                    <path d="m9 11.5 2 2 4-4" />
+                  </svg>
+                  Wallet Connected
                 </span>
-                <div className="sl-identity">
-                  <HexBadge hex={walletInfo?.unshieldedAddress ?? ''} shortLength={12} />
-                  <span className="sl-verified">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 2 4 5v6c0 5.25 3.4 9.74 8 11 4.6-1.26 8-5.75 8-11V5l-8-3Z" />
-                      <path d="m9 11.5 2 2 4-4" />
-                    </svg>
-                    Wallet Connected
-                  </span>
-                </div>
-                <div className="sl-top-metric">
-                  <span className="sl-top-metric-value">{ledgerState ? ledgerState.invoiceCount.toString() : '—'}</span>
-                  <span className="sl-top-metric-label">live invoices</span>
-                </div>
                 <button className="sl-button sl-button-secondary sl-header-action" onClick={disconnect}>
                   Disconnect
                 </button>
-              </>
+              </div>
+            </div>
+          </div>
+          <div className="sl-status-group sl-header-details">
+            <div className="sl-status-item">
+              <span className="sl-status-label">Unshielded Address</span>
+              <span className="sl-status-value">
+                <HexBadge hex={walletInfo?.unshieldedAddress ?? ''} />
+              </span>
+            </div>
+            <div className="sl-status-item">
+              <span className="sl-status-label">Shielded Address</span>
+              <span className="sl-status-value">
+                <HexBadge hex={walletInfo?.shieldedAddress ?? ''} />
+              </span>
+            </div>
+            {deployed && (
+              <div className="sl-status-item">
+                <span className="sl-status-label">Contract Address</span>
+                <span className="sl-status-value">
+                  <HexBadge hex={deployment.address} />
+                </span>
+              </div>
             )}
+            <div className="sl-header-details-right">
+              {deployed && (
+                <span className={ledgerError != null ? 'sl-status-pill sl-error' : 'sl-status-pill sl-live-pill'}>{streamStatus}</span>
+              )}
+              <div className="sl-top-metric">
+                <span className="sl-top-metric-value">{ledgerState ? ledgerState.invoiceCount.toString() : '—'}</span>
+                <span className="sl-top-metric-label">live invoices</span>
+              </div>
+            </div>
           </div>
         </header>
       )}

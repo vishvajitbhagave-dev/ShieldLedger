@@ -226,36 +226,7 @@ export const WalletConnect: React.FC = () => {
     );
   }
 
-  // If connected and contract is deployed, render the identity status bar
-  return (
-    <div className="sl-status-bar">
-      <div className="sl-status-group">
-        <div className="sl-status-item">
-          <span className="sl-status-label">Lace Wallet</span>
-          <span className="sl-status-value">
-            <span className="sl-live" aria-hidden="true" />
-            Connected
-          </span>
-        </div>
-        <div className="sl-status-item">
-          <span className="sl-status-label">Unshielded Address</span>
-          <span className="sl-status-value">
-            <HexBadge hex={walletInfo?.unshieldedAddress ?? ''} />
-          </span>
-        </div>
-        <div className="sl-status-item">
-          <span className="sl-status-label">Shielded Address</span>
-          <span className="sl-status-value">
-            <HexBadge hex={walletInfo?.shieldedAddress ?? ''} />
-          </span>
-        </div>
-        <div className="sl-status-item">
-          <span className="sl-status-label">Contract Address</span>
-          <span className="sl-status-value">
-            <HexBadge hex={deployment.address} />
-          </span>
-        </div>
-      </div>
-    </div>
-  );
+  // When connected with a deployed contract, the wallet/contract details are
+  // shown in the app header, so nothing else is rendered here.
+  return null;
 };
