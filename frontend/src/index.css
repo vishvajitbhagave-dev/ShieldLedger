@@ -1,6 +1,6 @@
 /* ══════════════════════════════════════════════════════════════════════════
  *  ShieldLedger — Consumer Fintech Design System
- *  Warm-neutral light base with Periwinkle/Indigo accents (#948cf2).
+ *  Warm-neutral light base with "Teal Wave" accents (#00bfa6).
  *  ══════════════════════════════════════════════════════════════════════════ */
 
 :root {
@@ -15,24 +15,24 @@
 
   --border: #e4e5e3;         /* Soft boundaries */
   --border-strong: #d2d6d2;  /* Strong boundaries / fields */
-  --border-focus: #6d5ae6;   /* Indigo focus */
+  --border-focus: #00796b;   /* Teal focus */
 
   --text: #1a1d24;           /* High contrast text */
   --text-muted: #66706a;     /* Secondary text */
   --text-faint: #99a29c;     /* Metadata / De-emphasized */
   --text-on-accent: #ffffff;
 
-  /* Accent ramp: brand periwinkle #948cf2, functional indigo #6d5ae6 (WCAG) */
-  --accent: #6d5ae6;         /* Indigo - accent primary (readable on white / with white text) */
-  --accent-hover: #5b48d6;   /* Indigo - hover */
-  --accent-bright: #948cf2;  /* Periwinkle brand - decorative / dark-bg accents */
-  --accent-2: #7c3aed;       /* Violet 600 - hero gradient partner */
-  --accent-soft: rgba(109, 90, 230, 0.08);
-  --accent-soft-strong: rgba(109, 90, 230, 0.18);
-  --accent-border: rgba(109, 90, 230, 0.25);
+  /* Accent ramp: brand "Teal Wave" #00BFA6, functional teal #00796B (WCAG) */
+  --accent: #00796b;         /* Teal 600 - accent primary (readable on white / with white text) */
+  --accent-hover: #00695c;   /* Teal 700 - hover */
+  --accent-bright: #00bfa6;  /* Teal Wave brand - decorative / dark-bg accents */
+  --accent-2: #00796b;       /* Deep teal - hero gradient partner */
+  --accent-soft: rgba(0, 191, 166, 0.08);
+  --accent-soft-strong: rgba(0, 191, 166, 0.18);
+  --accent-border: rgba(0, 191, 166, 0.25);
 
-  --success: #6d5ae6;        /* Indigo (previously emerald) - success/live states */
-  --success-soft: rgba(109, 90, 230, 0.08);
+  --success: #00796b;        /* Teal - success/live states */
+  --success-soft: rgba(0, 191, 166, 0.08);
   --warning: #d97706;        /* Amber */
   --warning-soft: rgba(217, 119, 6, 0.08);
   --danger: #dc2626;         /* Crimson */
@@ -65,7 +65,7 @@
   --font-mono: ui-monospace, 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
 
   /* Brand Gradient */
-  --hero-gradient: linear-gradient(135deg, #948cf2 0%, #7c3aed 100%);
+  --hero-gradient: linear-gradient(135deg, #00bfa6 0%, #00796b 100%);
 }
 
 *,
@@ -86,8 +86,8 @@ body {
   color: var(--text);
   background-color: var(--bg);
   background-image:
-    radial-gradient(at 100% 0%, rgba(109, 90, 230, 0.06) 0px, transparent 50%),
-    radial-gradient(at 0% 100%, rgba(124, 58, 237, 0.04) 0px, transparent 50%);
+    radial-gradient(at 100% 0%, rgba(0, 191, 166, 0.07) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(0, 121, 107, 0.05) 0px, transparent 50%);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -213,7 +213,7 @@ body {
 .sl-status-pill.sl-live-pill {
   background: var(--success-soft);
   color: var(--success);
-  border-color: rgba(109, 90, 230, 0.25);
+  border-color: rgba(0, 191, 166, 0.25);
 }
 
 .sl-status-pill.sl-error {
@@ -792,7 +792,7 @@ select.sl-input {
   color: #fff;
   display: grid;
   place-items: center;
-  box-shadow: 0 10px 24px rgba(109, 90, 230, 0.3);
+  box-shadow: 0 10px 24px rgba(0, 191, 166, 0.35);
 }
 
 .sl-connect-head h2 {
@@ -1037,7 +1037,7 @@ select.sl-input {
 .sl-success {
   background: var(--success-soft);
   color: var(--success);
-  border: 1px solid rgba(109, 90, 230, 0.3);
+  border: 1px solid rgba(0, 191, 166, 0.3);
   border-radius: 10px;
   padding: var(--sp-4);
   font-weight: 600;
