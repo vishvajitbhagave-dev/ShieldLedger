@@ -9,6 +9,7 @@ import {
   joinShieldLedger,
   type DeploymentState,
   type WalletInfo,
+  type WalletOption,
 } from './manager.js';
 import type { ShieldLedgerProviders } from './shield-ledger-types.js';
 import { track } from './lib/analytics.js';
@@ -34,7 +35,7 @@ export interface ShieldLedgerContextValue {
   readonly deployment: DeploymentState;
   readonly role: Role;
   readonly setRole: (role: Role) => void;
-  readonly connect: () => Promise<void>;
+  readonly connect: (selected?: WalletOption) => Promise<void>;
   readonly disconnect: () => void;
   readonly deploy: () => Promise<void>;
   readonly join: (contractAddress: string) => Promise<void>;
@@ -76,14 +77,18 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
     }
   }, []);
 
-  const connect = useCallback(async () => {
+  const connect = useCallback(async (selected?: WalletOption) => {
     setConnecting(true);
     setWalletLocked(false);
     setError(null);
     try {
-      const api = await connectToWallet(networkId, (status) => {
-        if (status === 'wallet-locked') setWalletLocked(true);
-      });
+      const api = await connectToWallet(
+        networkId,
+        (status) => {
+          if (status === 'wallet-locked') setWalletLocked(true);
+        },
+        selected?.api ?? undefined,
+      );
       connectedAPI.current = api;
       const info = await getWalletInfo(api);
       const ps = await initializeProviders(api);

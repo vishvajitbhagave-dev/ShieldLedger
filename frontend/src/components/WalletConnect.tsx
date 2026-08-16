@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useShieldLedger } from '../context.js';
+import { listWalletOptions, type WalletOption } from '../manager.js';
 import { HexBadge } from './HexBadge.js';
 
 const SparklesIcon: React.FC = () => (
@@ -50,102 +51,221 @@ const TrendUpIcon: React.FC = () => (
   </svg>
 );
 
+const CloseIcon: React.FC = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <path d="M6 6l12 12M18 6 6 18" />
+  </svg>
+);
+
+/** Placeholder glyph used when a wallet extension is not installed. */
+const WalletMonogram: React.FC<{ accent: string; monogram: string }> = ({ accent, monogram }) => (
+  <span className="sl-wallet-monogram" style={{ backgroundColor: accent }} aria-hidden="true">
+    {monogram}
+  </span>
+);
+
+interface WalletPickerModalProps {
+  options: WalletOption[];
+  onSelect: (option: WalletOption) => void;
+  onClose: () => void;
+}
+
+/** Modal listing detected Midnight-compatible wallets plus install links for the rest. */
+const WalletPickerModal: React.FC<WalletPickerModalProps> = ({ options, onSelect, onClose }) => {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const hasInstalled = options.some((o) => o.installed);
+
+  return (
+    <div className="sl-modal-backdrop" onClick={onClose}>
+      <div
+        className="sl-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Select a wallet"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sl-modal-head">
+          <div>
+            <h3>Select a wallet</h3>
+            <p className="sl-meta">Choose which Midnight wallet to connect with.</p>
+          </div>
+          <button type="button" className="sl-modal-close" onClick={onClose} aria-label="Close">
+            <CloseIcon />
+          </button>
+        </div>
+
+        {!hasInstalled && (
+          <div className="sl-info">
+            No Midnight wallet detected. Install one below, then refresh the page.
+          </div>
+        )}
+
+        <div className="sl-wallet-list">
+          {options.map((option) =>
+            option.installed ? (
+              <button
+                key={option.definition.id}
+                type="button"
+                className="sl-wallet-option"
+                onClick={() => onSelect(option)}
+              >
+                {option.icon ? (
+                  <img className="sl-wallet-icon" src={option.icon} alt="" />
+                ) : (
+                  <WalletMonogram accent={option.definition.accent} monogram={option.definition.monogram} />
+                )}
+                <span className="sl-wallet-body">
+                  <span className="sl-wallet-name">{option.name}</span>
+                  <span className="sl-wallet-desc">{option.definition.description}</span>
+                </span>
+                <span className="sl-wallet-detected">Detected</span>
+              </button>
+            ) : (
+              <div key={option.definition.id} className="sl-wallet-option sl-wallet-option-unavailable" aria-disabled="true">
+                <WalletMonogram accent={option.definition.accent} monogram={option.definition.monogram} />
+                <span className="sl-wallet-body">
+                  <span className="sl-wallet-name">{option.definition.name}</span>
+                  <span className="sl-wallet-desc">{option.definition.description}</span>
+                </span>
+                <span className="sl-wallet-install">
+                  <a href={option.definition.installUrl} target="_blank" rel="noopener noreferrer">
+                    Install
+                  </a>
+                </span>
+              </div>
+            ),
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const WalletConnect: React.FC = () => {
   const { networkId, connecting, connected, walletLocked, walletInfo, deployment, connect, deploy, join } = useShieldLedger();
   const [joinAddress, setJoinAddress] = useState('');
   const [joining, setJoining] = useState(false);
+  const [walletModalOpen, setWalletModalOpen] = useState(false);
+  const [walletOptions, setWalletOptions] = useState<WalletOption[]>([]);
 
   const busy = deployment.status === 'in-progress';
+
+  const openWalletModal = (): void => {
+    setWalletOptions(listWalletOptions());
+    setWalletModalOpen(true);
+  };
+
+  const handleSelectWallet = (option: WalletOption): void => {
+    setWalletModalOpen(false);
+    void connect(option);
+  };
 
   // If not connected to wallet, show full connect view
   if (!connected) {
     return (
-      <div className="sl-panel sl-connect">
-        <div className="sl-connect-brand">
-          <span className="sl-connect-logo" aria-hidden="true">
-            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2 4 5v6c0 5.25 3.4 9.74 8 11 4.6-1.26 8-5.75 8-11V5l-8-3Z" />
-              <path d="m9 11.5 2 2 4-4" />
-            </svg>
+      <>
+        <div className="sl-panel sl-connect">
+          <div className="sl-connect-brand">
+            <span className="sl-connect-logo" aria-hidden="true">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2 4 5v6c0 5.25 3.4 9.74 8 11 4.6-1.26 8-5.75 8-11V5l-8-3Z" />
+                <path d="m9 11.5 2 2 4-4" />
+              </svg>
+            </span>
+            <div className="sl-connect-brand-text">
+              <span className="sl-connect-brand-title">ShieldLedger</span>
+              <p className="sl-connect-brand-tagline">
+                Confidential invoice financing on the Midnight Network — commitments on-chain, invoice details private.
+              </p>
+            </div>
+          </div>
+
+          <span className="sl-status-pill">
+            <span className="sl-live-dot" aria-hidden="true" />
+            {networkId}
           </span>
-          <div className="sl-connect-brand-text">
-            <span className="sl-connect-brand-title">ShieldLedger</span>
-            <p className="sl-connect-brand-tagline">
-              Confidential invoice financing on the Midnight Network — commitments on-chain, invoice details private.
+
+          <div className="sl-connect-head">
+            <h2>Connect wallet</h2>
+            <p className="sl-meta">
+              Your wallet signs every transaction in the browser — private state never leaves your wallet.
             </p>
           </div>
-        </div>
 
-        <span className="sl-status-pill">
-          <span className="sl-live-dot" aria-hidden="true" />
-          {networkId}
-        </span>
+          {walletLocked && (
+            <div className="sl-info">
+              Your wallet is locked — click the <strong>wallet icon</strong> to unlock; the connection resumes automatically.
+            </div>
+          )}
 
-        <div className="sl-connect-head">
-          <h2>Connect wallet</h2>
-          <p className="sl-meta">
-            Your wallet signs every transaction in the browser — private state never leaves Lace.
-          </p>
-        </div>
+          <button className="sl-button sl-connect-cta" onClick={openWalletModal} disabled={connecting}>
+            <WalletIcon />
+            {walletLocked
+              ? 'Waiting for the wallet to be unlocked…'
+              : connecting
+                ? 'Connecting…'
+                : 'Connect wallet'}
+          </button>
 
-        {walletLocked && (
-          <div className="sl-info">
-            Lace is locked — click the <strong>Lace icon</strong> to unlock; the connection resumes automatically.
+          <div className="sl-connect-divider" role="separator">
+            <span>What happens next</span>
           </div>
+
+          <ol className="sl-connect-steps">
+            <li>
+              <span className="sl-connect-step-num">1</span>
+              Connect wallet
+            </li>
+            <li>
+              <span className="sl-connect-step-num">2</span>
+              Choose your role
+            </li>
+            <li>
+              <span className="sl-connect-step-num">3</span>
+              Start financing · confirming · bidding
+            </li>
+          </ol>
+
+          <div className="sl-connect-roles">
+            <div className="sl-connect-role">
+              <span className="sl-connect-role-icon" aria-hidden="true">
+                <StoreIcon />
+              </span>
+              <span className="sl-connect-role-title">SME</span>
+              <span className="sl-connect-role-sub">sell invoices</span>
+            </div>
+            <div className="sl-connect-role">
+              <span className="sl-connect-role-icon" aria-hidden="true">
+                <ShieldCheckIcon />
+              </span>
+              <span className="sl-connect-role-title">Buyer</span>
+              <span className="sl-connect-role-sub">confirm invoices</span>
+            </div>
+            <div className="sl-connect-role">
+              <span className="sl-connect-role-icon" aria-hidden="true">
+                <TrendUpIcon />
+              </span>
+              <span className="sl-connect-role-title">Lender</span>
+              <span className="sl-connect-role-sub">bid on invoices</span>
+            </div>
+          </div>
+        </div>
+
+        {walletModalOpen && (
+          <WalletPickerModal
+            options={walletOptions}
+            onSelect={handleSelectWallet}
+            onClose={() => setWalletModalOpen(false)}
+          />
         )}
-
-        <button className="sl-button sl-connect-cta" onClick={() => void connect()} disabled={connecting}>
-          <WalletIcon />
-          {walletLocked
-            ? 'Waiting for Lace to be unlocked…'
-            : connecting
-              ? 'Connecting…'
-              : 'Connect Midnight Lace wallet'}
-        </button>
-
-        <div className="sl-connect-divider" role="separator">
-          <span>What happens next</span>
-        </div>
-
-        <ol className="sl-connect-steps">
-          <li>
-            <span className="sl-connect-step-num">1</span>
-            Connect wallet
-          </li>
-          <li>
-            <span className="sl-connect-step-num">2</span>
-            Choose your role
-          </li>
-          <li>
-            <span className="sl-connect-step-num">3</span>
-            Start financing · confirming · bidding
-          </li>
-        </ol>
-
-        <div className="sl-connect-roles">
-          <div className="sl-connect-role">
-            <span className="sl-connect-role-icon" aria-hidden="true">
-              <StoreIcon />
-            </span>
-            <span className="sl-connect-role-title">SME</span>
-            <span className="sl-connect-role-sub">sell invoices</span>
-          </div>
-          <div className="sl-connect-role">
-            <span className="sl-connect-role-icon" aria-hidden="true">
-              <ShieldCheckIcon />
-            </span>
-            <span className="sl-connect-role-title">Buyer</span>
-            <span className="sl-connect-role-sub">confirm invoices</span>
-          </div>
-          <div className="sl-connect-role">
-            <span className="sl-connect-role-icon" aria-hidden="true">
-              <TrendUpIcon />
-            </span>
-            <span className="sl-connect-role-title">Lender</span>
-            <span className="sl-connect-role-sub">bid on invoices</span>
-          </div>
-        </div>
-      </div>
+      </>
     );
   }
 
