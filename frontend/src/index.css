@@ -795,18 +795,6 @@ select.sl-input {
   box-shadow: 0 10px 24px rgba(0, 191, 166, 0.35);
 }
 
-.sl-connect-head h2 {
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  margin: 0;
-}
-
-.sl-connect-head .sl-meta {
-  margin: var(--sp-2) auto 0;
-  max-width: 460px;
-}
-
 .sl-connect-cta {
   height: 50px;
   padding: 0 28px;

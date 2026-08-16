@@ -192,19 +192,6 @@ export const WalletConnect: React.FC = () => {
             {networkId}
           </span>
 
-          <div className="sl-connect-head">
-            <h2>Connect wallet</h2>
-            <p className="sl-meta">
-              Your wallet signs every transaction in the browser — private state never leaves your wallet.
-            </p>
-          </div>
-
-          {walletLocked && (
-            <div className="sl-info">
-              Your wallet is locked — click the <strong>wallet icon</strong> to unlock; the connection resumes automatically.
-            </div>
-          )}
-
           <button className="sl-button sl-connect-cta" onClick={openWalletModal} disabled={connecting}>
             <WalletIcon />
             {walletLocked
@@ -213,6 +200,16 @@ export const WalletConnect: React.FC = () => {
                 ? 'Connecting…'
                 : 'Connect wallet'}
           </button>
+
+          <p className="sl-meta">
+            Your wallet signs every transaction in the browser — private state never leaves your wallet.
+          </p>
+
+          {walletLocked && (
+            <div className="sl-info">
+              Your wallet is locked — click the <strong>wallet icon</strong> to unlock; the connection resumes automatically.
+            </div>
+          )}
 
           <div className="sl-connect-divider" role="separator">
             <span>What happens next</span>
