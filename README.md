@@ -28,11 +28,12 @@ ShieldLedger's vision is a financing market where creditworthiness is a **provab
 
 ## Mainnet/Testnet
 
-ShieldLedger is a **working demonstration on the Midnight Preview testnet** — not a regulated financial service.
+ShieldLedger is a **working demonstration on the Midnight Preview and Preprod testnets** — not a regulated financial service.
 
 | Environment | Status | Details |
 | --- | --- | --- |
 | Midnight **Preview** (testnet) | **Active** | Live contract + DApp; funded with free test tokens (tNight/tDUST) from the [Midnight Preview faucet](https://faucet.preview.midnight.network/). |
+| Midnight **Preprod** (testnet) | **Active** | Live contract (no DApp build); funded with free test tokens (tNight/tDUST) from the [Midnight Preprod faucet](https://midnight-tmnight-preprod.nethermind.dev/). |
 | Midnight **Mainnet** | Not deployed | Requires Midnight mainnet tooling/requirements; nothing has been deployed there. |
 
 ## Contract Details
@@ -57,6 +58,20 @@ View the deployed contract in a block explorer:
 ![ShieldLedger auction contract on the Preview block explorer](docs/contract-preview-explorer.png)
 
 ![Latest contract transaction on the Preview block explorer](docs/contract-tx-explorer.png)
+
+The current recorded Preprod deployment of the auction contract:
+
+| | |
+| --- | --- |
+| **Contract ID** | `a503d5c086f8ab42f3a650fa0c4b67e31ac37c7eb997c8513c3dccf38de8c925` |
+| **Deployer** | `mn_addr_preprod1ny7a55efaxjhx98ha5p658d0evxlkaeksvyd7uj5m530ypylyrzs0u7wst` |
+| **Deployed** | 2026-08-16 |
+| **Network** | Preprod |
+
+Verified on-chain via `npm run test:e2e -- --network preprod` (reconnects to the contract and reads its ledger state through the Preprod indexer). View it in a block explorer:
+
+- [1AM Explorer — contract (Preprod)](https://explorer.1am.xyz/contract/a503d5c086f8ab42f3a650fa0c4b67e31ac37c7eb997c8513c3dccf38de8c925?network=preprod)
+- [Midnight Explorer (Preprod)](https://preprod.midnightexplorer.com/) — search the contract ID above
 
 > The DApp deploys a fresh contract each time you Connect → Deploy, so this is the currently recorded deployment. An earlier pre-credit-scoring deployment (`25d5118f…0689`) is preserved for reference in the setup section below.
 
