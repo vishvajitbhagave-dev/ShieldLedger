@@ -388,11 +388,70 @@ until a lender reveals.
 
 ## Demonstration
 
+**Desktop UI** 
+
+<img width="959" height="473" alt="Screenshot 2026-08-15 201031" src="https://github.com/user-attachments/assets/810e48c5-c5e9-4a02-90fe-c12db6e2eb1f" />
+
+<img width="959" height="473" alt="Screenshot 2026-08-15 201207" src="https://github.com/user-attachments/assets/14ee0f9b-f3d2-4274-92ab-a8e283806dad" />
+
+<img width="959" height="473" alt="Screenshot 2026-08-15 201228" src="https://github.com/user-attachments/assets/ee315f88-4048-4d7c-a4fa-53b990c2a644" />
+
+<img width="959" height="473" alt="Screenshot 2026-08-15 201259" src="https://github.com/user-attachments/assets/81057bf2-dbbf-49a5-bd81-012bbf8092f5" />
+
+<img width="959" height="470" alt="Screenshot 2026-08-15 201328" src="https://github.com/user-attachments/assets/ebe4ca88-4e6a-4754-a53a-60631984326d" />
+
+<img width="959" height="473" alt="Screenshot 2026-08-15 201410" src="https://github.com/user-attachments/assets/5ed6f027-079e-4439-a32c-dcf84f41e62c" />
+
+<img width="959" height="476" alt="Screenshot 2026-08-15 201448" src="https://github.com/user-attachments/assets/0315c5e0-9b1c-431f-b226-33e8da24eee5" />
+
+<img width="959" height="471" alt="Screenshot 2026-08-15 201510" src="https://github.com/user-attachments/assets/262d2f5f-de3e-4857-96b2-bef68778cb8f" />
+
+<img width="959" height="473" alt="Screenshot 2026-08-15 201549" src="https://github.com/user-attachments/assets/636f0a90-b2a4-49ba-8bc2-dccae97374fc" />
+
+<img width="959" height="470" alt="Screenshot 2026-08-15 202102" src="https://github.com/user-attachments/assets/c07a7990-d75f-4b26-8ee6-64cb780c8ec3" />
+
+<img width="959" height="473" alt="Screenshot 2026-08-15 202427" src="https://github.com/user-attachments/assets/57b13e85-06f0-4f52-91aa-9dddd69825b0" />
+
+<img width="959" height="472" alt="Screenshot 2026-08-15 202500" src="https://github.com/user-attachments/assets/698ca257-7366-456b-a9c1-a394ac84ed89" />
+
+<img width="959" height="476" alt="Screenshot 2026-08-15 202526" src="https://github.com/user-attachments/assets/c2ae97e6-0e22-4d50-95b4-2dc9857b3edd" />
+
+<img width="959" height="482" alt="Screenshot 2026-08-15 202554" src="https://github.com/user-attachments/assets/ad0c192c-17af-4c8a-b5e9-641c2cf9977b" />
+
+<img width="959" height="475" alt="Screenshot 2026-08-15 202639" src="https://github.com/user-attachments/assets/0f224c7f-6649-44c7-b5e4-b9208082394d" />
+
+<img width="959" height="475" alt="Screenshot 2026-08-15 202714" src="https://github.com/user-attachments/assets/ab3e9695-2a7e-4f41-ac89-d534f48f2368" />
+
+<img width="959" height="476" alt="Screenshot 2026-08-15 202741" src="https://github.com/user-attachments/assets/afff75a0-b559-45ef-9467-ff9cdcb953ee" />
+
+<img width="959" height="472" alt="Screenshot 2026-08-15 202810" src="https://github.com/user-attachments/assets/47db04dd-dc37-47d6-98fd-9595a81bc575" />
+
+<img width="959" height="478" alt="Screenshot 2026-08-15 202827" src="https://github.com/user-attachments/assets/7ac41c3d-4713-4d30-bc73-c0e8d7a840ee" />
+
+<img width="959" height="475" alt="Screenshot 2026-08-15 202904" src="https://github.com/user-attachments/assets/6846193d-61b9-47a5-aee9-162e197c346f" />
+
+<img width="959" height="476" alt="Screenshot 2026-08-15 202926" src="https://github.com/user-attachments/assets/e873c3df-9777-4171-b6a7-8d249077ae5b" />
+
+
+
 **Mobile responsive UI** — the landing page and the DApp connect screen at a phone viewport (390×844):
 
-![ShieldLedger landing page on a phone viewport](docs/mobile-landing.png)
+<img width="576" height="1280" alt="WhatsApp Image 2026-08-16 at 7 15 09 PM" src="https://github.com/user-attachments/assets/65cb00af-c438-4a6b-afc6-722ae4bda013" />
 
-![ShieldLedger DApp connect screen on a phone viewport](docs/mobile-app.png)
+<img width="576" height="1280" alt="WhatsApp Image 2026-08-16 at 7 15 09 PM (1)" src="https://github.com/user-attachments/assets/57712907-4085-4e11-b0e4-463ddd484737" />
+
+<img width="576" height="1280" alt="WhatsApp Image 2026-08-16 at 7 15 09 PM (2)" src="https://github.com/user-attachments/assets/a3e256b9-8845-4cf5-b55a-7ddc44fd5382" />
+
+<img width="576" height="1280" alt="WhatsApp Image 2026-08-16 at 7 15 09 PM (3)" src="https://github.com/user-attachments/assets/e4fabe22-b7df-423c-9dde-fa75dd7743d0" />
+
+<img width="720" height="1600" alt="WhatsApp Image 2026-08-16 at 7 15 09 PM (4)" src="https://github.com/user-attachments/assets/9ee99dc3-00c4-4bb8-96d4-cc1970dca2b9" />
+
+<img width="576" height="1280" alt="WhatsApp Image 2026-08-16 at 7 15 09 PM (5)" src="https://github.com/user-attachments/assets/a7598f6a-8914-479d-bb20-02565e6843eb" />
+
+<img width="576" height="1280" alt="WhatsApp Image 2026-08-16 at 7 15 09 PM (6)" src="https://github.com/user-attachments/assets/ef6e3c77-c038-4bbd-bce7-7906afa11d35" />
+
+<img width="576" height="1280" alt="WhatsApp Image 2026-08-16 at 7 15 09 PM (7)" src="https://github.com/user-attachments/assets/2fdaeecf-0547-4536-91d2-1aba2e56f8c3" />
+
 
 **CI/CD pipeline** — GitHub Actions: the `CI` workflow (contract tests + typecheck + DApp build) and `Deploy DApp to GitHub Pages` both passing on `main`:
 
