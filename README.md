@@ -404,9 +404,9 @@ until a lender reveals.
 
 **Contract deployment on-chain** — see the explorer screenshots under [Contract Details](#contract-details).
 
-**Demo video** — watch the full walkthrough on the Preview testnet (1–2 minutes):
+**Demo video** — wallet connect + a successful circuit call on the Preview testnet:
 
-_Demo video link coming soon._
+https://drive.google.com/file/d/1Jo0o03gjT0YcqAVUUIzWBfvHHYL2rDv0/view?usp=drive_link
 
 ## Testing
 
