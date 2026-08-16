@@ -411,7 +411,7 @@ https://drive.google.com/file/d/1Jo0o03gjT0YcqAVUUIzWBfvHHYL2rDv0/view?usp=drive
 ## Testing
 
 ```bash
-npm test               # vitest — 131 simulator tests (auction + escrow + buyer verification + inter-contract + reputation + frontend logic)
+npm test               # vitest — 136 simulator tests (auction + escrow + buyer verification + inter-contract + reputation + frontend logic)
 npm run test:e2e       # read-only smoke check against the deployed contract
 npm run build          # tsc --noEmit (root) + `npm --prefix frontend run build`
 ```
