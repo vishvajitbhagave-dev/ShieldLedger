@@ -44,12 +44,15 @@ const connectWithUnlockRetry = async (
   wallet: InitialAPI,
   networkId: string,
   onLocked: () => void,
+  signal?: AbortSignal,
 ): Promise<ConnectedAPI> => {
   const deadline = Date.now() + UNLOCK_WAIT_MS;
   for (;;) {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     try {
       return await wallet.connect(networkId);
     } catch (error) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       if (!isLockedError(error)) throw error;
       onLocked();
       if (Date.now() >= deadline) {
@@ -140,7 +143,10 @@ export const connectToWallet = (
   networkId: string,
   onStatus?: (status: 'wallet-locked') => void,
   selectedWallet?: InitialAPI,
+  signal?: AbortSignal,
 ): Promise<ConnectedAPI> => {
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+
   const source$ = selectedWallet
     ? of(selectedWallet)
     : interval(100).pipe(
@@ -158,7 +164,8 @@ export const connectToWallet = (
   return firstValueFrom(
     source$.pipe(
       concatMap(async (initialAPI: InitialAPI) => {
-        const connectedAPI = await connectWithUnlockRetry(initialAPI, networkId, () => onStatus?.('wallet-locked'));
+        const connectedAPI = await connectWithUnlockRetry(initialAPI, networkId, () => onStatus?.('wallet-locked'), signal);
+        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
         const connectionStatus = await connectedAPI.getConnectionStatus();
         log.info(`Wallet connection status: ${JSON.stringify(connectionStatus)}`);
         if (connectionStatus.status !== 'connected') {
@@ -178,9 +185,10 @@ export const connectToWallet = (
         with: () => throwError(() => new Error('The wallet has failed to respond. Extension enabled?')),
       }),
       catchError((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return throwError(() => new DOMException('Cancelled', 'AbortError'));
+        }
         log.error('Unable to enable connector API', error);
-        // Surface the real cause (missing extension, wallet locked, network
-        // mismatch, timed-out approval) instead of a generic message.
         return throwError(() =>
           error instanceof Error
             ? error

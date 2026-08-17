@@ -158,12 +158,14 @@ export const WalletConnect: React.FC = () => {
   const busy = deployment.status === 'in-progress';
 
   const openWalletModal = (): void => {
+    if (connecting) return;
     setWalletOptions(listWalletOptions());
     setWalletModalOpen(true);
   };
 
   const handleSelectWallet = (option: WalletOption): void => {
     setWalletModalOpen(false);
+    if (connecting) return;
     void connect(option);
   };
 

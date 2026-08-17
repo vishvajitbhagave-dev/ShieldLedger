@@ -63,6 +63,8 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
   const [deployment, setDeployment] = useState<DeploymentState>({ status: 'idle' });
   const [error, setError] = useState<string | null>(null);
   const connectedAPI = useRef<ConnectedAPI | null>(null);
+  const connectGeneration = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
 
   const clearError = useCallback(() => setError(null), []);
 
@@ -78,6 +80,12 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
   }, []);
 
   const connect = useCallback(async (selected?: WalletOption) => {
+    // Cancel any previous in-flight connect attempt.
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const gen = ++connectGeneration.current;
+
     setConnecting(true);
     setWalletLocked(false);
     setError(null);
@@ -85,10 +93,15 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
       const api = await connectToWallet(
         networkId,
         (status) => {
-          if (status === 'wallet-locked') setWalletLocked(true);
+          if (status === 'wallet-locked' && gen === connectGeneration.current) {
+            setWalletLocked(true);
+          }
         },
         selected?.api ?? undefined,
+        controller.signal,
       );
+      // Stale: a newer connect() has already started — discard this result.
+      if (gen !== connectGeneration.current) return;
       connectedAPI.current = api;
       const info = await getWalletInfo(api);
       const ps = await initializeProviders(api);
@@ -96,12 +109,17 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
       setProviders(ps);
       track('wallet_connect', { outcome: 'success', network: networkId });
     } catch (e) {
+      // Stale: discard the error from a superseded attempt.
+      if (gen !== connectGeneration.current) return;
       setError(e instanceof Error ? e.message : String(e));
       captureError(e, { step: 'connect' });
       track('wallet_connect', { outcome: 'error' });
     } finally {
-      setConnecting(false);
-      setWalletLocked(false);
+      // Only clear the "connecting" flag if we are still the active attempt.
+      if (gen === connectGeneration.current) {
+        setConnecting(false);
+        setWalletLocked(false);
+      }
     }
   }, [networkId]);
 
