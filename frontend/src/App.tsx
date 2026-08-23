@@ -5,6 +5,8 @@ import { InvoiceFinancing } from './components/InvoiceFinancing.js';
 import { LedgerView } from './components/LedgerView.js';
 import { HexBadge } from './components/HexBadge.js';
 import { ErrorBoundary } from './components/ErrorBoundary.js';
+import { ErrorBanner } from './components/ErrorBanner.js';
+import { describeError } from './lib/errorMessages.js';
 import { useLedgerState } from './use-ledger-state.js';
 import { track } from './lib/analytics.js';
 
@@ -36,9 +38,16 @@ const NAV_ITEMS: Array<{ role: Role; label: string; icon: React.FC }> = [
 ];
 
 const Body: React.FC = () => {
-  const { networkId, connected, disconnect, deployment, role, setRole, walletInfo, error, clearError } = useShieldLedger();
+  const { networkId, connected, disconnect, connect, deployment, role, setRole, walletInfo, error, clearError } =
+    useShieldLedger();
   const { state: ledgerState, error: ledgerError } = useLedgerState();
   const [lastUpdate, setLastUpdate] = useState<number | null>(null);
+
+  // Re-establish a dropped wallet session straight from the error banner.
+  const reconnectWallet = () => {
+    disconnect();
+    void connect();
+  };
 
   useEffect(() => {
     if (ledgerState) setLastUpdate(Date.now());
@@ -118,7 +127,12 @@ const Body: React.FC = () => {
             )}
             <div className="sl-header-details-right">
               {deployed && (
-                <span className={ledgerError != null ? 'sl-status-pill sl-error' : 'sl-status-pill sl-live-pill'}>{streamStatus}</span>
+                <span
+                  className={ledgerError != null ? 'sl-status-pill sl-error' : 'sl-status-pill sl-live-pill'}
+                  title={ledgerError != null ? describeError('ledgerStream', ledgerError).message : undefined}
+                >
+                  {streamStatus}
+                </span>
               )}
               <div className="sl-top-metric">
                 <span className="sl-top-metric-value">{ledgerState ? ledgerState.invoiceCount.toString() : '—'}</span>
@@ -148,14 +162,7 @@ const Body: React.FC = () => {
         </nav>
       )}
 
-      {error && (
-        <div className="sl-error">
-          <button className="sl-button sl-button-secondary" onClick={clearError} style={{ float: 'right', padding: '2px 8px' }}>
-            dismiss
-          </button>
-          {error}
-        </div>
-      )}
+      <ErrorBanner error={error} onDismiss={clearError} onReconnect={reconnectWallet} />
 
       {deployment.status === 'in-progress' && (
         <div className="sl-panel">
@@ -163,7 +170,9 @@ const Body: React.FC = () => {
         </div>
       )}
 
-      {deployment.status === 'failed' && <div className="sl-error">{deployment.error}</div>}
+      {deployment.status === 'failed' && (
+        <ErrorBanner error={describeError('contractDeployment', deployment.error)} />
+      )}
 
       <WalletConnect />
 

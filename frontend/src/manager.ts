@@ -15,6 +15,7 @@ import { catchError, concatMap, filter, firstValueFrom, interval, map, of, take,
 import { WALLET_DEFINITIONS, type WalletDefinition } from './wallets.js';
 import { inMemoryPrivateStateProvider } from './in-memory-private-state-provider.js';
 import { ShieldLedgerAPI } from './shield-ledger-api.js';
+import { WalletBalanceError } from './lib/errorMessages.js';
 import type { ShieldLedgerPrivateState } from '../../src/witnesses.js';
 import {
   shieldLedgerPrivateStateKey,
@@ -261,8 +262,10 @@ export const initializeProviders = async (connectedAPI: ConnectedAPI): Promise<S
             fromHex(received.tx),
           );
         } catch (e) {
+          // Tag the failure so the UI can show fee/balance guidance; the
+          // original error stays attached (and logged) for technical details.
           log.error('Error balancing transaction via wallet', e);
-          throw e;
+          throw e instanceof WalletBalanceError ? e : new WalletBalanceError('Transaction balancing failed.', e);
         }
       },
     },

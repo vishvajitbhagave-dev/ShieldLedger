@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useLedgerState } from '../use-ledger-state.js';
+import { describeError } from '../lib/errorMessages.js';
 import { HexBadge } from './HexBadge.js';
+import { ErrorBanner } from './ErrorBanner.js';
 
 const formatDate = (unixSeconds: bigint): string => {
   if (unixSeconds <= 0n) return '—';
@@ -75,7 +77,7 @@ export const LedgerView: React.FC = () => {
   return (
     <div className="sl-panel">
       <h2>Public ledger</h2>
-      {error && <div className="sl-error">Subscription error: {error}</div>}
+      {error && <ErrorBanner error={describeError('ledgerStream', error)} />}
       {!state && !error && <p className="sl-empty">Waiting for ledger state…</p>}
       {state && (
         <>

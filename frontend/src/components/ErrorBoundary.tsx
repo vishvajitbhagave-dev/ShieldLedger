@@ -1,4 +1,8 @@
 import React from 'react';
+import { describeError } from '../lib/errorMessages.js';
+
+const RENDER_FAILURE_MESSAGE =
+  'Something went wrong rendering this part of the app. Please try again — if it keeps happening, refresh the page.';
 
 interface ErrorBoundaryState {
   error: Error | null;
@@ -15,11 +19,16 @@ export class ErrorBoundary extends React.Component<React.PropsWithChildren, Erro
   render(): React.ReactNode {
     if (this.state.error) {
       return (
-        <div className="sl-error">
-          <strong>Something went wrong rendering the app.</strong>
-          <p className="sl-meta" style={{ marginBottom: 8 }}>
-            {this.state.error.message || String(this.state.error)}
-          </p>
+        <div className="sl-error sl-error-banner">
+          <div className="sl-error-body">
+            <span className="sl-error-message">{RENDER_FAILURE_MESSAGE}</span>
+          </div>
+          <details className="sl-error-tech-details">
+            <summary>Show technical details</summary>
+            <pre className="sl-error-tech">
+              {describeError('render', this.state.error).technical || '(the underlying error had no message)'}
+            </pre>
+          </details>
           <button
             className="sl-button sl-button-secondary"
             type="button"

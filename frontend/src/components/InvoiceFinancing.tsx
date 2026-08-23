@@ -9,10 +9,11 @@ import { useLedgerState } from '../use-ledger-state.js';
 import { invoiceStatusOf, isAuctionResolved, isOpenInvoice } from '../invoice-status.js';
 import type { InvoiceView } from '../shield-ledger-types.js';
 import type { ReputationView } from '../../../src/reputation.js';
-import { userFacingFailureMessage } from '../lib/errorMessages.js';
+import { describeError, type UserFacingError } from '../lib/errorMessages.js';
 import { track } from '../lib/analytics.js';
 import { captureError } from '../lib/monitoring.js';
 import { HexBadge } from './HexBadge.js';
+import { ErrorBanner } from './ErrorBanner.js';
 
 type FormState = {
   registerReference: string;
@@ -229,15 +230,17 @@ const BuyerVerifiedBadge: React.FC = () => (
   </span>
 );
 
+type Notice = { ok: true; text: string } | { ok: false; error: UserFacingError };
+
 export const InvoiceFinancing: React.FC = () => {
-  const { deployment, connected, role } = useShieldLedger();
+  const { deployment, connected, role, connect, disconnect } = useShieldLedger();
   const api = deployment.status === 'deployed' ? deployment.api : null;
   const busy = deployment.status === 'in-progress' || !connected || api === null;
 
   const { state: ledgerState } = useLedgerState();
 
   const [form, setForm] = useState<FormState>(initialForm);
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [message, setMessage] = useState<Notice | null>(null);
   const [working, setWorking] = useState<string | null>(null);
   const [invoices, setInvoices] = useState<RegisteredInvoice[]>(() => loadRegisteredInvoices());
   const [reputation, setReputation] = useState<ReputationView | null>(null);
@@ -283,12 +286,19 @@ export const InvoiceFinancing: React.FC = () => {
       track(label, { outcome: 'success', role });
     } catch (e) {
       console.error(`${label} failed:`, e);
-      setMessage({ ok: false, text: userFacingFailureMessage(label, e) });
+      setMessage({ ok: false, error: describeError(label, e) });
       captureError(e, { step: label });
       track(label, { outcome: 'error', role });
     } finally {
       setWorking(null);
     }
+  };
+
+  // Offered inside the banner when the wallet session drops mid-operation.
+  const reconnectWallet = () => {
+    setMessage(null);
+    disconnect();
+    void connect();
   };
 
   const openInvoices = (ledgerState?.invoices ?? []).filter(isOpenInvoice);
@@ -1073,10 +1083,9 @@ export const InvoiceFinancing: React.FC = () => {
         </div>
       )}
 
-      {message && (
-        <div className={message.ok ? 'sl-success' : 'sl-error'} style={{ marginBottom: 0 }}>
-          {message.text}
-        </div>
+      {message && message.ok && <div className="sl-success" style={{ marginBottom: 0 }}>{message.text}</div>}
+      {message && !message.ok && (
+        <ErrorBanner error={message.error} onDismiss={() => setMessage(null)} onReconnect={reconnectWallet} />
       )}
     </div>
   );

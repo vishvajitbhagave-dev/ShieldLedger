@@ -12,6 +12,7 @@ import {
   type WalletOption,
 } from './manager.js';
 import type { ShieldLedgerProviders } from './shield-ledger-types.js';
+import { describeError, type UserFacingError } from './lib/errorMessages.js';
 import { track } from './lib/analytics.js';
 import { captureError } from './lib/monitoring.js';
 
@@ -39,7 +40,7 @@ export interface ShieldLedgerContextValue {
   readonly disconnect: () => void;
   readonly deploy: () => Promise<void>;
   readonly join: (contractAddress: string) => Promise<void>;
-  readonly error: string | null;
+  readonly error: UserFacingError | null;
   readonly clearError: () => void;
 }
 
@@ -61,7 +62,7 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
   const [role, setRoleState] = useState<Role>(() => loadRole());
   const [providers, setProviders] = useState<ShieldLedgerProviders | null>(null);
   const [deployment, setDeployment] = useState<DeploymentState>({ status: 'idle' });
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<UserFacingError | null>(null);
   const connectedAPI = useRef<ConnectedAPI | null>(null);
   const connectGeneration = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
@@ -111,7 +112,7 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
     } catch (e) {
       // Stale: discard the error from a superseded attempt.
       if (gen !== connectGeneration.current) return;
-      setError(e instanceof Error ? e.message : String(e));
+      setError(describeError('connect', e));
       captureError(e, { step: 'connect' });
       track('wallet_connect', { outcome: 'error' });
     } finally {
