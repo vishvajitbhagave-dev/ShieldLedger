@@ -34,6 +34,9 @@ type FormState = {
   settleNullifier: string;
   settleAmount: string;
   settleDue: string;
+  transferNullifier: string;
+  transferSecret: string;
+  checkNullifier: string;
 };
 
 const initialForm: FormState = {
@@ -55,6 +58,9 @@ const initialForm: FormState = {
   settleNullifier: '',
   settleAmount: '',
   settleDue: '',
+  transferNullifier: '',
+  transferSecret: '',
+  checkNullifier: '',
 };
 
 const SAMPLE_REFERENCE = 'Sample invoice';
@@ -62,6 +68,7 @@ const SAMPLE_NULLIFIER = 'aa11bb22cc33dd44ee55ff66aa77bb88cc99dd00ee11ff22aa33bb
 const SAMPLE_AMOUNT = '1000';
 const SAMPLE_DUE = '4102444800';
 const SAMPLE_RATE = '400';
+const SAMPLE_SECRET = '11223344556677889900aabbccddeeff11223344556677889900aabbccddeeff';
 
 const sampleForm: FormState = {
   registerReference: SAMPLE_REFERENCE,
@@ -82,9 +89,14 @@ const sampleForm: FormState = {
   settleNullifier: SAMPLE_NULLIFIER,
   settleAmount: SAMPLE_AMOUNT,
   settleDue: SAMPLE_DUE,
+  transferNullifier: SAMPLE_NULLIFIER,
+  transferSecret: SAMPLE_SECRET,
+  checkNullifier: SAMPLE_NULLIFIER,
 };
 
 const isDigits = (s: string): boolean => /^\d+$/.test(s.trim());
+
+const isHex64 = (s: string): boolean => /^[0-9a-fA-F]{64}$/.test(s.trim());
 
 const formatDate = (unixSeconds: bigint): string => {
   if (unixSeconds <= 0n) return '—';
@@ -248,7 +260,9 @@ export const InvoiceFinancing: React.FC = () => {
   // Sub-tabs navigation state per role
   const [smeTab, setSmeTab] = useState<'register' | 'track' | 'settle'>('register');
   const [buyerTab, setBuyerTab] = useState<'pending' | 'confirm' | 'confirmed'>('pending');
-  const [lenderTab, setLenderTab] = useState<'browse' | 'bid' | 'reveal'>('browse');
+  const [lenderTab, setLenderTab] = useState<'browse' | 'bid' | 'reveal' | 'market'>('browse');
+  // Verdict of the last holder-only claim check in the secondary-market tab.
+  const [claimCheck, setClaimCheck] = useState<{ nullifier: string; verdict: 'not-transferred' | 'mine' | 'other' } | null>(null);
 
   const refreshReputation = async () => {
     if (!api) return;
@@ -452,6 +466,20 @@ export const InvoiceFinancing: React.FC = () => {
               active: lenderTab === 'reveal',
               onClick: () => setLenderTab('reveal'),
             },
+            {
+              key: 'market',
+              label: 'Secondary Market',
+              icon: (
+                <Icon className="sl-action-icon">
+                  <path d="m16 3 4 4-4 4" />
+                  <path d="M20 7H4" />
+                  <path d="m8 21-4-4 4-4" />
+                  <path d="M4 17h16" />
+                </Icon>
+              ),
+              active: lenderTab === 'market',
+              onClick: () => setLenderTab('market'),
+            },
           ];
 
   const statusOf = (inv: RegisteredInvoice): string => invoiceStatusOf(inv, ledgerState?.invoices ?? []);
@@ -492,11 +520,13 @@ export const InvoiceFinancing: React.FC = () => {
     { key: 'browse', label: 'Browse Invoices' },
     { key: 'bid', label: 'Submit Sealed Bid' },
     { key: 'reveal', label: 'Reveal Bid' },
+    { key: 'market', label: 'Secondary Market' },
   ];
 
   let activeLenderStep = 'browse';
   if (lenderTab === 'bid') activeLenderStep = 'bid';
   else if (lenderTab === 'reveal') activeLenderStep = 'reveal';
+  else if (lenderTab === 'market') activeLenderStep = 'market';
 
   return (
     <div className="sl-panel">
@@ -1073,6 +1103,140 @@ export const InvoiceFinancing: React.FC = () => {
                 {working === 'revealBid' ? 'Working…' : 'Reveal bid'}
               </button>
             </form>
+          )}
+
+          {lenderTab === 'market' && (
+            <>
+              <form
+                className="sl-stage"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!api) return;
+                  const a = api;
+                  void run('transferClaim', async () => {
+                    await a.transferClaim(form.transferNullifier, form.transferSecret);
+                    setForm((f) => ({ ...f, checkNullifier: f.transferNullifier, transferSecret: '' }));
+                  });
+                }}
+              >
+                <h3 className={sectionHeading}>Resell your claim</h3>
+                <Field label="Invoice nullifier" value={form.transferNullifier} placeholder="64 hex chars" onChange={set('transferNullifier')} disabled={busy || working !== null} />
+                <Field
+                  label="New owner's secret"
+                  value={form.transferSecret}
+                  placeholder="64 hex chars — agree on it with the investor privately"
+                  onChange={set('transferSecret')}
+                  disabled={busy || working !== null}
+                />
+                <p className="sl-note">
+                  Only a <em>commitment</em> to the new owner's secret goes on-chain — neither of you is ever named.
+                </p>
+                <details className="sl-details">
+                  <summary>Learn more</summary>
+                  <p>
+                    The first hand-over must come from the auction winner; afterwards only the current holder can sell
+                    on. The circuit publishes <code>hash(newOwnerSecret, invoice)</code> and nothing else — the
+                    investor's identity stays hidden from everyone, including the chain. Share the secret itself with
+                    the investor out of band: they will need it as their claim secret to resell later or prove payout
+                    rights. After settlement the contract records an anonymous payee instead of any pseudonym.
+                  </p>
+                </details>
+                <button
+                  className="sl-button"
+                  type="submit"
+                  disabled={busy || working !== null || !isHex64(form.transferNullifier) || !isHex64(form.transferSecret)}
+                >
+                  {working === 'transferClaim' ? 'Working…' : 'Transfer claim'}
+                </button>
+              </form>
+
+              <section className="sl-stage">
+                <h3 className={sectionHeading}>Check my claim ownership</h3>
+                <p className="sl-note">
+                  Holder-only and fully local — your secret and the verdict never leave this browser.
+                </p>
+                <div className="sl-row" style={{ alignItems: 'stretch' }}>
+                  <input
+                    className="sl-input"
+                    style={{ flex: 1 }}
+                    value={form.checkNullifier}
+                    placeholder="invoice nullifier (64 hex chars)"
+                    onChange={(e) => set('checkNullifier')(e.target.value)}
+                    disabled={busy || working !== null}
+                  />
+                  <button
+                    className="sl-button sl-button-secondary"
+                    type="button"
+                    disabled={busy || working !== null || !isHex64(form.checkNullifier) || !ledgerState}
+                    onClick={() => {
+                      if (!api || !ledgerState) return;
+                      const a = api;
+                      const nf = form.checkNullifier.trim().toLowerCase();
+                      void run('checkClaim', async () => {
+                        const verdict = await a.checkClaim(nf, ledgerState);
+                        setClaimCheck({ nullifier: nf, verdict });
+                      });
+                    }}
+                  >
+                    Check locally
+                  </button>
+                </div>
+                {claimCheck && (
+                  <p className={claimCheck.verdict === 'mine' ? 'sl-success' : 'sl-info'} style={{ marginBottom: 0 }}>
+                    {claimCheck.verdict === 'mine'
+                      ? '✅ You hold this claim — settlement pays its current holder.'
+                      : claimCheck.verdict === 'other'
+                        ? '❌ This claim belongs to someone else.'
+                        : 'ℹ️ This claim was never transferred.'}
+                  </p>
+                )}
+              </section>
+
+              <section className="sl-stage">
+                <h3 className={sectionHeading}>Claims on the secondary market</h3>
+                {(ledgerState?.invoices ?? []).filter((inv) => inv.transferred).length === 0 ? (
+                  <p className="sl-empty">No claims have been resold yet.</p>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="sl-table">
+                      <thead>
+                        <tr>
+                          <th>Invoice (nullifier)</th>
+                          <th>Holder commitment</th>
+                          <th>Status</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(ledgerState?.invoices ?? [])
+                          .filter((inv) => inv.transferred)
+                          .map((inv) => (
+                            <tr key={inv.nullifier}>
+                              <td><HexBadge hex={inv.nullifier} /></td>
+                              <td><HexBadge hex={inv.claimCommitment} /></td>
+                              <td>{inv.lender ? 'settled anonymously' : 'open for resale'}</td>
+                              <td>
+                                {!inv.lender && (
+                                  <button
+                                    className="sl-button sl-button-secondary"
+                                    type="button"
+                                    disabled={busy || working !== null}
+                                    onClick={() =>
+                                      setForm((f) => ({ ...f, transferNullifier: inv.nullifier }))
+                                    }
+                                  >
+                                    Resell ↓
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+            </>
           )}
         </>
       )}

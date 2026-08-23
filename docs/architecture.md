@@ -92,11 +92,12 @@ private details + secret), **commitments** (hashes binding an owner to a
 nullifier), a **credit attestation** per invoice ("score ≥ N" — the proven
 bound), a **reputation attestation** per invoice ("reputation ≥ N" — the proven
 bound), lender **pseudonyms**, **sealed-bid commitments**, the **buyer-verified
-flag** with its opaque per-invoice **buyer commitment**, and the **winning**
-bid's terms. Everything else — invoice contents, bid terms until the owner
-reveals, both secrets, the credit score, the reputation score, the lender's
-minimum-reputation bar, and the settlement's on-time/late classification —
-stays in the wallet.
+flag** with its opaque per-invoice **buyer commitment**, the **winning**
+bid's terms, and — for resold claims — the **claim commitment** to the current
+holder plus a `transferred` flag. Everything else — invoice contents, bid terms
+until the owner reveals, both secrets, the credit score, the reputation score,
+the lender's minimum-reputation bar, the settlement's on-time/late
+classification, and every secondary-market party identity — stays in the wallet.
 
 ### ZK credit scoring (SME)
 
@@ -208,3 +209,52 @@ lender's bar, makes **proof generation fail**. The score is therefore an
 incentive that reliably compounds across deals (on-time SMEs register
 progressively higher bounds, which lenders trust), without ever publishing a
 financial history.
+
+### Secondary market — private claim transfers
+
+After the auction resolves but before settlement, the winning lender can resell
+their claim with `transferClaim(nullifier, newOwnerCommitment)`. A claim is a
+commitment to its holder:
+
+```
+claimCommitment = persistentHash(ClaimSeal{nullifier, secret})
+```
+
+`ClaimSeal` domain-separates the hash so a claim commitment can never collide
+with an invoice-ownership or bid commitment, and binds it to exactly one
+invoice (no cross-invoice replay). Authorization has two phases, both proven in
+ZK inside the circuit:
+
+1. **First hand-over** — the seller proves `derivePseudonym(lenderSecret)`
+   equals the auction leader's pseudonym stored in `bestBids`.
+2. **Later hand-overs** — the seller proves
+   `deriveClaimCommitment(claimSecret(), nullifier) == invoice.claimCommitment`;
+   only the current holder satisfies it.
+
+A successful transfer atomically replaces the commitment and sets the public
+`transferred` flag. At settlement, `pickPayee(transferred, winnerPseudonym)`
+records the constant anonymous marker (`shieldledger:secondary`, exposed as
+`deriveSecondaryPayee()`) instead of any pseudonym, while preserving
+`transferred`/`claimCommitment` so the current holder can prove payout rights in
+ZK. The DApp exposes this under **Lender → Secondary Market** (resell form,
+local "Check my claim ownership", and a claims table); the CLI mirrors it via
+`--transfer-claim/--new-owner-secret/--check-claim` and menu items 9–10.
+
+#### Privacy model: secondary market — what an observer can and cannot learn
+
+| Can an observer learn… | Yes / No | How |
+| --- | --- | --- |
+| That a claim changed hands | **Yes** | The `transferred` flag and replaced commitment are public by design. |
+| Who sold or who bought | **No** | The seller proves ownership in ZK; the buyer appears only as an opaque commitment. |
+| How many times it was resold | **No** | Each transfer overwrites the single commitment field; no history is kept on-chain. |
+| Who received the settlement of a resold claim | **No** | `settleInvoice` records the anonymous marker, never a pseudonym. |
+| Who may claim the payout | **No** | Only the current holder's secret opens the commitment; the check runs locally or in ZK. |
+
+**Why it is unforgeable.** Every authorization path is a circuit `assert`: a
+non-holder's first transfer fails the pseudonym match ("not the claim holder"),
+a former owner's retry fails the commitment match after the atomic overwrite,
+and pre-resolution/post-settlement windows are rejected explicitly. Known demo
+limitations: the winner's pseudonym was already public from the auction, and the
+demo contract has no token ledger — payout is the receipt record, so the second
+investor is simulated by sharing the claim secret out of band rather than by a
+real second wallet.

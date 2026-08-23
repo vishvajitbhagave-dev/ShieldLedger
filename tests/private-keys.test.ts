@@ -182,6 +182,7 @@ describe('ShieldLedger privacy — pseudonyms', () => {
       lenderExposureCap: 42_000n,
       lenderMinReputation: 10n,
       buyerSecret: bytes32(3),
+      claimSecret: bytes32(4),
     };
     const sim = new ShieldLedgerSimulator(ps);
     sim.registerInvoice(bytes32(7), 650n, 0n, 12n);

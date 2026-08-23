@@ -10,6 +10,10 @@
 // score and on-time/late history for the network and exits.
 // `--demo-reputation-cycle` runs the demo-only reputation tool
 // (scripts/demo-reputation-cycle.ts) and exits - no network or wallet needed.
+// Secondary market: `--transfer-claim <hex> --new-owner-secret <hex>` resells
+// the caller's claim on an invoice to a new investor (identified only by a
+// commitment to their secret); `--check-claim <hex>` runs a holder-only local
+// ownership check against the on-chain commitment.
 
 const NULLIFIER_RE = /^[0-9a-fA-F]{64}$/;
 const NON_NEGATIVE_INTEGER_RE = /^\d+$/;
@@ -27,6 +31,12 @@ export interface ShieldLedgerCliArgs {
   readonly showReputation: boolean;
   /** Run the demo-only reputation-cycle tool and exit (no network needed). */
   readonly demoReputationCycle: boolean;
+  /** The `--transfer-claim` invoice nullifier if provided. */
+  readonly transferClaimNullifier: string | undefined;
+  /** The `--new-owner-secret` of the investor receiving the claim. */
+  readonly newOwnerSecret: string | undefined;
+  /** The `--check-claim` invoice nullifier for the local ownership check. */
+  readonly checkClaimNullifier: string | undefined;
   /** Unknown/unsupported flags the CLI should warn about. */
   readonly unknown: readonly string[];
 }
@@ -52,6 +62,9 @@ export function parseShieldLedgerCliArgs(argv: readonly string[]): ShieldLedgerC
   let minReputation: bigint | undefined;
   let showReputation = false;
   let demoReputationCycle = false;
+  let transferClaimNullifier: string | undefined;
+  let newOwnerSecret: string | undefined;
+  let checkClaimNullifier: string | undefined;
   const unknown: string[] = [];
 
   for (let i = 0; i < argv.length; i++) {
@@ -80,10 +93,25 @@ export function parseShieldLedgerCliArgs(argv: readonly string[]): ShieldLedgerC
     } else if (arg === '--confirm-amount') {
       confirmAmount = parseUintValue('--confirm-amount', argv[i + 1] ?? '');
       i++;
+    } else if (arg.startsWith('--transfer-claim=')) {
+      transferClaimNullifier = parseHexValue('--transfer-claim', arg.slice('--transfer-claim='.length));
+    } else if (arg === '--transfer-claim') {
+      transferClaimNullifier = parseHexValue('--transfer-claim', argv[i + 1] ?? '');
+      i++;
+    } else if (arg.startsWith('--new-owner-secret=')) {
+      newOwnerSecret = parseHexValue('--new-owner-secret', arg.slice('--new-owner-secret='.length));
+    } else if (arg === '--new-owner-secret') {
+      newOwnerSecret = parseHexValue('--new-owner-secret', argv[i + 1] ?? '');
+      i++;
+    } else if (arg.startsWith('--check-claim=')) {
+      checkClaimNullifier = parseHexValue('--check-claim', arg.slice('--check-claim='.length));
+    } else if (arg === '--check-claim') {
+      checkClaimNullifier = parseHexValue('--check-claim', argv[i + 1] ?? '');
+      i++;
     } else {
       unknown.push(arg);
     }
   }
 
-  return { smeCreditThreshold, confirmInvoiceNullifier, confirmAmount, minReputation, showReputation, demoReputationCycle, unknown };
+  return { smeCreditThreshold, confirmInvoiceNullifier, confirmAmount, minReputation, showReputation, demoReputationCycle, transferClaimNullifier, newOwnerSecret, checkClaimNullifier, unknown };
 }

@@ -34,6 +34,7 @@ export interface StoredPrivateState {
   lenderExposureCap: string;
   lenderMinReputation?: string;
   buyerSecret?: string;
+  claimSecret?: string;
 }
 
 type PrivateStateFile = Partial<Record<NetworkId, StoredPrivateState>>;
@@ -74,6 +75,7 @@ function toStored(ps: ShieldLedgerPrivateState): StoredPrivateState {
     lenderExposureCap: ps.lenderExposureCap.toString(),
     lenderMinReputation: ps.lenderMinReputation.toString(),
     buyerSecret: bytesToHex(ps.buyerSecret),
+    claimSecret: bytesToHex(ps.claimSecret),
   };
 }
 
@@ -89,6 +91,7 @@ function fromStored(s: StoredPrivateState): ShieldLedgerPrivateState {
     lenderExposureCap: BigInt(s.lenderExposureCap),
     lenderMinReputation: s.lenderMinReputation !== undefined ? BigInt(s.lenderMinReputation) : 0n,
     buyerSecret: s.buyerSecret !== undefined ? hexToBytes(s.buyerSecret) : randomBytes(32),
+    claimSecret: s.claimSecret !== undefined ? hexToBytes(s.claimSecret) : randomBytes(32),
   };
 }
 
@@ -119,7 +122,8 @@ export function loadOrCreatePrivateState(
       stored.smeReputationScore === undefined ||
       stored.smeOnTimeCount === undefined ||
       stored.smeLateCount === undefined ||
-      stored.lenderMinReputation === undefined
+      stored.lenderMinReputation === undefined ||
+      stored.claimSecret === undefined
     ) {
       savePrivateState(network, ps, cwd);
     }

@@ -138,6 +138,37 @@ export class ShieldLedgerSimulator {
     );
     return this.getLedger();
   }
+
+  /**
+   * Secondary market: the current claim holder resells their claim. The
+   * caller passes a commitment to the NEW owner's secret (deriveClaimCommit-
+   * ment(newOwnerSecret, nullifier)). Authorization is in-circuit: the first
+   * hand-over must come from the auction leader (lenderSecret), later ones
+   * from whoever holds claimSecret matching the stored commitment.
+   */
+  transferClaim(nullifier: Uint8Array, newOwnerCommitment: Uint8Array): Ledger {
+    this.circuitContext = this.contract.impureCircuits.transferClaim(
+      this.circuitContext,
+      nullifier,
+      newOwnerCommitment,
+    ).context;
+    return this.getLedger();
+  }
+
+  /**
+   * Holder-only, local ownership check: does THIS wallet's claimSecret match
+   * the invoice's on-chain commitment? Pure computation against public state
+   * plus private state — nothing is disclosed to anyone else.
+   */
+  holdsClaim(nullifier: Uint8Array): boolean {
+    const invoice = this.getLedger().invoices.lookup(nullifier);
+    if (!invoice.transferred) return false;
+    const mine = pureCircuits.deriveClaimCommitment(
+      this.circuitContext.currentPrivateState.claimSecret,
+      nullifier,
+    );
+    return mine.length === invoice.claimCommitment.length && mine.every((v, i) => v === invoice.claimCommitment[i]);
+  }
 }
 
 export function deriveCommitment(secret: Uint8Array, nullifier: Uint8Array): Uint8Array {
@@ -164,4 +195,13 @@ export function deriveBidCommitment(
   rateBps: bigint,
 ): Uint8Array {
   return pureCircuits.deriveBidCommitment(secret, nullifier, amount, dueDate, rateBps);
+}
+
+export function deriveClaimCommitment(ownerSecret: Uint8Array, nullifier: Uint8Array): Uint8Array {
+  return pureCircuits.deriveClaimCommitment(ownerSecret, nullifier);
+}
+
+/** The opaque public payee recorded when a transferred claim settles. */
+export function deriveSecondaryPayee(): Uint8Array {
+  return pureCircuits.deriveSecondaryPayee();
 }

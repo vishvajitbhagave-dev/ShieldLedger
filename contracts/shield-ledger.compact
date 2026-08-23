@@ -30,6 +30,16 @@
 //                       SME cannot favor an arbitrary lender.
 //    • invoiceCount  — Counter: number of ledger transitions, for UI/replay.
 //
+//  SECONDARY MARKET (claim resale before settlement):
+//    transferClaim(nullifier, newOwnerCommitment) — the current claim holder
+//       privately resells their claim to another investor. The ledger sees
+//       only an opaque commitment to the new owner and a boolean
+//       `transferred` flag; neither party's identity nor any transfer
+//       history is ever stored. At settlement an invoice whose claim changed
+//       hands records an opaque "secondary" payee marker instead of the
+//       original winner's pseudonym; the current holder proves their right
+//       to the payout in ZK against the stored claimCommitment.
+//
 //  PRIVATE (never leaves the proposer's wallet, never disclosed):
 //    • Invoice contents: buyer identity, line items, counterparties — only
 //      the nullifier hash and the SME's commitment (a hash of the SME
@@ -112,6 +122,22 @@ export struct Invoice {
   amount: Uint<64>,
   dueDate: Uint<64>,
   rateBps: Uint<64>,
+  // Secondary market: commitment to the CURRENT claim holder
+  // (hash of ClaimSeal{nullifier, holderSecret}). While the auction is open it
+  // is the "no claim" placeholder; the winning lender seeds it with their own
+  // commitment on the first transferClaim. Observers see only this opaque
+  // value change — never who holds (or held) the claim.
+  claimCommitment: Bytes<32>,
+  // Selective disclosure: true once at least one ownership transfer happened.
+  // No transfer history, count, or party identity is ever stored.
+  transferred: Boolean,
+}
+
+// Domain-separated seal binding a claim-holder secret to ONE invoice
+// nullifier, so a claim commitment can never be replayed onto another invoice.
+export struct ClaimSeal {
+  nullifier: Bytes<32>,
+  secret: Bytes<32>,
 }
 
 export struct SealedBid {
@@ -148,6 +174,10 @@ witness lenderExposureCap(): Uint<64>;
 witness buyerSecret(): Bytes<32>;
 witness smeReputationScore(): Uint<64>;
 witness lenderMinReputation(): Uint<64>;
+// Secondary market: the CURRENT claim holder's private secret. Only read by
+// transferClaim (and only after the first hand-over) — the winning lender
+// authorizes their own first transfer via lenderSecret instead.
+witness claimSecret(): Bytes<32>;
 
 // Lists the invoice. The SME proves score >= creditThreshold in zero knowledge
 // (the exact score never leaves the wallet); only the proven threshold is
@@ -165,7 +195,7 @@ export circuit registerInvoice(nullifier: Bytes<32>, creditThreshold: Uint<64>, 
   assert(smeCreditScore() >= disclose(creditThreshold), "not creditworthy");
   assert(smeReputationScore() >= disclose(reputationThreshold), "insufficient reputation");
   const commitment = disclose(deriveCommitment(smeSecret(), disclose(nullifier)));
-  invoices.insert(disclose(nullifier), Invoice { smeCommitment: commitment, creditThreshold: disclose(creditThreshold), reputationThreshold: disclose(reputationThreshold), invoiceAmount: disclose(invoiceAmount), buyerVerified: false, buyerCommitment: pad(32, "shieldledger:unverified"), lender: none<Bytes<32>>(), amount: 0, dueDate: 0, rateBps: 0 });
+  invoices.insert(disclose(nullifier), Invoice { smeCommitment: commitment, creditThreshold: disclose(creditThreshold), reputationThreshold: disclose(reputationThreshold), invoiceAmount: disclose(invoiceAmount), buyerVerified: false, buyerCommitment: pad(32, "shieldledger:unverified"), lender: none<Bytes<32>>(), amount: 0, dueDate: 0, rateBps: 0, claimCommitment: pad(32, "shieldledger:noclaim"), transferred: false });
   invoiceCount.increment(1);
 }
 
@@ -184,7 +214,7 @@ export circuit confirmInvoice(nullifier: Bytes<32>, confirmedAmount: Uint<64>): 
   assert(disclose(confirmedAmount) == invoices.lookup(disclose(nullifier)).invoiceAmount, "amount mismatch");
   const current = invoices.lookup(disclose(nullifier));
   const buyerCommitment = disclose(deriveBuyerCommitment(buyerSecret(), disclose(nullifier)));
-  invoices.insert(disclose(nullifier), Invoice { smeCommitment: current.smeCommitment, creditThreshold: current.creditThreshold, reputationThreshold: current.reputationThreshold, invoiceAmount: current.invoiceAmount, buyerVerified: true, buyerCommitment: buyerCommitment, lender: current.lender, amount: current.amount, dueDate: current.dueDate, rateBps: current.rateBps });
+  invoices.insert(disclose(nullifier), Invoice { smeCommitment: current.smeCommitment, creditThreshold: current.creditThreshold, reputationThreshold: current.reputationThreshold, invoiceAmount: current.invoiceAmount, buyerVerified: true, buyerCommitment: buyerCommitment, lender: current.lender, amount: current.amount, dueDate: current.dueDate, rateBps: current.rateBps, claimCommitment: current.claimCommitment, transferred: current.transferred });
   invoiceCount.increment(1);
 }
 
@@ -240,14 +270,72 @@ export circuit settleInvoice(nullifier: Bytes<32>, financedAmount: Uint<64>, fin
   assert(bestBids.member(disclose(nullifier)), "auction not resolved");
   const best = bestBids.lookup(disclose(nullifier));
   assert(disclose(financedAmount) <= best.amount, "amount exceeds winning bid");
-  const receiptLender = disclose(best.lender);
+  // Payout routing follows the CURRENT claim holder: if the claim was traded
+  // on the secondary market, the receipt records an opaque
+  // "paid via secondary market" marker instead of the original winning-lender
+  // pseudonym — the SME pays whoever holds the claim commitment, and the
+  // ledger learns neither the holder's identity nor the transfer history.
+  // The invoice keeps the latest claimCommitment, so the current holder can
+  // always prove (in ZK) their right to the payout.
+  const current = invoices.lookup(disclose(nullifier));
+  const receiptLender = pickPayee(current.transferred, disclose(best.lender));
   const receiptAmount = disclose(financedAmount);
   const receiptDueDate = disclose(financedDueDate);
   const receiptRate = disclose(best.rateBps);
-  const invoice = invoices.lookup(disclose(nullifier));
-  invoices.insert(disclose(nullifier), Invoice { smeCommitment: invoice.smeCommitment, creditThreshold: invoice.creditThreshold, reputationThreshold: invoice.reputationThreshold, invoiceAmount: invoice.invoiceAmount, buyerVerified: invoice.buyerVerified, buyerCommitment: invoice.buyerCommitment, lender: some<Bytes<32>>(receiptLender), amount: receiptAmount, dueDate: receiptDueDate, rateBps: receiptRate });
+  invoices.insert(disclose(nullifier), Invoice { smeCommitment: current.smeCommitment, creditThreshold: current.creditThreshold, reputationThreshold: current.reputationThreshold, invoiceAmount: current.invoiceAmount, buyerVerified: current.buyerVerified, buyerCommitment: current.buyerCommitment, lender: some<Bytes<32>>(receiptLender), amount: receiptAmount, dueDate: receiptDueDate, rateBps: receiptRate, claimCommitment: current.claimCommitment, transferred: current.transferred });
   invoiceCount.increment(1);
   return disclose(settledAt) <= disclose(financedDueDate);
+}
+
+// ─── Secondary market: private claim ownership transfer ──────────────────────
+
+// The current claim-holder resells their claim to a new investor. Only an
+// opaque commitment to the NEW owner touches the ledger — neither party's
+// identity is disclosed and no transfer history is kept.
+//
+// Authorization (two phases):
+//   • First hand-over (`transferred == false`): only the auction leader may
+//     seed the ownership chain — proven by deriving the pseudonym from
+//     lenderSecret and matching the public best-bid entry.
+//   • Every later hand-over: the caller proves knowledge of the CURRENT
+//     holder secret by re-deriving the stored claimCommitment in ZK.
+// Because each commitment binds the invoice nullifier (ClaimSeal) and a
+// successful transfer replaces it atomically, a transfer cannot be replayed,
+// forged for a different invoice, or double-spent by a former owner.
+export circuit transferClaim(nullifier: Bytes<32>, newOwnerCommitment: Bytes<32>): [] {
+  assert(invoices.member(disclose(nullifier)), "unknown invoice");
+  const invoice = invoices.lookup(disclose(nullifier));
+  assert(!invoice.lender.is_some, "already settled");
+  assert(bestBids.member(disclose(nullifier)), "auction not resolved");
+  if (!invoice.transferred) {
+    const leaderPseudonym = disclose(derivePseudonym(lenderSecret()));
+    assert(leaderPseudonym == bestBids.lookup(disclose(nullifier)).lender, "not the claim holder");
+  } else {
+    assert(deriveClaimCommitment(claimSecret(), disclose(nullifier)) == invoice.claimCommitment, "not the claim holder");
+  }
+  invoices.insert(disclose(nullifier), Invoice { smeCommitment: invoice.smeCommitment, creditThreshold: invoice.creditThreshold, reputationThreshold: invoice.reputationThreshold, invoiceAmount: invoice.invoiceAmount, buyerVerified: invoice.buyerVerified, buyerCommitment: invoice.buyerCommitment, lender: invoice.lender, amount: invoice.amount, dueDate: invoice.dueDate, rateBps: invoice.rateBps, claimCommitment: disclose(newOwnerCommitment), transferred: true });
+  invoiceCount.increment(1);
+}
+
+export circuit deriveClaimCommitment(ownerSecret: Bytes<32>, nullifier: Bytes<32>): Bytes<32> {
+  return persistentHash<ClaimSeal>(ClaimSeal { nullifier, secret: ownerSecret });
+}
+
+// Opaque settlement payee for claims that changed hands on the secondary
+// market. Deliberately NOT derived from anyone's secret: it is a constant,
+// so it cannot be linked to any wallet or pseudonym.
+export circuit deriveSecondaryPayee(): Bytes<32> {
+  return pad(32, "shieldledger:secondary");
+}
+
+// Settlement payout routing: a claim that changed hands pays the CURRENT
+// holder, recorded publicly only as the opaque secondary-market marker.
+export circuit pickPayee(transferred: Boolean, winnerPseudonym: Bytes<32>): Bytes<32> {
+  if (transferred) {
+    return deriveSecondaryPayee();
+  } else {
+    return winnerPseudonym;
+  }
 }
 
 export circuit deriveCommitment(secret: Bytes<32>, nullifier: Bytes<32>): Bytes<32> {

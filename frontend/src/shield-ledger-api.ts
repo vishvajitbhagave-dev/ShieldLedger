@@ -54,6 +54,8 @@ function toDerivedState(state: Parameters<typeof ShieldLedger.ledger>[0]): Shiel
     amount: invoice.amount,
     dueDate: invoice.dueDate,
     rateBps: invoice.rateBps,
+    transferred: invoice.transferred,
+    claimCommitment: toHex(invoice.claimCommitment),
   }));
   const bids = Array.from(lg.bids, ([bidKey, bid]) => ({
     bidKey: toHex(bidKey),
@@ -156,6 +158,43 @@ export class ShieldLedgerAPI {
   async getReputation(): Promise<ReputationView | null> {
     const privateState = await this.providers.privateStateProvider.get(shieldLedgerPrivateStateKey);
     return privateState ? reputationView(privateState) : null;
+  }
+
+  /**
+   * Secondary market: resells the caller's claim on `nullifierHex` to a new
+   * investor. The wallet derives and publishes only the commitment to the
+   * investor's secret — the secret itself is shared out of band.
+   */
+  async transferClaim(nullifierHex: string, newOwnerSecretHex: string): Promise<void> {
+    const nullifier = fromHex(nullifierHex);
+    const commitment = ShieldLedger.pureCircuits.deriveClaimCommitment(
+      fromHex(newOwnerSecretHex),
+      nullifier,
+    );
+    await this.deployedContract.callTx.transferClaim(nullifier, commitment);
+  }
+
+  /**
+   * Holder-only local ownership check: does THIS wallet's claim secret match
+   * the invoice's on-chain commitment? Reads public state plus the local
+   * private state; nothing is disclosed. Returns:
+   *  - 'not-transferred'  no secondary-market activity on this invoice
+   *  - 'mine'             this wallet holds the claim
+   *  - 'other'            someone else holds it
+   */
+  async checkClaim(
+    nullifierHex: string,
+    state: ShieldLedgerDerivedState,
+  ): Promise<'not-transferred' | 'mine' | 'other'> {
+    const invoice = state.invoices.find((i) => i.nullifier === nullifierHex.trim().toLowerCase());
+    if (!invoice || !invoice.transferred) return 'not-transferred';
+    const privateState = await this.providers.privateStateProvider.get(shieldLedgerPrivateStateKey);
+    if (!privateState) return 'other';
+    const mine = ShieldLedger.pureCircuits.deriveClaimCommitment(
+      privateState.claimSecret,
+      fromHex(nullifierHex),
+    );
+    return toHex(mine) === invoice.claimCommitment ? 'mine' : 'other';
   }
 
   static async deploy(providers: ShieldLedgerProviders): Promise<ShieldLedgerAPI> {

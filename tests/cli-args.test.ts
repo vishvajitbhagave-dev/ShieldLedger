@@ -124,3 +124,34 @@ describe('parseShieldLedgerCliArgs — --confirm-invoice (buyer role)', () => {
     );
   });
 });
+
+describe('parseShieldLedgerCliArgs — secondary market flags', () => {
+  const NF = 'aa11bb22cc33dd44ee55ff66aa77bb88cc99dd00ee11ff22aa33bb44cc55dd66';
+  const SECRET = '11223344556677889900aabbccddeeff11223344556677889900aabbccddeeff';
+
+  it('parses --transfer-claim with --new-owner-secret', () => {
+    const args = parseShieldLedgerCliArgs(['--transfer-claim', NF, '--new-owner-secret', SECRET]);
+    expect(args.transferClaimNullifier).toBe(NF);
+    expect(args.newOwnerSecret).toBe(SECRET);
+    expect(args.unknown).toEqual([]);
+  });
+
+  it('supports the inline forms and normalizes case', () => {
+    const args = parseShieldLedgerCliArgs([`--transfer-claim=${NF.toUpperCase()}`, `--new-owner-secret=${SECRET}`]);
+    expect(args.transferClaimNullifier).toBe(NF);
+    expect(args.newOwnerSecret).toBe(SECRET);
+  });
+
+  it('returns undefined when absent', () => {
+    const args = parseShieldLedgerCliArgs([]);
+    expect(args.transferClaimNullifier).toBeUndefined();
+    expect(args.newOwnerSecret).toBeUndefined();
+    expect(args.checkClaimNullifier).toBeUndefined();
+  });
+
+  it('parses --check-claim and rejects malformed hex', () => {
+    expect(parseShieldLedgerCliArgs(['--check-claim', NF]).checkClaimNullifier).toBe(NF);
+    expect(() => parseShieldLedgerCliArgs(['--check-claim', 'zz'])).toThrow(/64 hex characters/);
+    expect(() => parseShieldLedgerCliArgs(['--new-owner-secret', 'short'])).toThrow(/64 hex characters/);
+  });
+});

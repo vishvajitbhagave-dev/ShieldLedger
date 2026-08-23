@@ -29,6 +29,11 @@ export interface ShieldLedgerPrivateState {
   readonly lenderExposureCap: bigint;
   readonly lenderMinReputation: bigint;
   readonly buyerSecret: Uint8Array;
+  // Secondary market: secret of the claim holder this wallet currently acts
+  // as. After transferring a claim to a new investor, set this to the
+  // investor's secret so this wallet can authorize the next hand-over (or
+  // prove its right to settlement payout). Holder-only — never disclosed.
+  readonly claimSecret: Uint8Array;
 }
 
 export function randomBytes(length: number): Uint8Array {
@@ -48,6 +53,7 @@ export interface CreatePrivateStateOptions {
   lenderExposureCap?: bigint;
   lenderMinReputation?: bigint;
   buyerSecret?: Uint8Array;
+  claimSecret?: Uint8Array;
 }
 
 /** Fresh random secrets. Defaults: creditworthy SME (720) and lender (750) with a 1M-unit cap; reputation starts at 0 with no on-time/late history and no lender reputation requirement. */
@@ -65,6 +71,7 @@ export function createShieldLedgerPrivateState(
     lenderExposureCap: opts.lenderExposureCap ?? 1_000_000_000_000n,
     lenderMinReputation: opts.lenderMinReputation ?? 0n,
     buyerSecret: opts.buyerSecret ?? randomBytes(32),
+    claimSecret: opts.claimSecret ?? randomBytes(32),
   };
 }
 
@@ -124,4 +131,11 @@ export const witnesses = {
     ShieldLedgerPrivateState,
     Uint8Array,
   ] => [privateState, privateState.buyerSecret],
+
+  claimSecret: ({
+    privateState,
+  }: WitnessContext<Ledger, ShieldLedgerPrivateState>): [
+    ShieldLedgerPrivateState,
+    Uint8Array,
+  ] => [privateState, privateState.claimSecret],
 };

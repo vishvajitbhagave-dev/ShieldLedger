@@ -3,6 +3,13 @@ import { useLedgerState } from '../use-ledger-state.js';
 import { describeError } from '../lib/errorMessages.js';
 import { HexBadge } from './HexBadge.js';
 import { ErrorBanner } from './ErrorBanner.js';
+import * as ShieldLedger from '../../../contracts/managed/shield-ledger/contract/index.js';
+
+const toHex = (bytes: Uint8Array): string =>
+  Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+
+// The opaque public payee the contract records when a transferred claim settles.
+const SECONDARY_PAYEE = toHex(ShieldLedger.pureCircuits.deriveSecondaryPayee());
 
 const formatDate = (unixSeconds: bigint): string => {
   if (unixSeconds <= 0n) return '—';
@@ -12,6 +19,19 @@ const formatDate = (unixSeconds: bigint): string => {
 const BuyerVerifiedBadge: React.FC = () => (
   <span className="sl-badge" title="The corporate buyer proved in zero knowledge that this invoice is genuine and that it owes the claimed amount.">
     Buyer-verified ✓
+  </span>
+);
+
+const TransferredBadge: React.FC<{ settled?: boolean }> = ({ settled }) => (
+  <span
+    className="sl-badge"
+    title={
+      settled
+        ? 'This claim was resold on the secondary market. Settlement names only an anonymous payee — the current holder proves their payout right in zero knowledge.'
+        : 'The winning lender resold this claim on the secondary market. Only a commitment to the new owner went on-chain — their identity stays hidden.'
+    }
+  >
+    Claim transferred{settled ? ' · settled anonymously' : ''}
   </span>
 );
 
@@ -42,6 +62,11 @@ export const LedgerView: React.FC = () => {
         const lenderKey = `${inv.nullifier}-lender-${inv.lender ?? ''}`;
         if (!(lenderKey in next)) {
           next[lenderKey] = now;
+          changed = true;
+        }
+        const transferKey = `${inv.nullifier}-transferred-${inv.transferred}`;
+        if (!(transferKey in next)) {
+          next[transferKey] = now;
           changed = true;
         }
       }
@@ -97,7 +122,9 @@ export const LedgerView: React.FC = () => {
                 <strong>Credit (ZK-proof)</strong> and <strong>Reputation (ZK-proof)</strong> are the bounds the SME
                 proved in zero knowledge — the actual scores are never revealed to anyone. A{' '}
                 <strong>Buyer-verified ✓</strong> badge means a corporate buyer proved the invoice genuine; the buyer's
-                identity and terms stay private.
+                identity and terms stay private. A <strong>Claim transferred</strong> badge means the financing claim
+                was resold on the secondary market: only a commitment to the current holder went on-chain, and a
+                settlement pays an anonymous payee — never a named investor.
               </p>
             </details>
             {state.invoices.length === 0 ? (
@@ -124,7 +151,8 @@ export const LedgerView: React.FC = () => {
                       const highlighted =
                         isHighlighted(inv.nullifier) ||
                         isHighlighted(`${inv.nullifier}-buyerVerified-${inv.buyerVerified}`) ||
-                        isHighlighted(`${inv.nullifier}-lender-${inv.lender ?? ''}`);
+                        isHighlighted(`${inv.nullifier}-lender-${inv.lender ?? ''}`) ||
+                        isHighlighted(`${inv.nullifier}-transferred-${inv.transferred}`);
                       return (
                         <tr key={inv.nullifier} className={highlighted ? 'sl-row-highlight' : ''}>
                           <td><HexBadge hex={inv.nullifier} /></td>
@@ -141,7 +169,19 @@ export const LedgerView: React.FC = () => {
                           </td>
                           <td>{inv.invoiceAmount.toString()}</td>
                           <td>{inv.buyerVerified ? <BuyerVerifiedBadge /> : <span className="sl-meta">—</span>}</td>
-                          <td>{inv.lender ? <HexBadge hex={inv.lender} /> : <span className="sl-meta">— (bidding)</span>}</td>
+                          <td>
+                            {inv.lender ? (
+                              inv.transferred && inv.lender === SECONDARY_PAYEE ? (
+                                <TransferredBadge settled />
+                              ) : (
+                                <HexBadge hex={inv.lender} />
+                              )
+                            ) : inv.transferred ? (
+                              <TransferredBadge />
+                            ) : (
+                              <span className="sl-meta">— (bidding)</span>
+                            )}
+                          </td>
                           <td style={{ fontWeight: 'bold' }}>{inv.amount.toString()}</td>
                           <td>{inv.rateBps > 0n ? `${inv.rateBps.toString()} bps` : '—'}</td>
                           <td>{formatDate(inv.dueDate)}</td>

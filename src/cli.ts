@@ -7,6 +7,11 @@
  * (+10 on-time, -20 late, 0..100) in the local private state, which the SME
  * can view with `--show-reputation`. A lender's private minimum bar for
  * invoices is set with `--min-reputation <N>`.
+ *
+ * Secondary market: the claim on a financed invoice can be resold before
+ * settlement (`--transfer-claim` / menu 9). Ownership transfers via ZK proofs
+ * against a public commitment; the new investor's identity never appears.
+ * `--check-claim` / menu 10 verify locally whether this wallet holds a claim.
  */
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
@@ -54,6 +59,15 @@ const PRIVATE_STATE_ID = 'shieldLedgerPrivateState';
 //   --confirm-invoice <hex>      run one-shot as the buyer: confirm a pending
 //                                invoice by its public nullifier (optionally
 //                                with --confirm-amount <N>), then exit.
+//   --transfer-claim <hex>       run one-shot on the secondary market: resell
+//                                your claim on this invoice to a new investor
+//                                (requires --new-owner-secret <hex>), then exit.
+//   --new-owner-secret <hex>     the receiving investor's 32-byte secret. Only
+//                                a commitment H(secret, invoice) goes on-chain;
+//                                the secret itself stays with the recipient.
+//   --check-claim <hex>          holder-only local check: does THIS wallet's
+//                                claim secret match the invoice's on-chain
+//                                commitment? Prints the verdict and exits.
 const {
   smeCreditThreshold: SME_CREDIT_THRESHOLD,
   confirmInvoiceNullifier: CONFIRM_INVOICE_NULLIFIER,
@@ -61,6 +75,9 @@ const {
   minReputation: MIN_REPUTATION,
   showReputation: SHOW_REPUTATION,
   demoReputationCycle: DEMO_REPUTATION_CYCLE,
+  transferClaimNullifier: TRANSFER_CLAIM_NULLIFIER,
+  newOwnerSecret: NEW_OWNER_SECRET,
+  checkClaimNullifier: CHECK_CLAIM_NULLIFIER,
   unknown: UNKNOWN_ARGS,
 } = parseShieldLedgerCliArgs(process.argv.slice(2));
 if (UNKNOWN_ARGS.length > 0) {
@@ -162,7 +179,9 @@ async function main() {
   console.log('  Usage: npm run cli [-- --sme-credit-threshold <N>]');
   console.log('          npm run cli [-- --confirm-invoice <hex> [--confirm-amount <N>]]');
   console.log('          npm run cli [-- --min-reputation <N>]');
-  console.log('          npm run cli [-- --show-reputation]\n');
+  console.log('          npm run cli [-- --show-reputation]');
+  console.log('          npm run cli [-- --transfer-claim <hex> --new-owner-secret <hex>]');
+  console.log('          npm run cli [-- --check-claim <hex>]\n');
 
   const rl = createInterface({ input: stdin, output: stdout });
 
@@ -274,6 +293,73 @@ async function main() {
       return;
     }
 
+    // ─── Secondary market: one-shot claim transfer ───────────────────────────
+    // `npm run cli -- --transfer-claim <hex> --new-owner-secret <hex>` resells
+    // the caller's claim on an invoice. Authorization is proven in ZK: the
+    // first hand-over must come from the auction winner, later ones from
+    // whoever holds a secret matching the on-chain commitment. The new owner
+    // is recorded only as a commitment — their secret never goes on-chain.
+    if (TRANSFER_CLAIM_NULLIFIER !== undefined) {
+      if (NEW_OWNER_SECRET === undefined) {
+        console.error('  ❌ --transfer-claim requires --new-owner-secret <hex> (64 hex chars).');
+        await persistWalletState(network, walletCtx);
+        await walletCtx.wallet.stop();
+        rl.close();
+        process.exit(1);
+      }
+      console.log('  Secondary market: transferring your claim to a new investor.\n');
+      const nf = parseHex(TRANSFER_CLAIM_NULLIFIER);
+      // Publish only H(newOwnerSecret, nullifier). Hand the secret itself to
+      // the investor out of band — they will need it (as their claimSecret)
+      // to authorize the next sale or prove payout rights.
+      const commitment = pureCircuits.deriveClaimCommitment(parseHex(NEW_OWNER_SECRET), nf);
+      await sendAndShow('transferClaim', deployed.callTx.transferClaim(nf, commitment));
+      console.log('  ℹ  Share the new owner\'s secret with them securely — they need it as their claim secret.');
+      await persistWalletState(network, walletCtx);
+      await walletCtx.wallet.stop();
+      rl.close();
+      return;
+    }
+
+    // ─── Secondary market: holder-only ownership check ───────────────────────
+    // `npm run cli -- --check-claim <hex>` compares the local claim secret
+    // against the invoice's PUBLIC commitment. Purely local computation —
+    // nothing is disclosed to the network.
+    if (CHECK_CLAIM_NULLIFIER !== undefined) {
+      const nf = parseHex(CHECK_CLAIM_NULLIFIER);
+      const contractState = await providers.publicDataProvider.queryContractState(deployment.address);
+      let known = false;
+      let transferred = false;
+      let settled = false;
+      let storedCommitment: Uint8Array | undefined;
+      if (contractState) {
+        const { ledger: lgFactory } = await import('../contracts/managed/shield-ledger/contract/index.js');
+        const lg = lgFactory(contractState.data);
+        if (lg.invoices.member(nf)) {
+          const invoice = lg.invoices.lookup(nf);
+          known = true;
+          transferred = invoice.transferred;
+          settled = invoice.lender.is_some;
+          storedCommitment = invoice.claimCommitment;
+        }
+      }
+      if (!known || !transferred || !storedCommitment) {
+        console.log(known ? '  ℹ  This claim was never transferred on the secondary market.' : `  ❌ No invoice with nullifier ${CHECK_CLAIM_NULLIFIER} on the ledger.`);
+      } else {
+        const mine = toHex(pureCircuits.deriveClaimCommitment(initialPrivateState.claimSecret, nf));
+        if (mine === toHex(storedCommitment)) {
+          console.log(`  ✅ You hold the claim on ${CHECK_CLAIM_NULLIFIER}${settled ? ' (invoice already settled — you are entitled to the payout)' : ''}.`);
+        } else {
+          console.log('  ❌ This claim belongs to someone else — your claim secret does not match the on-chain commitment.');
+        }
+        console.log('  ℹ  Checked locally: your secret and this verdict were never disclosed to the network.');
+      }
+      await persistWalletState(network, walletCtx);
+      await walletCtx.wallet.stop();
+      rl.close();
+      return;
+    }
+
     const readLedger = async () => {
       const contractState = await providers.publicDataProvider.queryContractState(deployment.address);
       if (!contractState) return console.log('  (contract state empty)');
@@ -281,7 +367,7 @@ async function main() {
       const lg = ledger(contractState.data);
       const rows: string[] = [];
       for (const [nullifier, invoice] of lg.invoices) {
-        rows.push(`    nullifier=${toHex(nullifier)}  lender=${invoice.lender.is_some ? toHex(invoice.lender.value) : '(none)'}  credit=${invoice.creditThreshold}+  reputation=${invoice.reputationThreshold}+  claim=${invoice.invoiceAmount}  buyerVerified=${invoice.buyerVerified}  amount=${invoice.amount}  due=${invoice.dueDate}  rate=${invoice.rateBps}bps  commitment=${toHex(invoice.smeCommitment)}`);
+        rows.push(`    nullifier=${toHex(nullifier)}  lender=${invoice.lender.is_some ? toHex(invoice.lender.value) : '(none)'}  credit=${invoice.creditThreshold}+  reputation=${invoice.reputationThreshold}+  claim=${invoice.invoiceAmount}  buyerVerified=${invoice.buyerVerified}  amount=${invoice.amount}  due=${invoice.dueDate}  rate=${invoice.rateBps}bps  commitment=${toHex(invoice.smeCommitment)}${invoice.transferred ? `  🔄 claim transferred (holder commitment=${toHex(invoice.claimCommitment).slice(0, 16)}…)` : ''}`);
         for (const [bidKey, bid] of lg.bids) {
           if (bid.nullifier.length !== nullifier.length || !bid.nullifier.every((v, i) => v === nullifier[i])) continue;
           rows.push(`        sealed bid ${toHex(bidKey).slice(0, 16)}…  by ${toHex(bid.lender).slice(0, 16)}…  commitment=${toHex(bid.commitment).slice(0, 16)}…`);
@@ -313,7 +399,9 @@ async function main() {
       console.log('  6. Check wallet balance');
       console.log('  7. Confirm invoice (Buyer — proves the invoice is genuine)');
       console.log('  8. Show my reputation (private)');
-      console.log('  9. Exit\n');
+      console.log('  9. Transfer my claim (Secondary market — resell to a new investor)');
+      console.log(' 10. Check my claim ownership (private, local)');
+      console.log(' 11. Exit\n');
 
       const choice = await rl.question('  Your choice: ');
 
@@ -423,13 +511,53 @@ async function main() {
             break;
           }
 
-          case '9':
+          case '9': {
+            const nullifier = await rl.question('  Invoice nullifier (64 hex chars): ');
+            const secretRaw = await rl.question('  New owner\'s secret (64 hex chars — share it with them securely): ');
+            const nf = parseHex(nullifier);
+            const commitment = pureCircuits.deriveClaimCommitment(parseHex(secretRaw), nf);
+            console.log(`  Publishing only the commitment ${toHex(commitment).slice(0, 16)}… — the investor's secret never goes on-chain.`);
+            await sendAndShow('transferClaim', deployed.callTx.transferClaim(nf, commitment));
+            break;
+          }
+
+          case '10': {
+            const nullifier = await rl.question('  Invoice nullifier (64 hex chars): ');
+            const nf = parseHex(nullifier);
+            console.log('\n  Reading invoice commitment from indexer...');
+            const contractState = await providers.publicDataProvider.queryContractState(deployment.address);
+            if (!contractState) {
+              console.log('  (contract state empty)');
+              break;
+            }
+            const { ledger: lgFactory } = await import('../contracts/managed/shield-ledger/contract/index.js');
+            const lg = lgFactory(contractState.data);
+            if (!lg.invoices.member(nf)) {
+              console.log(`  ❌ No invoice with nullifier ${nullifier.trim().toLowerCase()} on the ledger.`);
+              break;
+            }
+            const invoice = lg.invoices.lookup(nf);
+            if (!invoice.transferred) {
+              console.log('  ℹ  This claim was never transferred on the secondary market.');
+              break;
+            }
+            const mine = toHex(pureCircuits.deriveClaimCommitment(initialPrivateState.claimSecret, nf));
+            if (mine === toHex(invoice.claimCommitment)) {
+              console.log(`  ✅ You hold this claim${invoice.lender.is_some ? ' — and the invoice is settled: you are entitled to the payout' : ''}.`);
+            } else {
+              console.log('  ❌ This claim belongs to someone else — your claim secret does not match the on-chain commitment.');
+            }
+            console.log('  ℹ  Checked locally: your secret and the verdict never left your machine.\n');
+            break;
+          }
+
+          case '11':
             running = false;
             console.log('\n  👋 Goodbye!\n');
             break;
 
           default:
-            console.log('\n  ❌ Invalid choice. Please enter 1-9.\n');
+            console.log('\n  ❌ Invalid choice. Please enter 1-11.\n');
         }
       } catch (error) {
         console.error('\n  ❌ Failed:', error instanceof Error ? error.message : error);

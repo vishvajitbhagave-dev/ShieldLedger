@@ -204,9 +204,11 @@ Menu options:
 6. **Check wallet balance** — tNight and DUST.
 7. **Confirm invoice (Buyer)** — nullifier + the amount the buyer owes; the circuit proves the invoice is genuine and the amount matches the SME's claim exactly. Only a `buyerVerified` flag and an opaque per-invoice commitment go on-chain. Non-interactive form: `--confirm-invoice <nullifier> [--confirm-amount <N>]`.
 8. **Show my reputation (private)** — your score, on-time count and late count, read from your local private state.
-9. **Exit**
+9. **Transfer my claim (Secondary market)** — resell your claim on an invoice to a new investor: enter the nullifier and the investor's 32-byte secret; only the commitment `hash(secret, nullifier)` goes on-chain. Non-interactive form: `--transfer-claim <nullifier> --new-owner-secret <secret>`.
+10. **Check my claim ownership** — holder-only local check of whether your claim secret opens an invoice's public commitment. Nothing is disclosed. Non-interactive form: `--check-claim <nullifier>`.
+11. **Exit**
 
-Non-interactive flags: `--sme-credit-threshold <N>` (registration credit bound), `--min-reputation <N>` (the lender's private minimum-reputation bar, enforced at `submitBid` — set it and it is disclosed to no one), `--show-reputation` (print the private reputation view and exit without prompting), and `--demo-reputation-cycle` (run the demo-only reputation tool below and exit — no network or wallet needed).
+Non-interactive flags: `--sme-credit-threshold <N>` (registration credit bound), `--min-reputation <N>` (the lender's private minimum-reputation bar, enforced at `submitBid` — set it and it is disclosed to no one), `--show-reputation` (print the private reputation view and exit without prompting), `--demo-reputation-cycle` (run the demo-only reputation tool below and exit — no network or wallet needed), and the secondary-market forms above (`--transfer-claim`/`--new-owner-secret`, `--check-claim`).
 
 Each transaction takes 30–60s (proof generation via the local proof-server).
 
@@ -314,6 +316,40 @@ ledger** — the commitment is visible, the underlying value never is:
 
 - **Settlement fairness.** The winning bid is the contract-enforced lowest rate;
   the SME cannot reveal the terms or pay any other lender.
+
+- **Secondary-market transfers.** The winning lender can resell their claim on
+  an invoice before settlement (`transferClaim`). Authorization is proven in ZK:
+  the first hand-over must come from the auction leader (pseudonym match), and
+  every later one from whoever holds a secret opening the stored claim
+  commitment — so only the current holder can sell, replays fail, and the claim
+  is bound to exactly one invoice. On-chain this is just a new commitment
+  `hash(newOwnerSecret, nullifier)` and a `transferred` flag; the investor's
+  identity never appears, and a settled transferred claim records an anonymous
+  payee instead of any pseudonym.
+
+### Privacy model: secondary market
+
+A claim is a commitment to its holder: `deriveClaimCommitment(ownerSecret,
+nullifier) = persistentHash(ClaimSeal{nullifier, secret})`. Transferring replaces
+that commitment atomically; proving ownership always requires the *current*
+secret for *this* invoice.
+
+| Can an observer learn… | Yes / No | How |
+| --- | --- | --- |
+| That a claim changed hands | **Yes** | The `transferred` flag and the replaced `claimCommitment` are public by design. |
+| Who sold or who bought | **No** | The seller proves ownership in ZK; the buyer appears only as an opaque commitment. Neither identity nor pseudonym is published. |
+| How many times it was resold | **No** | Each transfer overwrites the single commitment field; no history is kept on-chain. |
+| Whether settlement paid the original winner | **Yes / No** | You learn the payee is anonymous: a transferred invoice settles to the constant `shieldledger:secondary` marker via `pickPayee`, never to a pseudonym. |
+| Who is entitled to the payout | **No** | Only the current holder can prove `hash(claimSecret, nullifier) == claimCommitment` in ZK; the entitlement check is holder-local (`--check-claim` / DApp "Check my claim ownership"). |
+| The secrets of any party | **No** | Secrets are witnesses; commitments are one-way. |
+
+Because authorization is enforced inside the circuit, a non-holder's transfer
+**fails proof generation** ("not the claim holder"), a transfer before auction
+resolution fails ("auction not resolved"), and a transfer after settlement fails
+("already settled"). Known demo limitations: the winner's pseudonym is already
+public from the auction itself, and the contract has no token ledger — payout is
+the receipt record, so the second investor is simulated by sharing the claim
+secret out of band rather than by a real second wallet.
 
 ### Privacy model: ZK credit scoring
 

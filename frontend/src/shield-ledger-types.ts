@@ -40,6 +40,10 @@ export interface InvoiceView {
   readonly amount: bigint;
   readonly dueDate: bigint;
   readonly rateBps: bigint;
+  /** True once the winning lender's claim was resold on the secondary market. */
+  readonly transferred: boolean;
+  /** Commitment to the CURRENT holder's secret: hash(claimSecret, nullifier). Identity stays hidden. */
+  readonly claimCommitment: string;
 }
 
 /**
