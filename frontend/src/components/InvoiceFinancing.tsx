@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useShieldLedger } from '../context.js';
 import {
   loadRegisteredInvoices,
@@ -13,6 +13,7 @@ import { insuranceContribution } from '../../../src/insurance.js';
 import { describeError, type UserFacingError } from '../lib/errorMessages.js';
 import { track } from '../lib/analytics.js';
 import { captureError } from '../lib/monitoring.js';
+import { getSuggestedRate, type SuggestedRate } from '../pricing.js';
 import { HexBadge } from './HexBadge.js';
 import { ErrorBanner } from './ErrorBanner.js';
 
@@ -276,6 +277,21 @@ export const InvoiceFinancing: React.FC = () => {
   // Payout actually granted by the last successful insurance claim.
   const [insurancePayout, setInsurancePayout] = useState<string | null>(null);
 
+  // On-chain invoice data for the currently picked bid invoice (for pricing suggestion).
+  const [selectedBidInvoice, setSelectedBidInvoice] = useState<InvoiceView | null>(null);
+
+  // Dynamic pricing suggestion: computed from public on-chain data.
+  const suggestedRate: SuggestedRate | null = useMemo(() => {
+    if (!selectedBidInvoice) return null;
+    const dueDateEstimate = form.bidDue.trim() !== '' ? BigInt(form.bidDue.trim()) : undefined;
+    return getSuggestedRate(
+      selectedBidInvoice.creditThreshold,
+      selectedBidInvoice.reputationThreshold,
+      selectedBidInvoice.invoiceAmount,
+      dueDateEstimate,
+    );
+  }, [selectedBidInvoice, form.bidDue]);
+
   const refreshReputation = async () => {
     if (!api) return;
     try {
@@ -296,6 +312,10 @@ export const InvoiceFinancing: React.FC = () => {
       const prefix = kind === 'bid' ? 'bid' : kind === 'reveal' ? 'reveal' : 'settle';
       return { ...f, [`${prefix}Nullifier`]: inv.nullifier, [`${prefix}Amount`]: inv.amount, [`${prefix}Due`]: inv.dueDate } as FormState;
     });
+    if (kind === 'bid') {
+      const onChain = (ledgerState?.invoices ?? []).find((i) => i.nullifier === inv.nullifier) ?? null;
+      setSelectedBidInvoice(onChain);
+    }
   };
 
   const pickForConfirm = (inv: InvoiceView) => {
@@ -1107,6 +1127,15 @@ export const InvoiceFinancing: React.FC = () => {
               <Field label="Amount" value={form.bidAmount} placeholder="tNight units" onChange={set('bidAmount')} disabled={busy || working !== null} />
               <Field label="Due date" value={form.bidDue} placeholder="unix seconds" onChange={set('bidDue')} disabled={busy || working !== null} />
               <Field label="Rate" value={form.bidRate} placeholder="basis points, e.g. 400 = 4%" onChange={set('bidRate')} disabled={busy || working !== null} />
+              {suggestedRate && (
+                <div className="sl-note" style={{ padding: '0.5rem 0.75rem', background: 'var(--card-bg, rgba(255,255,255,0.05))', borderRadius: '6px', borderLeft: '3px solid var(--accent, #4f8cff)' }}>
+                  <strong>Suggested fair rate{suggestedRate.estimated ? ' (estimate)' : ''}:</strong>{' '}
+                  {(suggestedRate.lowBps / 100).toFixed(2)}% – {(suggestedRate.highBps / 100).toFixed(2)}%
+                  <span style={{ display: 'block', fontSize: '0.8em', opacity: 0.7, marginTop: '0.25rem' }}>
+                    Based on public credit threshold, reputation threshold, and invoice amount. Non-binding suggestion — you may bid any rate.
+                  </span>
+                </div>
+              )}
               <label className="sl-checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0.5rem 0' }}>
                 <input
                   type="checkbox"
