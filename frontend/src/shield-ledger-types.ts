@@ -64,6 +64,7 @@ export interface BestBidView {
   readonly amount: bigint;
   readonly dueDate: bigint;
   readonly rateBps: bigint;
+  readonly willingToSplit: boolean;
 }
 
 /**

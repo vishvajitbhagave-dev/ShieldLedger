@@ -28,10 +28,12 @@ type FormState = {
   bidAmount: string;
   bidDue: string;
   bidRate: string;
+  bidWillingToSplit: string;
   revealNullifier: string;
   revealAmount: string;
   revealDue: string;
   revealRate: string;
+  revealWillingToSplit: string;
   settleNullifier: string;
   settleAmount: string;
   settleDue: string;
@@ -53,10 +55,12 @@ const initialForm: FormState = {
   bidAmount: '',
   bidDue: '',
   bidRate: '',
+  bidWillingToSplit: '',
   revealNullifier: '',
   revealAmount: '',
   revealDue: '',
   revealRate: '',
+  revealWillingToSplit: '',
   settleNullifier: '',
   settleAmount: '',
   settleDue: '',
@@ -85,10 +89,12 @@ const sampleForm: FormState = {
   bidAmount: SAMPLE_AMOUNT,
   bidDue: SAMPLE_DUE,
   bidRate: SAMPLE_RATE,
+  bidWillingToSplit: '',
   revealNullifier: SAMPLE_NULLIFIER,
   revealAmount: SAMPLE_AMOUNT,
   revealDue: SAMPLE_DUE,
   revealRate: SAMPLE_RATE,
+  revealWillingToSplit: '',
   settleNullifier: SAMPLE_NULLIFIER,
   settleAmount: SAMPLE_AMOUNT,
   settleDue: SAMPLE_DUE,
@@ -1090,7 +1096,7 @@ export const InvoiceFinancing: React.FC = () => {
                 if (!api) return;
                 const a = api;
                 void run('submitBid', async () => {
-                  await a.submitBid(form.bidNullifier, BigInt(form.bidAmount.trim()), BigInt(form.bidDue.trim()), BigInt(form.bidRate.trim()));
+                  await a.submitBid(form.bidNullifier, BigInt(form.bidAmount.trim()), BigInt(form.bidDue.trim()), BigInt(form.bidRate.trim()), form.bidWillingToSplit === 'true');
                   setLenderTab('reveal');
                 });
               }}
@@ -1101,6 +1107,15 @@ export const InvoiceFinancing: React.FC = () => {
               <Field label="Amount" value={form.bidAmount} placeholder="tNight units" onChange={set('bidAmount')} disabled={busy || working !== null} />
               <Field label="Due date" value={form.bidDue} placeholder="unix seconds" onChange={set('bidDue')} disabled={busy || working !== null} />
               <Field label="Rate" value={form.bidRate} placeholder="basis points, e.g. 400 = 4%" onChange={set('bidRate')} disabled={busy || working !== null} />
+              <label className="sl-checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0.5rem 0' }}>
+                <input
+                  type="checkbox"
+                  checked={form.bidWillingToSplit === 'true'}
+                  onChange={(e) => setForm((f) => ({ ...f, bidWillingToSplit: e.target.checked ? 'true' : '' }))}
+                  disabled={busy || working !== null}
+                />
+                Willing to split invoice (lower priority in tiebreak)
+              </label>
               <p className="sl-note">
                 Your bid is sealed on-chain — other lenders only see a commitment.
               </p>
@@ -1122,7 +1137,7 @@ export const InvoiceFinancing: React.FC = () => {
                 if (!api) return;
                 const a = api;
                 void run('revealBid', async () => {
-                  await a.revealBid(form.revealNullifier, BigInt(form.revealAmount.trim()), BigInt(form.revealDue.trim()), BigInt(form.revealRate.trim()));
+                  await a.revealBid(form.revealNullifier, BigInt(form.revealAmount.trim()), BigInt(form.revealDue.trim()), BigInt(form.revealRate.trim()), form.revealWillingToSplit === 'true');
                   setLenderTab('browse');
                 });
               }}
@@ -1133,6 +1148,15 @@ export const InvoiceFinancing: React.FC = () => {
               <Field label="Amount" value={form.revealAmount} placeholder="must match your sealed bid" onChange={set('revealAmount')} disabled={busy || working !== null} />
               <Field label="Due date" value={form.revealDue} placeholder="must match your sealed bid" onChange={set('revealDue')} disabled={busy || working !== null} />
               <Field label="Rate" value={form.revealRate} placeholder="must match your sealed bid" onChange={set('revealRate')} disabled={busy || working !== null} />
+              <label className="sl-checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0.5rem 0' }}>
+                <input
+                  type="checkbox"
+                  checked={form.revealWillingToSplit === 'true'}
+                  onChange={(e) => setForm((f) => ({ ...f, revealWillingToSplit: e.target.checked ? 'true' : '' }))}
+                  disabled={busy || working !== null}
+                />
+                Willing to split invoice (must match your sealed bid)
+              </label>
               <p className="sl-note">
                 Beat the current lead and you take it — the lowest rate wins.
               </p>

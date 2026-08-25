@@ -30,14 +30,14 @@ const OTHER_B = bytes32(4);
 const NULLIFIER = bytes32(7);
 const DUE = 1_700_000_000n;
 const LENDER = (secret: Uint8Array) => derivePseudonym(secret);
-const SEAL = (secret: Uint8Array, amount: bigint, due = DUE, rate = 400n) =>
-  deriveBidCommitment(secret, NULLIFIER, amount, due, rate);
+const SEAL = (secret: Uint8Array, amount: bigint, due = DUE, rate = 400n, willingToSplit = false) =>
+  deriveBidCommitment(secret, NULLIFIER, amount, due, rate, willingToSplit);
 
 /** Bid (seal + reveal) as lender `secret` on the current invoice. */
-function bid(sim: ShieldLedgerSimulator, secret: Uint8Array, amount: bigint, due = DUE, rate = 400n) {
+function bid(sim: ShieldLedgerSimulator, secret: Uint8Array, amount: bigint, due = DUE, rate = 400n, willingToSplit = false) {
   sim.switchIdentity({ lenderSecret: secret });
-  sim.submitBid(NULLIFIER, SEAL(secret, amount, due, rate));
-  sim.revealBid(NULLIFIER, amount, due, rate);
+  sim.submitBid(NULLIFIER, SEAL(secret, amount, due, rate, willingToSplit));
+  sim.revealBid(NULLIFIER, amount, due, rate, willingToSplit);
 }
 
 describe('ShieldLedger contract — lifecycle', () => {
@@ -253,6 +253,47 @@ describe('ShieldLedger contract — reveal & best-bid selection', () => {
 
     const best = sim.getLedger().bestBids.lookup(NULLIFIER);
     expect(hex(best.lender)).toBe(hex(LENDER(LENDER_SECRET)));
+  });
+
+  it('whole-invoice bid beats split bid even at worse rate', () => {
+    const sim = new ShieldLedgerSimulator(
+      createShieldLedgerPrivateState({ smeSecret: SME_SECRET, lenderSecret: LENDER_SECRET }),
+    );
+    sim.registerInvoice(NULLIFIER);
+    bid(sim, LENDER_SECRET, 100n, DUE, 300n, true);  // split at 3%
+    bid(sim, OTHER_A, 100n, DUE, 500n, false);        // whole at 5% — should win
+
+    const best = sim.getLedger().bestBids.lookup(NULLIFIER);
+    expect(hex(best.lender)).toBe(hex(LENDER(OTHER_A)));
+    expect(best.rateBps).toBe(500n);
+    expect(best.willingToSplit).toBe(false);
+  });
+
+  it('split bid never beats whole bid even at better rate', () => {
+    const sim = new ShieldLedgerSimulator(
+      createShieldLedgerPrivateState({ smeSecret: SME_SECRET, lenderSecret: LENDER_SECRET }),
+    );
+    sim.registerInvoice(NULLIFIER);
+    bid(sim, LENDER_SECRET, 100n, DUE, 500n, false);  // whole at 5%
+    bid(sim, OTHER_A, 100n, DUE, 300n, true);          // split at 3% — must not win
+
+    const best = sim.getLedger().bestBids.lookup(NULLIFIER);
+    expect(hex(best.lender)).toBe(hex(LENDER(LENDER_SECRET)));
+    expect(best.rateBps).toBe(500n);
+    expect(best.willingToSplit).toBe(false);
+  });
+
+  it('whole beats split with earlier reveal keeping lead within same group', () => {
+    const sim = new ShieldLedgerSimulator(
+      createShieldLedgerPrivateState({ smeSecret: SME_SECRET, lenderSecret: LENDER_SECRET }),
+    );
+    sim.registerInvoice(NULLIFIER);
+    bid(sim, LENDER_SECRET, 100n, DUE, 400n, false);  // whole at 4%
+    bid(sim, OTHER_A, 100n, DUE, 400n, true);          // split at 4% — should not win
+
+    const best = sim.getLedger().bestBids.lookup(NULLIFIER);
+    expect(hex(best.lender)).toBe(hex(LENDER(LENDER_SECRET)));
+    expect(best.willingToSplit).toBe(false);
   });
 
   it('rejects reveals once the invoice is financed', () => {

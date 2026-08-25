@@ -75,6 +75,7 @@ function toDerivedState(state: Parameters<typeof ShieldLedger.ledger>[0]): Shiel
     amount: best.amount,
     dueDate: best.dueDate,
     rateBps: best.rateBps,
+    willingToSplit: best.willingToSplit,
   }));
   const poolKey = insurancePoolKey();
   const insurancePool = lg.insurancePools.member(poolKey)
@@ -160,17 +161,17 @@ export class ShieldLedgerAPI {
   }
 
   /** Seals a bid with the wallet's lender secret; only the commitment goes on-chain. */
-  async submitBid(nullifierHex: string, amount: bigint, dueDate: bigint, rateBps: bigint): Promise<void> {
+  async submitBid(nullifierHex: string, amount: bigint, dueDate: bigint, rateBps: bigint, willingToSplit = false): Promise<void> {
     const privateState = await this.providers.privateStateProvider.get(shieldLedgerPrivateStateKey);
     const secret = privateState?.lenderSecret;
     if (!secret) throw new Error('No private state available to seal the bid.');
     const nullifier = fromHex(nullifierHex);
-    const commitment = ShieldLedger.pureCircuits.deriveBidCommitment(secret, nullifier, amount, dueDate, rateBps);
+    const commitment = ShieldLedger.pureCircuits.deriveBidCommitment(secret, nullifier, amount, dueDate, rateBps, willingToSplit);
     await this.deployedContract.callTx.submitBid(nullifier, commitment);
   }
 
-  async revealBid(nullifierHex: string, amount: bigint, dueDate: bigint, rateBps: bigint): Promise<void> {
-    await this.deployedContract.callTx.revealBid(fromHex(nullifierHex), amount, dueDate, rateBps);
+  async revealBid(nullifierHex: string, amount: bigint, dueDate: bigint, rateBps: bigint, willingToSplit = false): Promise<void> {
+    await this.deployedContract.callTx.revealBid(fromHex(nullifierHex), amount, dueDate, rateBps, willingToSplit);
   }
 
   /**

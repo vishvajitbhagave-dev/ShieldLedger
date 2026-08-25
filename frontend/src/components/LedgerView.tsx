@@ -254,6 +254,7 @@ export const LedgerView: React.FC = () => {
                       <th>Amount</th>
                       <th>Rate</th>
                       <th>Due</th>
+                      <th>Whole</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -267,6 +268,7 @@ export const LedgerView: React.FC = () => {
                           <td style={{ fontWeight: 'bold' }}>{best.amount.toString()}</td>
                           <td style={{ color: 'var(--accent)', fontWeight: 'bold' }}>{best.rateBps.toString()} bps</td>
                           <td>{formatDate(best.dueDate)}</td>
+                          <td>{best.willingToSplit ? 'Split' : 'Whole'}</td>
                         </tr>
                       );
                     })}

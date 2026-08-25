@@ -544,6 +544,8 @@ async function main() {
             const amountRaw = await rl.question('  Bid amount: ');
             const dueRaw = await rl.question('  Bid due date (unix seconds): ');
             const rateRaw = await rl.question('  Interest rate (basis points, e.g. 400 = 4%): ');
+            const splitRaw = await rl.question('  Willing to split invoice? (y/N): ');
+            const willingToSplit = splitRaw.trim().toLowerCase() === 'y';
             const nf = parseHex(nullifier);
             const amount = BigInt(amountRaw.trim());
             const due = BigInt(dueRaw.trim());
@@ -556,6 +558,7 @@ async function main() {
               amount,
               due,
               rate,
+              willingToSplit,
             );
             await sendAndShow('submitBid', deployed.callTx.submitBid(nf, commitment));
             console.log('  ℹ  To compete for this invoice, reveal your bid when ready (menu 3).');
@@ -567,7 +570,9 @@ async function main() {
             const amountRaw = await rl.question('  Bid amount: ');
             const dueRaw = await rl.question('  Bid due date (unix seconds): ');
             const rateRaw = await rl.question('  Interest rate (basis points, e.g. 400 = 4%): ');
-            await sendAndShow('revealBid', deployed.callTx.revealBid(parseHex(nullifier), BigInt(amountRaw.trim()), BigInt(dueRaw.trim()), BigInt(rateRaw.trim())));
+            const splitRaw = await rl.question('  Willing to split invoice? (y/N): ');
+            const willingToSplit = splitRaw.trim().toLowerCase() === 'y';
+            await sendAndShow('revealBid', deployed.callTx.revealBid(parseHex(nullifier), BigInt(amountRaw.trim()), BigInt(dueRaw.trim()), BigInt(rateRaw.trim()), willingToSplit));
             break;
           }
 

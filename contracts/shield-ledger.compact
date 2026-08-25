@@ -23,8 +23,10 @@
 //                       due date never touch the ledger until the bidder
 //                       reveals them. Lenders cannot see each other's bids.
 //    • bestBids      — Map<Bytes<32>, BestBid>: the running best bid per
-//                       invoice (lowest interest rate, then smallest amount,
-//                       then earliest due date). Updated only by a successful
+//                       invoice. Ties are broken by whole-invoice-first priority
+//                       (willingToSplit=false beats willingToSplit=true regardless
+//                       of rate), then lowest interest rate, then smallest amount,
+//                       then earliest due date, then first revealer.
 //                       reveal, so it cannot be spoofed or front-run by a
 //                       non-bidder. Settlement is bound to this entry, so the
 //                       SME cannot favor an arbitrary lender.
@@ -105,9 +107,11 @@
 //    3. submitBid(nullifier, commitment)— each lender posts a *seal*; no
 //       other lender can read their terms. Lenders see the buyer-verification
 //       status before bidding.
-//    4. revealBid(nullifier, amt, due, rateBps) — a lender proves ownership
-//       of their seal and, if their bid beats the running best, becomes the
-//       leading bid. Repeated for every bidder; last best bid wins.
+//    4. revealBid(nullifier, amt, due, rateBps, willingToSplit) — a lender
+//       proves ownership of their seal and, if their bid beats the running best,
+//       becomes the leading bid. Whole-invoice bids (willingToSplit=false) always
+//       beat split bids (willingToSplit=true) regardless of rate. Within the same
+//       group the best rate wins, then smallest amount, then earliest due date.
 //    5. settleInvoice(nullifier, amt, due) — SME proves ownership and the
 //       contract pays the *best* bid only; the SME cannot choose a loser.
 //       Also takes settledAt and returns settledAt <= due so the wallet can
@@ -170,6 +174,7 @@ export struct BestBid {
   amount: Uint<64>,
   dueDate: Uint<64>,
   rateBps: Uint<64>,
+  willingToSplit: Boolean,
 }
 
 export struct BidSeal {
@@ -178,6 +183,7 @@ export struct BidSeal {
   dueDate: Uint<64>,
   rateBps: Uint<64>,
   secret: Bytes<32>,
+  willingToSplit: Boolean,
 }
 
 // Aggregate default-insurance pool state. Stored as a single-entry map keyed
@@ -295,10 +301,13 @@ export circuit submitBid(nullifier: Bytes<32>, commitment: Bytes<32>): [] {
 
 // Reveal: the bidder re-derives the commitment from the private lender secret
 // and the disclosed terms, proves it matches the stored seal, and — if it
-// beats the current best (lowest interest rate, then smallest amount, then
-// earliest due date) — becomes the running best. Only a genuine bidder can
-// update the best bid, and settlement is bound to it.
-export circuit revealBid(nullifier: Bytes<32>, amount: Uint<64>, dueDate: Uint<64>, rateBps: Uint<64>): [] {
+// beats the current best — becomes the running best. "Beats" is determined by
+// whole-invoice-first priority: a whole bid (willingToSplit=false) always wins
+// over a split bid (willingToSplit=true) regardless of rate. Within the same
+// group the comparison is: lowest interest rate, then smallest amount, then
+// earliest due date. Ties within a group keep the first revealer in the lead.
+// Only a genuine bidder can update the best bid, and settlement is bound to it.
+export circuit revealBid(nullifier: Bytes<32>, amount: Uint<64>, dueDate: Uint<64>, rateBps: Uint<64>, willingToSplit: Boolean): [] {
   assert(lenderCreditScore() >= 700, "not creditworthy");
   assert(disclose(amount) <= lenderExposureCap(), "bid exceeds exposure cap");
   assert(invoices.member(disclose(nullifier)), "unknown invoice");
@@ -307,11 +316,11 @@ export circuit revealBid(nullifier: Bytes<32>, amount: Uint<64>, dueDate: Uint<6
   const bidKey = disclose(deriveBidKey(disclose(nullifier), pseudonym));
   assert(bids.member(bidKey), "no such bid");
   const seal = bids.lookup(bidKey);
-  assert(seal.commitment == deriveBidCommitment(lenderSecret(), disclose(nullifier), disclose(amount), disclose(dueDate), disclose(rateBps)), "commitment mismatch");
-  const candidate = BestBid { lender: pseudonym, amount: disclose(amount), dueDate: disclose(dueDate), rateBps: disclose(rateBps) };
+  assert(seal.commitment == deriveBidCommitment(lenderSecret(), disclose(nullifier), disclose(amount), disclose(dueDate), disclose(rateBps), disclose(willingToSplit)), "commitment mismatch");
+  const candidate = BestBid { lender: pseudonym, amount: disclose(amount), dueDate: disclose(dueDate), rateBps: disclose(rateBps), willingToSplit: disclose(willingToSplit) };
   if (bestBids.member(disclose(nullifier))) {
     const current = bestBids.lookup(disclose(nullifier));
-    if (isBetter(disclose(rateBps), disclose(amount), disclose(dueDate), current.rateBps, current.amount, current.dueDate)) {
+    if (isBetter(disclose(rateBps), disclose(amount), disclose(dueDate), current.rateBps, current.amount, current.dueDate, disclose(willingToSplit), current.willingToSplit)) {
       bestBids.insert(disclose(nullifier), candidate);
     }
   } else {
@@ -411,11 +420,21 @@ export circuit deriveBidKey(nullifier: Bytes<32>, pseudonym: Bytes<32>): Bytes<3
   return persistentHash<Vector<2, Bytes<32>>>([nullifier, pseudonym]);
 }
 
-export circuit deriveBidCommitment(secret: Bytes<32>, nullifier: Bytes<32>, amount: Uint<64>, dueDate: Uint<64>, rateBps: Uint<64>): Bytes<32> {
-  return persistentHash<BidSeal>(BidSeal { nullifier, amount, dueDate, rateBps, secret });
+export circuit deriveBidCommitment(secret: Bytes<32>, nullifier: Bytes<32>, amount: Uint<64>, dueDate: Uint<64>, rateBps: Uint<64>, willingToSplit: Boolean): Bytes<32> {
+  return persistentHash<BidSeal>(BidSeal { nullifier, amount, dueDate, rateBps, secret, willingToSplit });
 }
 
-export circuit isBetter(rate: Uint<64>, amount: Uint<64>, dueDate: Uint<64>, bestRate: Uint<64>, bestAmount: Uint<64>, bestDueDate: Uint<64>): Boolean {
+export circuit isBetter(rate: Uint<64>, amount: Uint<64>, dueDate: Uint<64>, bestRate: Uint<64>, bestAmount: Uint<64>, bestDueDate: Uint<64>, willingToSplit: Boolean, bestWillingToSplit: Boolean): Boolean {
+  // Whole-invoice bids (willingToSplit=false) always beat split bids
+  // (willingToSplit=true) regardless of rate/amount/dueDate, because a
+  // whole-invoice commitment is more valuable to the SME.
+  if (!willingToSplit && bestWillingToSplit) {
+    return true;
+  }
+  if (willingToSplit && !bestWillingToSplit) {
+    return false;
+  }
+  // Same group: lowest rate → smallest amount → earliest due date → first revealer.
   return rate < bestRate
     || (rate == bestRate && amount < bestAmount)
     || (rate == bestRate && amount == bestAmount && dueDate < bestDueDate);

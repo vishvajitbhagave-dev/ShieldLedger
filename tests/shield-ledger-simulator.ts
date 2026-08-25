@@ -119,6 +119,7 @@ export class ShieldLedgerSimulator {
     amount: bigint,
     dueDate: bigint,
     rateBps: bigint,
+    willingToSplit: boolean = false,
   ): Ledger {
     this.circuitContext = this.contract.impureCircuits.revealBid(
       this.circuitContext,
@@ -126,6 +127,7 @@ export class ShieldLedgerSimulator {
       amount,
       dueDate,
       rateBps,
+      willingToSplit,
     ).context;
     return this.getLedger();
   }
@@ -235,8 +237,9 @@ export function deriveBidCommitment(
   amount: bigint,
   dueDate: bigint,
   rateBps: bigint,
+  willingToSplit: boolean = false,
 ): Uint8Array {
-  return pureCircuits.deriveBidCommitment(secret, nullifier, amount, dueDate, rateBps);
+  return pureCircuits.deriveBidCommitment(secret, nullifier, amount, dueDate, rateBps, willingToSplit);
 }
 
 export function deriveClaimCommitment(ownerSecret: Uint8Array, nullifier: Uint8Array): Uint8Array {
