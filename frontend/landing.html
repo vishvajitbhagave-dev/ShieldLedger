@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="ShieldLedger — confidential invoice financing on the Midnight Network. Prove your credit, reputation, and invoice authenticity in zero knowledge. Lenders see bounds, never your books." />
+    <meta name="description" content="ShieldLedger — confidential invoice financing on the Midnight Network. Prove your credit, reputation, and invoice authenticity in zero knowledge. Sealed-bid auctions, default insurance, and a private secondary market. Lenders see bounds, never your books." />
     <meta name="theme-color" content="#f7f7f5" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%2300bfa6' d='M12 2l8 3v6c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V5l8-3z'/%3E%3Cpath fill='%23f7f7f5' d='M12 5.5l5 1.9v3.9c0 3.5-2.2 6.3-5 7.6-2.8-1.3-5-4.1-5-7.6V7.4l5-1.9z'/%3E%3C/svg%3E" />
     <meta property="og:title" content="ShieldLedger — confidential invoice financing on Midnight" />
-    <meta property="og:description" content="Prove your credit and reputation in zero knowledge. Lenders see bounds, never your books. Sealed-bid invoice financing on the Midnight Network." />
+    <meta property="og:description" content="Prove your credit and reputation in zero knowledge. Lenders see bounds, never your books. Sealed-bid auctions, default insurance, and a private secondary market on the Midnight Network." />
     <meta property="og:type" content="website" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -60,7 +60,8 @@
           <p class="hero-sub">
             ShieldLedger runs a sealed-bid auction on the Midnight Network. You prove your credit score, reputation,
             and invoice authenticity in zero knowledge — only commitments go on-chain. Lenders see bounds, never
-            numbers. The lowest rate wins. Your financials stay yours.
+            numbers. The lowest rate wins. Claims can be privately resold, and a shared insurance pool protects
+            against defaults. Your financials stay yours.
           </p>
           <div class="hero-cta">
             <a class="btn btn-solid btn-lg" href="./">Launch the app</a>
@@ -83,6 +84,14 @@
             <div class="hero-stat">
               <span class="hero-stat-num">Lowest</span>
               <span class="hero-stat-label">Bid wins, enforced on-chain</span>
+            </div>
+            <div class="hero-stat">
+              <span class="hero-stat-num">2%</span>
+              <span class="hero-stat-label">Insurance premium, proven in ZK</span>
+            </div>
+            <div class="hero-stat">
+              <span class="hero-stat-num">Private</span>
+              <span class="hero-stat-label">Claim transfers on secondary market</span>
             </div>
           </div>
         </div>
@@ -126,6 +135,10 @@
               <div class="mock-row">
                 <span class="mock-label">Leading bid</span>
                 <span class="mock-mono">400 bps (4.00%)</span>
+              </div>
+              <div class="mock-row">
+                <span class="mock-label">Insurance pool</span>
+                <span class="mock-mono">2,480 tNight</span>
               </div>
             </div>
 
@@ -187,9 +200,10 @@
         <div class="section-inner">
           <div class="section-head">
             <p class="eyebrow eyebrow-dark">How it works</p>
-            <h2 class="section-title">Get financed in 3 steps.</h2>
+            <h2 class="section-title">Get financed in 5 steps.</h2>
             <p class="section-sub">
-              Three parties, one confidential auction. Nothing about your financials is ever public.
+              Three parties, one confidential auction. A shared insurance pool and a private secondary market
+              complete the lifecycle — nothing about your financials is ever public.
             </p>
           </div>
 
@@ -205,8 +219,9 @@
               </span>
               <h3>Register your invoice</h3>
               <p>
-                Prove your credit score and reputation in zero knowledge. Only a <em>nullifier</em> — a blinded hash
-                plus a random secret — is posted on-chain; your invoice details never leave your browser.
+                Prove your credit score and reputation in zero knowledge. A 2% insurance premium is automatically
+                paid into the shared default pool. Only a <em>nullifier</em> — a blinded hash plus a random
+                secret — is posted on-chain; your invoice details never leave your browser.
               </p>
             </article>
             <article class="step">
@@ -228,14 +243,48 @@
               <span class="step-num" aria-hidden="true">03</span>
               <span class="step-icon" aria-hidden="true">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3v18" />
+                  <path d="M5.5 6.5h13" />
+                  <path d="M5.5 6.5a3.5 3.5 0 0 1 7 0v4.5" />
+                  <path d="M5.5 6.5a3.5 3.5 0 0 0 7 0" />
+                  <path d="M8 14h8l-2 6h-4l-2-6Z" />
+                </svg>
+              </span>
+              <h3>Sealed-bid auction</h3>
+              <p>
+                Lenders submit sealed bids — only commitments go on-chain, so no lender sees another's terms.
+                Whoever reveals the lowest interest rate wins.
+              </p>
+            </article>
+            <article class="step">
+              <span class="step-num" aria-hidden="true">04</span>
+              <span class="step-icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <circle cx="12" cy="12" r="9" />
                   <path d="M12 7v10M15 9.5c0-1-1.2-1.8-3-1.8s-3 .8-3 1.8c0 3.4 6 2 6 5.4 0 1-1.2 1.8-3 1.8s-3-.8-3-1.8" />
                 </svg>
               </span>
-              <h3>Get financed</h3>
+              <h3>Settle &amp; build reputation</h3>
               <p>
-                Lenders submit sealed bids. The contract reveals the lowest rate and pays that winner automatically —
-                the SME cannot play favorites.
+                The contract pays the winning lender automatically. Your private reputation updates: +10 for
+                on-time, −20 for late. Lenders see only the proven bound, never the score.
+              </p>
+            </article>
+            <article class="step">
+              <span class="step-num" aria-hidden="true">05</span>
+              <span class="step-icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 1l4 4-4 4" />
+                  <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                  <path d="M7 23l-4-4 4-4" />
+                  <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                </svg>
+              </span>
+              <h3>Resell or claim insurance</h3>
+              <p>
+                Lenders can privately resell claims to other investors on the secondary market. If an invoice
+                defaults, the claim holder collects from the shared insurance pool — the defaulting SME is
+                never identified.
               </p>
             </article>
           </div>
@@ -369,6 +418,34 @@
                 proven, never shown, to lenders.
               </p>
             </article>
+            <article class="feature">
+              <span class="feature-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2 4 5v6c0 5.25 3.4 9.74 8 11 4.6-1.26 8-5.75 8-11V5l-8-3Z" />
+                  <path d="M12 8v4M12 16h.01" />
+                </svg>
+              </span>
+              <h3>Default insurance pool</h3>
+              <p>
+                Every registration pays a 2% premium into one shared pool. A proven default lets the claim holder
+                collect 50% of the financed amount — the defaulting SME is never identified.
+              </p>
+            </article>
+            <article class="feature">
+              <span class="feature-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 1l4 4-4 4" />
+                  <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                  <path d="M7 23l-4-4 4-4" />
+                  <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                </svg>
+              </span>
+              <h3>Secondary market</h3>
+              <p>
+                Lenders can privately resell a financed claim to another investor. Only a commitment goes on-chain —
+                the investor's identity and the number of transfers are never revealed.
+              </p>
+            </article>
           </div>
         </div>
       </section>
@@ -403,6 +480,16 @@
                 Lenders commit to terms they keep hidden until reveal; no lender sees any other bid before the winner
                 is determined.
               </li>
+              <li>
+                <strong>Anonymous insurance pool.</strong>
+                Premiums merge into one shared balance — nothing links an amount to a specific SME. Claims are recorded
+                only under the invoice's public nullifier; the defaulting party is never identified.
+              </li>
+              <li>
+                <strong>Private secondary market.</strong>
+                Claim transfers replace an opaque commitment on-chain. The investor's identity, the seller's identity,
+                and the number of transfers are never revealed.
+              </li>
             </ul>
           </div>
 
@@ -414,6 +501,8 @@
                 <li>Invoice reference, due date &amp; secret</li>
                 <li>Buyer identity &amp; contract terms</li>
                 <li>Other lenders' bids</li>
+                <li>Which SME paid insurance premiums</li>
+                <li>Secondary-market buyer &amp; seller identity</li>
               </ul>
             </div>
             <div class="sec-col sec-public">
@@ -423,6 +512,8 @@
                 <li>Proven bounds (e.g. "score ≥ 650")</li>
                 <li>Claimed amount &amp; ✓ verification flags</li>
                 <li>Sealed bid commitments &amp; leading bid</li>
+                <li>Insurance pool balance &amp; paid claims</li>
+                <li>Transfer commitment &amp; flagged status</li>
               </ul>
             </div>
           </div>
@@ -467,6 +558,24 @@
                 Three roles share one workflow: the SME registers invoices and seeks financing, the corporate buyer
                 verifies invoices, and lenders bid to finance them. You'll need the Midnight Lace wallet to sign
                 transactions.
+              </p>
+            </details>
+            <details class="faq-item">
+              <summary>How does the insurance pool work?</summary>
+              <p>
+                Every invoice registration pays a 2% premium into one shared pool. If a financed invoice is never
+                settled and past its due date, the current claim holder can collect 50% of the financed amount from
+                the pool — or whatever remains if the pool is thin. Both percentages are proven in zero knowledge.
+                The defaulting SME's identity is never revealed.
+              </p>
+            </details>
+            <details class="faq-item">
+              <summary>Can I resell my claim on a financed invoice?</summary>
+              <p>
+                Yes. Before settlement, the winning lender can transfer their claim to another investor. Only an
+                opaque commitment goes on-chain — the buyer's identity, the seller's identity, and the number of
+                times the claim was resold are never revealed. After transfer, only the new holder can settle or
+                claim insurance.
               </p>
             </details>
             <details class="faq-item">
