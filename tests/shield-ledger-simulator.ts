@@ -15,6 +15,12 @@ import {
   witnesses,
 } from '../src/witnesses.js';
 import { applyReputationUpdate } from '../src/reputation.js';
+import {
+  insuranceContribution,
+  insurancePayoutFor,
+  fullInsurancePayout,
+  insurancePoolKey,
+} from '../src/insurance.js';
 
 /**
  * Headless simulator for the ShieldLedger contract.
@@ -70,12 +76,22 @@ export class ShieldLedgerSimulator {
     invoiceAmount: bigint = 0n,
     reputationThreshold: bigint = 0n,
   ): Ledger {
+    // Default insurance: the wallet computes the exact 2% premium and the
+    // resulting pool balance; the circuit proves both are correct.
+    const contribution = insuranceContribution(invoiceAmount);
+    const poolKey = insurancePoolKey();
+    const before = this.getLedger();
+    const currentBalance = before.insurancePools.member(poolKey)
+      ? before.insurancePools.lookup(poolKey).balance
+      : 0n;
     this.circuitContext = this.contract.impureCircuits.registerInvoice(
       this.circuitContext,
       nullifier,
       creditThreshold,
       invoiceAmount,
       reputationThreshold,
+      contribution,
+      currentBalance + contribution,
     ).context;
     return this.getLedger();
   }
@@ -168,6 +184,32 @@ export class ShieldLedgerSimulator {
       nullifier,
     );
     return mine.length === invoice.claimCommitment.length && mine.every((v, i) => v === invoice.claimCommitment[i]);
+  }
+
+  /**
+   * Default insurance: the current claim holder collects 50% of the financed
+   * amount from the shared pool for an unsettled, past-due invoice (a thin
+   * pool pays partially). The wallet computes the entitlement, the payout and
+   * the new pool balance; the circuit proves all of them against the public
+   * state. Returns the payout actually granted.
+   */
+  claimInsurancePayout(nullifier: Uint8Array, claimedAt: bigint): bigint {
+    const current = this.getLedger();
+    if (!current.bestBids.member(nullifier)) throw new Error('auction not resolved');
+    const best = current.bestBids.lookup(nullifier);
+    const maxEntitlement = fullInsurancePayout(best.amount);
+    const balance = current.insurancePools.lookup(insurancePoolKey()).balance;
+    const payout = insurancePayoutFor(best.amount, balance);
+    const results = this.contract.impureCircuits.claimInsurancePayout(
+      this.circuitContext,
+      nullifier,
+      maxEntitlement,
+      payout,
+      balance - payout,
+      claimedAt,
+    );
+    this.circuitContext = results.context;
+    return results.result;
   }
 }
 

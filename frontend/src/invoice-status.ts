@@ -42,3 +42,21 @@ export function isAuctionResolved(
 ): boolean {
   return bestBids.some((b) => b.nullifier === nullifier);
 }
+
+/** A paid default-insurance claim (matches InsuranceClaimView). */
+export interface InsuranceClaimSnapshot {
+  readonly nullifier: string;
+}
+
+/**
+ * True when the invoice has already been paid out by the default-insurance
+ * pool. Keyed by the public nullifier, so this is observable by anyone; the
+ * UI gates the insurance claim action with it instead of surfacing the raw
+ * "payout already claimed" contract error.
+ */
+export function isInsuranceClaimed(
+  nullifier: string,
+  claims: ReadonlyArray<InsuranceClaimSnapshot>,
+): boolean {
+  return claims.some((c) => c.nullifier === nullifier);
+}

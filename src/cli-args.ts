@@ -14,6 +14,9 @@
 // the caller's claim on an invoice to a new investor (identified only by a
 // commitment to their secret); `--check-claim <hex>` runs a holder-only local
 // ownership check against the on-chain commitment.
+// Default insurance: `--claim-insurance <hex>` pays out 50% of the financed
+// amount on a defaulted invoice from the shared pool; `--pool-balance` prints
+// the public pool balance and its paid claims.
 
 const NULLIFIER_RE = /^[0-9a-fA-F]{64}$/;
 const NON_NEGATIVE_INTEGER_RE = /^\d+$/;
@@ -37,6 +40,10 @@ export interface ShieldLedgerCliArgs {
   readonly newOwnerSecret: string | undefined;
   /** The `--check-claim` invoice nullifier for the local ownership check. */
   readonly checkClaimNullifier: string | undefined;
+  /** The `--claim-insurance` invoice nullifier for the default-insurance payout. */
+  readonly claimInsuranceNullifier: string | undefined;
+  /** Print the public insurance pool balance and paid claims, then exit. */
+  readonly poolBalance: boolean;
   /** Unknown/unsupported flags the CLI should warn about. */
   readonly unknown: readonly string[];
 }
@@ -65,6 +72,8 @@ export function parseShieldLedgerCliArgs(argv: readonly string[]): ShieldLedgerC
   let transferClaimNullifier: string | undefined;
   let newOwnerSecret: string | undefined;
   let checkClaimNullifier: string | undefined;
+  let claimInsuranceNullifier: string | undefined;
+  let poolBalance = false;
   const unknown: string[] = [];
 
   for (let i = 0; i < argv.length; i++) {
@@ -108,10 +117,17 @@ export function parseShieldLedgerCliArgs(argv: readonly string[]): ShieldLedgerC
     } else if (arg === '--check-claim') {
       checkClaimNullifier = parseHexValue('--check-claim', argv[i + 1] ?? '');
       i++;
+    } else if (arg.startsWith('--claim-insurance=')) {
+      claimInsuranceNullifier = parseHexValue('--claim-insurance', arg.slice('--claim-insurance='.length));
+    } else if (arg === '--claim-insurance') {
+      claimInsuranceNullifier = parseHexValue('--claim-insurance', argv[i + 1] ?? '');
+      i++;
+    } else if (arg === '--pool-balance') {
+      poolBalance = true;
     } else {
       unknown.push(arg);
     }
   }
 
-  return { smeCreditThreshold, confirmInvoiceNullifier, confirmAmount, minReputation, showReputation, demoReputationCycle, transferClaimNullifier, newOwnerSecret, checkClaimNullifier, unknown };
+  return { smeCreditThreshold, confirmInvoiceNullifier, confirmAmount, minReputation, showReputation, demoReputationCycle, transferClaimNullifier, newOwnerSecret, checkClaimNullifier, claimInsuranceNullifier, poolBalance, unknown };
 }

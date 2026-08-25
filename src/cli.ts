@@ -12,6 +12,12 @@
  * settlement (`--transfer-claim` / menu 9). Ownership transfers via ZK proofs
  * against a public commitment; the new investor's identity never appears.
  * `--check-claim` / menu 10 verify locally whether this wallet holds a claim.
+ *
+ * Default insurance: every registration pays a 2% premium into ONE shared
+ * public pool (`--pool-balance` shows it). When a financed invoice ends up
+ * past due and unsettled, the current claim holder collects 50% of the
+ * financed amount from that pool — partially, if the pool is thin — with
+ * `--claim-insurance <hex>` / menu 11. The defaulting SME stays anonymous.
  */
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
@@ -31,6 +37,7 @@ import { createWallet, persistWalletState, unshieldedToken, type WalletContext }
 import { loadOrCreatePrivateState, savePrivateState } from './private-state';
 import { applyReputationUpdate, reputationView } from './reputation';
 import { currentUnixSeconds } from './time';
+import { insuranceContribution, insurancePayoutFor, fullInsurancePayout, insurancePoolKey } from './insurance';
 import { compiledShieldLedgerContract } from './compiled';
 import { parseShieldLedgerCliArgs } from './cli-args';
 import { runReputationCycleDemo } from '../scripts/demo-reputation-cycle.js';
@@ -68,6 +75,11 @@ const PRIVATE_STATE_ID = 'shieldLedgerPrivateState';
 //   --check-claim <hex>          holder-only local check: does THIS wallet's
 //                                claim secret match the invoice's on-chain
 //                                commitment? Prints the verdict and exits.
+//   --claim-insurance <hex>      run one-shot as the claim holder: collect the
+//                                default-insurance payout for this invoice
+//                                (financed, unsettled, past due), then exit.
+//   --pool-balance               print the public default-insurance pool
+//                                balance and its paid claims, then exit.
 const {
   smeCreditThreshold: SME_CREDIT_THRESHOLD,
   confirmInvoiceNullifier: CONFIRM_INVOICE_NULLIFIER,
@@ -78,6 +90,8 @@ const {
   transferClaimNullifier: TRANSFER_CLAIM_NULLIFIER,
   newOwnerSecret: NEW_OWNER_SECRET,
   checkClaimNullifier: CHECK_CLAIM_NULLIFIER,
+  claimInsuranceNullifier: CLAIM_INSURANCE_NULLIFIER,
+  poolBalance: POOL_BALANCE_VIEW,
   unknown: UNKNOWN_ARGS,
 } = parseShieldLedgerCliArgs(process.argv.slice(2));
 if (UNKNOWN_ARGS.length > 0) {
@@ -181,7 +195,8 @@ async function main() {
   console.log('          npm run cli [-- --min-reputation <N>]');
   console.log('          npm run cli [-- --show-reputation]');
   console.log('          npm run cli [-- --transfer-claim <hex> --new-owner-secret <hex>]');
-  console.log('          npm run cli [-- --check-claim <hex>]\n');
+  console.log('          npm run cli [-- --check-claim <hex>]');
+  console.log('          npm run cli [-- --claim-insurance <hex> | --pool-balance]\n');
 
   const rl = createInterface({ input: stdin, output: stdout });
 
@@ -360,12 +375,97 @@ async function main() {
       return;
     }
 
+    /** Reads the current public ledger from the indexer (undefined if empty). */
+    const loadPublicLedger = async () => {
+      const contractState = await providers.publicDataProvider.queryContractState(deployment.address);
+      if (!contractState) return undefined;
+      const { ledger: lgFactory } = await import('../contracts/managed/shield-ledger/contract/index.js');
+      return lgFactory(contractState.data);
+    };
+
+    // ─── Default insurance: public pool view ───────────────────────────────
+    // `npm run cli -- --pool-balance` prints the shared pool's public balance
+    // and its paid claims. Purely observational — nothing is proven or sent.
+    if (POOL_BALANCE_VIEW) {
+      const lg = await loadPublicLedger();
+      console.log('\n  🛡️  Default insurance pool (public):');
+      if (!lg || !lg.insurancePools.member(insurancePoolKey())) {
+        console.log('     Balance: 0 tNight — no invoice registered yet.');
+        console.log('     Paid claims: 0');
+      } else {
+        const pool = lg.insurancePools.lookup(insurancePoolKey());
+        console.log(`     Balance: ${pool.balance} tNight (funded by 2% premiums at registration).`);
+        console.log(`     Paid claims: ${lg.insuranceClaims.size()}`);
+        for (const [nf, claim] of lg.insuranceClaims) {
+          const when = new Date(Number(claim.claimedAt) * 1000).toISOString();
+          console.log(`       • nullifier=${toHex(nf).slice(0, 16)}…  payout=${claim.payout} tNight  claimedAt=${when}`);
+        }
+      }
+      console.log('  ℹ  Anyone can read these totals; neither contributors nor defaulting SMEs are identifiable.');
+      await persistWalletState(network, walletCtx);
+      await walletCtx.wallet.stop();
+      rl.close();
+      return;
+    }
+
+    // ─── Default insurance: one-shot claim ──────────────────────────────────
+    // `npm run cli -- --claim-insurance <hex>` collects 50% of the financed
+    // amount from the shared pool for an invoice that is financed, unsettled
+    // and past due. Entitlement, payout and new balance are computed from the
+    // PUBLIC state and proven correct inside the circuit; authorization is
+    // proven in ZK against lenderSecret/claimSecret, exactly like settlement.
+    if (CLAIM_INSURANCE_NULLIFIER !== undefined) {
+      console.log('  Claim holder role: collecting default insurance.\n');
+      const nf = parseHex(CLAIM_INSURANCE_NULLIFIER);
+      const claimedAt = currentUnixSeconds();
+      const lg = await loadPublicLedger();
+      let bestAmount: bigint | undefined;
+      let bestDueDate = 0n;
+      let balance: bigint | undefined;
+      if (lg && lg.invoices.member(nf)) {
+        const invoice = lg.invoices.lookup(nf);
+        if (!invoice.lender.is_some && lg.bestBids.member(nf)) {
+          const best = lg.bestBids.lookup(nf);
+          bestAmount = best.amount;
+          bestDueDate = best.dueDate;
+        }
+      }
+      if (lg && lg.insurancePools.member(insurancePoolKey())) {
+        balance = lg.insurancePools.lookup(insurancePoolKey()).balance;
+      }
+      if (bestAmount === undefined || balance === undefined) {
+        console.error(`  ❌ ${CLAIM_INSURANCE_NULLIFIER} is not a claimable financed invoice (unknown, already settled, or auction unresolved).`);
+      } else if (claimedAt <= bestDueDate) {
+        const due = new Date(Number(bestDueDate) * 1000).toISOString();
+        console.error(`  ❌ Not defaulted yet: the winning bid is due ${due}. The circuit would reject this proof ("invoice not defaulted").`);
+      } else {
+        const maxEntitlement = fullInsurancePayout(bestAmount);
+        const payout = insurancePayoutFor(bestAmount, balance);
+        console.log(`  Financed amount ${bestAmount} → entitlement ${maxEntitlement} tNight (50%); the pool holds ${balance} → paying out ${payout} tNight.`);
+        if (payout < maxEntitlement) {
+          console.log('  ⚠ The pool cannot cover the full entitlement — this claim pays partially and drains it to zero.');
+        }
+        await sendAndShow('claimInsurancePayout', deployed.callTx.claimInsurancePayout(nf, maxEntitlement, payout, balance - payout, claimedAt));
+      }
+      await persistWalletState(network, walletCtx);
+      await walletCtx.wallet.stop();
+      rl.close();
+      return;
+    }
+
     const readLedger = async () => {
       const contractState = await providers.publicDataProvider.queryContractState(deployment.address);
       if (!contractState) return console.log('  (contract state empty)');
       const { ledger } = await import('../contracts/managed/shield-ledger/contract/index.js');
       const lg = ledger(contractState.data);
       const rows: string[] = [];
+      if (lg.insurancePools.member(insurancePoolKey())) {
+        const pool = lg.insurancePools.lookup(insurancePoolKey());
+        rows.push(`    🛡️  insurance pool balance=${pool.balance}  paidClaims=${lg.insuranceClaims.size()}`);
+        for (const [nf2, claim] of lg.insuranceClaims) {
+          rows.push(`        🛡️  paid ${claim.payout} at ${claim.claimedAt} for nullifier=${toHex(nf2).slice(0, 16)}…`);
+        }
+      }
       for (const [nullifier, invoice] of lg.invoices) {
         rows.push(`    nullifier=${toHex(nullifier)}  lender=${invoice.lender.is_some ? toHex(invoice.lender.value) : '(none)'}  credit=${invoice.creditThreshold}+  reputation=${invoice.reputationThreshold}+  claim=${invoice.invoiceAmount}  buyerVerified=${invoice.buyerVerified}  amount=${invoice.amount}  due=${invoice.dueDate}  rate=${invoice.rateBps}bps  commitment=${toHex(invoice.smeCommitment)}${invoice.transferred ? `  🔄 claim transferred (holder commitment=${toHex(invoice.claimCommitment).slice(0, 16)}…)` : ''}`);
         for (const [bidKey, bid] of lg.bids) {
@@ -377,7 +477,7 @@ async function main() {
           rows.push(`        🏆 best bid by ${toHex(best.lender).slice(0, 16)}…  amount=${best.amount}  due=${best.dueDate}  rate=${best.rateBps}bps`);
         }
       }
-      console.log(`\n  📋 Ledger — invoiceCount=${lg.invoiceCount}, invoices=${lg.invoices.size()}, sealed bids=${lg.bids.size()}\n${rows.join('\n')}\n`);
+      console.log(`\n  📋 Ledger — invoiceCount=${lg.invoiceCount}, invoices=${lg.invoices.size()}, sealed bids=${lg.bids.size()}, insurance claims=${lg.insuranceClaims.size()}\n${rows.join('\n')}\n`);
     };
 
     async function sendAndShow(label: string, txPromise: Promise<any>) {
@@ -401,7 +501,8 @@ async function main() {
       console.log('  8. Show my reputation (private)');
       console.log('  9. Transfer my claim (Secondary market — resell to a new investor)');
       console.log(' 10. Check my claim ownership (private, local)');
-      console.log(' 11. Exit\n');
+      console.log(' 11. Claim default insurance (Lender — defaulted invoice, pays from the pool)');
+      console.log(' 12. Exit\n');
 
       const choice = await rl.question('  Your choice: ');
 
@@ -423,7 +524,18 @@ async function main() {
             const rep = reputationView(initialPrivateState);
             console.log(`  ℹ  Your private reputation score is ${rep.score}/100 — a threshold above it would fail the proof ("insufficient reputation").`);
             console.log(`  Proving "credit score >= ${creditThreshold} and reputation score >= ${reputationThreshold}" in zero knowledge — the scores themselves never leave the wallet.`);
-            await sendAndShow('registerInvoice', deployed.callTx.registerInvoice(parseHex(nullifier), creditThreshold, BigInt(amountRaw.trim()), reputationThreshold));
+            // Default insurance: the premium (exactly 2% of the claimed face
+            // amount, floored) is proven in ZK; the circuit also verifies the
+            // new public pool balance against its on-chain value.
+            const invoiceAmount = BigInt(amountRaw.trim());
+            const contribution = insuranceContribution(invoiceAmount);
+            const lgBefore = await loadPublicLedger();
+            let currentPool = 0n;
+            if (lgBefore && lgBefore.insurancePools.member(insurancePoolKey())) {
+              currentPool = lgBefore.insurancePools.lookup(insurancePoolKey()).balance;
+            }
+            console.log(`  🛡️  Default insurance: a ${contribution} tNight premium (2% of the claimed amount) goes to the shared pool (balance ${currentPool} → ${currentPool + contribution}).`);
+            await sendAndShow('registerInvoice', deployed.callTx.registerInvoice(parseHex(nullifier), creditThreshold, invoiceAmount, reputationThreshold, contribution, currentPool + contribution));
             break;
           }
 
@@ -551,13 +663,52 @@ async function main() {
             break;
           }
 
-          case '11':
+          case '11': {
+            const nullifier = await rl.question('  Invoice nullifier (64 hex chars): ');
+            const nf = parseHex(nullifier);
+            console.log('\n  Reading invoice and pool state from indexer...');
+            const lgNow = await loadPublicLedger();
+            let bestAmount: bigint | undefined;
+            let bestDueDate = 0n;
+            let balance: bigint | undefined;
+            if (lgNow && lgNow.invoices.member(nf)) {
+              const invoice = lgNow.invoices.lookup(nf);
+              if (!invoice.lender.is_some && lgNow.bestBids.member(nf)) {
+                const best = lgNow.bestBids.lookup(nf);
+                bestAmount = best.amount;
+                bestDueDate = best.dueDate;
+              }
+            }
+            if (lgNow && lgNow.insurancePools.member(insurancePoolKey())) {
+              balance = lgNow.insurancePools.lookup(insurancePoolKey()).balance;
+            }
+            if (bestAmount === undefined || balance === undefined) {
+              console.log('  ❌ This is not a claimable financed invoice (unknown, already settled, or auction unresolved).');
+              break;
+            }
+            const claimedAt = currentUnixSeconds();
+            if (claimedAt <= bestDueDate) {
+              const due = new Date(Number(bestDueDate) * 1000).toISOString();
+              console.log(`  ❌ Not defaulted yet — the winning bid is due ${due}. The circuit would reject this proof ("invoice not defaulted").`);
+              break;
+            }
+            const maxEntitlement = fullInsurancePayout(bestAmount);
+            const payout = insurancePayoutFor(bestAmount, balance);
+            console.log(`  🛡️  Financed amount ${bestAmount} → entitlement ${maxEntitlement} tNight (50%); the pool holds ${balance} → paying out ${payout} tNight.`);
+            if (payout < maxEntitlement) {
+              console.log('  ⚠ The pool cannot cover the full entitlement — this claim pays partially and drains it to zero.');
+            }
+            await sendAndShow('claimInsurancePayout', deployed.callTx.claimInsurancePayout(nf, maxEntitlement, payout, balance - payout, claimedAt));
+            break;
+          }
+
+          case '12':
             running = false;
             console.log('\n  👋 Goodbye!\n');
             break;
 
           default:
-            console.log('\n  ❌ Invalid choice. Please enter 1-11.\n');
+            console.log('\n  ❌ Invalid choice. Please enter 1-12.\n');
         }
       } catch (error) {
         console.error('\n  ❌ Failed:', error instanceof Error ? error.message : error);

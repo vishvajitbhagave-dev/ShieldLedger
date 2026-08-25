@@ -28,6 +28,18 @@
 //                       reveal, so it cannot be spoofed or front-run by a
 //                       non-bidder. Settlement is bound to this entry, so the
 //                       SME cannot favor an arbitrary lender.
+//    • insurancePools — Map<Bytes<32>, InsurancePool>: ONE shared aggregate
+//                       default-insurance balance, stored under a fixed
+//                       domain-separated key. Every registration credits it
+//                       with 2% of the invoice's face amount; every paid
+//                       default claim debits it. Observers see only the
+//                       running balance — never which SME funded it or why a
+//                       specific payout happened.
+//    • insuranceClaims— Map<Bytes<32>, InsuranceClaim>: one entry per PAID
+//                       default-insurance claim, keyed by the (already
+//                       public) invoice nullifier. Makes every claim
+//                       single-use and reveals nothing beyond what the
+//                       auction itself already published.
 //    • invoiceCount  — Counter: number of ledger transitions, for UI/replay.
 //
 //  SECONDARY MARKET (claim resale before settlement):
@@ -100,6 +112,13 @@
 //       contract pays the *best* bid only; the SME cannot choose a loser.
 //       Also takes settledAt and returns settledAt <= due so the wallet can
 //       classify the settlement on-time/late for the private reputation score.
+//    6. claimInsurancePayout(nullifier, ...) — once a financed invoice is
+//       past its due date and still unsettled, the CURRENT claim holder
+//       proves their right in ZK (same authorization as settlement/transfer)
+//       and collects 50% of the financed amount from the shared insurance
+//       pool — partially, if the pool cannot cover it in full. The pool was
+//       funded at step 1 by 2% premiums; the defaulting SME's identity never
+//       becomes public.
 // ─────────────────────────────────────────────────────────────────────────────
 
 pragma language_version 0.23;
@@ -161,9 +180,27 @@ export struct BidSeal {
   secret: Bytes<32>,
 }
 
+// Aggregate default-insurance pool state. Stored as a single-entry map keyed
+// by insurancePoolKey() because Compact cannot assign arithmetic results back
+// to scalar ledgers (Uint bounds widen through + and -). Transitions instead
+// pass the NEW balance as a public argument and prove, inside the circuit,
+// that it equals the previous balance plus/minus the transition amount.
+export struct InsurancePool {
+  balance: Uint<64>,
+}
+
+// A paid default-insurance claim. Keyed by the invoice nullifier (already
+// public), so presence alone blocks a second payout for the same default.
+export struct InsuranceClaim {
+  payout: Uint<64>,
+  claimedAt: Uint<64>,
+}
+
 export ledger invoices: Map<Bytes<32>, Invoice>;
 export ledger bids: Map<Bytes<32>, SealedBid>;
 export ledger bestBids: Map<Bytes<32>, BestBid>;
+export ledger insurancePools: Map<Bytes<32>, InsurancePool>;
+export ledger insuranceClaims: Map<Bytes<32>, InsuranceClaim>;
 export ledger invoiceCount: Counter;
 
 witness smeSecret(): Bytes<32>;
@@ -189,13 +226,33 @@ witness claimSecret(): Bytes<32>;
 // reputationThreshold is a second *bound*: it attests that the SME's private
 // cross-deal reputation score is >= that value (0 = no requirement). Only the
 // bound is stored; the raw score and the on-time/late history stay private.
-export circuit registerInvoice(nullifier: Bytes<32>, creditThreshold: Uint<64>, invoiceAmount: Uint<64>, reputationThreshold: Uint<64>): [] {
+//
+// Default insurance: every registration pays a premium of exactly 2% of the
+// face amount (floored) into the shared public pool. The SME discloses the
+// premium and the resulting pool balance; the circuit PROVES both are correct
+// (premium == floor(invoiceAmount / 50) via verifyUnitQuotient, balance
+// transition via an equality against the on-chain value) rather than trusting
+// them. The first registration seeds the pool entry.
+export circuit registerInvoice(nullifier: Bytes<32>, creditThreshold: Uint<64>, invoiceAmount: Uint<64>, reputationThreshold: Uint<64>, insuranceContribution: Uint<64>, newPoolBalance: Uint<64>): [] {
   assert(!invoices.member(disclose(nullifier)), "invoice already registered");
   assert(disclose(creditThreshold) >= 650, "threshold below minimum");
   assert(smeCreditScore() >= disclose(creditThreshold), "not creditworthy");
   assert(smeReputationScore() >= disclose(reputationThreshold), "insufficient reputation");
   const commitment = disclose(deriveCommitment(smeSecret(), disclose(nullifier)));
   invoices.insert(disclose(nullifier), Invoice { smeCommitment: commitment, creditThreshold: disclose(creditThreshold), reputationThreshold: disclose(reputationThreshold), invoiceAmount: disclose(invoiceAmount), buyerVerified: false, buyerCommitment: pad(32, "shieldledger:unverified"), lender: none<Bytes<32>>(), amount: 0, dueDate: 0, rateBps: 0, claimCommitment: pad(32, "shieldledger:noclaim"), transferred: false });
+  // Insurance premium accrual — see comment above.
+  const premiumOk = verifyUnitQuotient(disclose(invoiceAmount), disclose(insuranceContribution), 50);
+  const poolKey = insurancePoolKey();
+  if (insurancePools.member(poolKey)) {
+    const pool = insurancePools.lookup(poolKey);
+    assert(pool.balance + disclose(insuranceContribution) == disclose(newPoolBalance), "pool balance mismatch");
+    insurancePools.insert(poolKey, InsurancePool { balance: disclose(newPoolBalance) });
+  } else {
+    // First registration seeds the pool; the disclosed balance must equal
+    // exactly this first premium (from a zero starting balance).
+    assert(disclose(newPoolBalance) == disclose(insuranceContribution), "pool balance mismatch");
+    insurancePools.insert(poolKey, InsurancePool { balance: disclose(insuranceContribution) });
+  }
   invoiceCount.increment(1);
 }
 
@@ -362,4 +419,78 @@ export circuit isBetter(rate: Uint<64>, amount: Uint<64>, dueDate: Uint<64>, bes
   return rate < bestRate
     || (rate == bestRate && amount < bestAmount)
     || (rate == bestRate && amount == bestAmount && dueDate < bestDueDate);
+}
+
+// ─── Default insurance pool ──────────────────────────────────────────────────
+
+// Fixed domain-separated key of the single shared pool entry. A pure circuit
+// because Compact has no top-level constants.
+export circuit insurancePoolKey(): Bytes<32> {
+  return pad(32, "shieldledger:pool");
+}
+
+// Division-free percentage proof (Compact 0.23 has no division operator):
+// verifies quotient == floor(total / unit) using only multiplication and
+// comparison — quotient whole units fit inside total, and whatever remains is
+// smaller than one unit (so the result is floored, not truncated further).
+//   unit = 50 → 2% premium on registration
+//   unit = 2  → 50% payout entitlement on a default claim
+export circuit verifyUnitQuotient(total: Uint<64>, quotient: Uint<64>, unit: Uint<64>): Boolean {
+  assert(disclose(quotient) * disclose(unit) <= disclose(total), "quota mismatch");
+  assert(disclose(total) - disclose(quotient) * disclose(unit) < disclose(unit), "quota mismatch");
+  return true;
+}
+
+// Pay out default insurance for a genuinely defaulted invoice.
+//
+// "Defaulted" means all of:
+//   • the invoice exists and its auction resolved (a winning bid exists),
+//   • it was never settled (no lender recorded),
+//   • claimedAt is strictly past the winning bid's due date.
+//
+// Authorization mirrors settlement/claim transfer exactly: while the claim is
+// untraded the auction leader proves their pseudonym from lenderSecret; once
+// traded, the CURRENT holder re-derives the stored claimCommitment from
+// claimSecret in ZK. The SME's identity — and the fact that THEY defaulted —
+// never becomes public.
+//
+// Payout formula (strictly proven, not advisory):
+//   maxEntitlement == floor(best.amount / 2)      (50% of the financed amount,
+//                                                  proven via verifyUnitQuotient)
+//   payout        == min(maxEntitlement, balance) — enforced by two branches:
+//       fully covered  → payout must equal maxEntitlement exactly,
+//       partially      → the claim must drain the pool to zero.
+// An over-draining attempt also fails the dynamic underflow check inside the
+// balance equality assert.
+//
+// Each nullifier pays at most once (insuranceClaims entry), and the new pool
+// balance is passed in and proven against the old one (see InsurancePool).
+export circuit claimInsurancePayout(nullifier: Bytes<32>, maxEntitlement: Uint<64>, payout: Uint<64>, newPoolBalance: Uint<64>, claimedAt: Uint<64>): Uint<64> {
+  assert(invoices.member(disclose(nullifier)), "unknown invoice");
+  const invoice = invoices.lookup(disclose(nullifier));
+  assert(!invoice.lender.is_some, "invoice already settled");
+  assert(bestBids.member(disclose(nullifier)), "auction not resolved");
+  const best = bestBids.lookup(disclose(nullifier));
+  assert(disclose(claimedAt) > best.dueDate, "invoice not defaulted");
+  if (!invoice.transferred) {
+    assert(derivePseudonym(lenderSecret()) == best.lender, "not the claim holder");
+  } else {
+    assert(deriveClaimCommitment(claimSecret(), disclose(nullifier)) == invoice.claimCommitment, "not the claim holder");
+  }
+  assert(!insuranceClaims.member(disclose(nullifier)), "payout already claimed");
+  const entitlementOk = verifyUnitQuotient(best.amount, disclose(maxEntitlement), 2);
+  assert(disclose(payout) <= disclose(maxEntitlement), "payout exceeds entitlement");
+  const poolKey = insurancePoolKey();
+  assert(insurancePools.member(poolKey), "pool not seeded");
+  const pool = insurancePools.lookup(poolKey);
+  assert(pool.balance - disclose(payout) == disclose(newPoolBalance), "pool balance mismatch");
+  if (pool.balance >= disclose(maxEntitlement)) {
+    assert(disclose(payout) == disclose(maxEntitlement), "fully covered claims must be maximal");
+  } else {
+    assert(disclose(newPoolBalance) == 0, "partially covered claims must drain the pool");
+  }
+  insurancePools.insert(poolKey, InsurancePool { balance: disclose(newPoolBalance) });
+  insuranceClaims.insert(disclose(nullifier), InsuranceClaim { payout: disclose(payout), claimedAt: disclose(claimedAt) });
+  invoiceCount.increment(1);
+  return disclose(payout);
 }

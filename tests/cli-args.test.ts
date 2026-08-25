@@ -155,3 +155,30 @@ describe('parseShieldLedgerCliArgs — secondary market flags', () => {
     expect(() => parseShieldLedgerCliArgs(['--new-owner-secret', 'short'])).toThrow(/64 hex characters/);
   });
 });
+
+describe('parseShieldLedgerCliArgs — default insurance flags', () => {
+  const NF = 'aa11bb22cc33dd44ee55ff66aa77bb88cc99dd00ee11ff22aa33bb44cc55dd66';
+
+  it('parses --claim-insurance and its inline form, normalizing case', () => {
+    expect(parseShieldLedgerCliArgs(['--claim-insurance', NF]).claimInsuranceNullifier).toBe(NF);
+    expect(parseShieldLedgerCliArgs([`--claim-insurance=${NF.toUpperCase()}`]).claimInsuranceNullifier).toBe(NF);
+    expect(parseShieldLedgerCliArgs(['--claim-insurance', NF]).unknown).toEqual([]);
+  });
+
+  it('rejects a malformed or missing --claim-insurance value', () => {
+    expect(() => parseShieldLedgerCliArgs(['--claim-insurance', 'nope'])).toThrow(/64 hex characters/);
+    expect(() => parseShieldLedgerCliArgs(['--claim-insurance'])).toThrow(/64 hex characters/);
+  });
+
+  it('returns undefined when --claim-insurance is absent', () => {
+    expect(parseShieldLedgerCliArgs([]).claimInsuranceNullifier).toBeUndefined();
+  });
+
+  it('toggles --pool-balance and combines with other flags without side effects', () => {
+    expect(parseShieldLedgerCliArgs([]).poolBalance).toBe(false);
+    const args = parseShieldLedgerCliArgs(['--pool-balance', '--min-reputation', '10']);
+    expect(args.poolBalance).toBe(true);
+    expect(args.minReputation).toBe(10n);
+    expect(args.unknown).toEqual([]);
+  });
+});

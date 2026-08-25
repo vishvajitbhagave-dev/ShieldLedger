@@ -53,6 +53,9 @@ coverage/
 tmp/
 temp/
 
+# Midnight proof-server LevelDB runtime state
+midnight-level-db/
+
 # Midnight network state (per-network seeds, deploy addresses)
 .midnight-state.json
 

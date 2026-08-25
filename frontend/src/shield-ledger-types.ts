@@ -66,6 +66,22 @@ export interface BestBidView {
   readonly rateBps: bigint;
 }
 
+/**
+ * The ONE shared default-insurance pool: every registration credits it with
+ * 2% of the face amount; every paid default claim debits it. Only the running
+ * balance is public — never who contributed or why a specific payout happened.
+ */
+export interface InsurancePoolView {
+  readonly balance: bigint;
+}
+
+/** A paid default-insurance claim, keyed by the (already public) nullifier. */
+export interface InsuranceClaimView {
+  readonly nullifier: string;
+  readonly payout: bigint;
+  readonly claimedAt: bigint;
+}
+
 /** The derived application state: public ledger data plus wallet context. */
 export interface ShieldLedgerDerivedState {
   readonly ledger: Ledger;
@@ -73,4 +89,7 @@ export interface ShieldLedgerDerivedState {
   readonly invoices: InvoiceView[];
   readonly bids: SealedBidView[];
   readonly bestBids: BestBidView[];
+  /** Null until the first registration seeds the pool entry. */
+  readonly insurancePool: InsurancePoolView | null;
+  readonly insuranceClaims: InsuranceClaimView[];
 }

@@ -3,6 +3,7 @@ import {
   invoiceStatusOf,
   isAuctionResolved,
   isOpenInvoice,
+  isInsuranceClaimed,
 } from '../frontend/src/invoice-status';
 
 const REGISTERED = { nullifier: 'a'.repeat(64) };
@@ -55,5 +56,21 @@ describe('isAuctionResolved', () => {
 
   it('is false when there are no best bids at all', () => {
     expect(isAuctionResolved('b'.repeat(64), [])).toBe(false);
+  });
+});
+
+describe('isInsuranceClaimed', () => {
+  const claims = [{ nullifier: 'b'.repeat(64) }];
+
+  it('is true when the pool already paid this invoice', () => {
+    expect(isInsuranceClaimed('b'.repeat(64), claims)).toBe(true);
+  });
+
+  it('is false for invoices with no paid claim', () => {
+    expect(isInsuranceClaimed('a'.repeat(64), claims)).toBe(false);
+  });
+
+  it('is false when no claim was paid at all', () => {
+    expect(isInsuranceClaimed('b'.repeat(64), [])).toBe(false);
   });
 });

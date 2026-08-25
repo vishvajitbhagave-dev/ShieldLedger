@@ -23,6 +23,7 @@ ShieldLedger's vision is a financing market where creditworthiness is a **provab
 - **Buyer verification** — buyers confirm invoices in zero knowledge; only a **Buyer-verified ✓** flag and an opaque commitment become public.
 - **Sealed-bid private auction** — lenders post only commitments to their terms; no lender sees another's bid. The **lowest rate wins**, enforced by the contract.
 - **Settlement fairness** — the contract pays the running-best bid automatically; the SME cannot play favorites. On-time/late classification drives reputation.
+- **Automated default insurance pool** — every registration pays a **2% premium** into one shared public pool; a *proven* default (financed, unsettled, past due) lets the current claim holder collect **50% of the financed amount** — partially if the pool is thin. The defaulting SME is never identified.
 - **Browser DApp** — a React/Vite app that connects through the Midnight Lace wallet with dedicated SME, Buyer, and Lender workflows.
 - **Multi-contract design** — a separate escrow contract holds financing per invoice, coordinated off-chain via a shared commitment.
 
@@ -85,14 +86,17 @@ The contract (`contracts/shield-ledger.compact`) is written in Compact. Everythi
 | Bidding | bid key (hash of nullifier + pseudonym), lender pseudonym (hash of lender secret), **commitment to the bid terms** | bid terms (amount, due date, interest rate) until reveal, lender secret, credit score, exposure cap, **lender minimum reputation** |
 | Reveal | leading bid's terms + lender pseudonym (only if it beats the running best) | — (commitment re-derivation proves ownership) |
 | Settlement | winning lender pseudonym, financed amount, financed due date, winning interest rate | — (SME proves ownership via commitment); the on-time/late classification and the reputation update stay in the SME's wallet |
+| Default insurance | ONE shared pool balance (2% premiums in, 50% default payouts out), paid claims keyed only by the already-public nullifier | which SME funded the pool; why a specific claim was paid; the fact that *this* SME defaulted |
 
 Key ledger maps and circuits:
 
-- `registerInvoice(nullifier, creditThreshold, invoiceAmount, reputationThreshold)` — asserts the invoice is not already registered, proves the SME's **credit score ≥ creditThreshold** *and* **reputation score ≥ reputationThreshold** in zero knowledge (neither score ever leaves the wallet; only the chosen bounds are stored), discloses `deriveCommitment(smeSecret, nullifier)`, and inserts an empty `Invoice`. Thresholds below the contract's credit floor (650) are rejected, so "credit-checked" can't be gamed into a score ≥ 0 claim. The claimed face amount (`invoiceAmount`) is posted publicly so the buyer can later vouch for it; `reputationThreshold = 0` means "no reputation requirement".
+- `registerInvoice(nullifier, creditThreshold, invoiceAmount, reputationThreshold, insuranceContribution, newPoolBalance)` — asserts the invoice is not already registered, proves the SME's **credit score ≥ creditThreshold** *and* **reputation score ≥ reputationThreshold** in zero knowledge (neither score ever leaves the wallet; only the chosen bounds are stored), discloses `deriveCommitment(smeSecret, nullifier)`, and inserts an empty `Invoice`. Thresholds below the contract's credit floor (650) are rejected, so "credit-checked" can't be gamed into a score ≥ 0 claim. The claimed face amount (`invoiceAmount`) is posted publicly so the buyer can later vouch for it; `reputationThreshold = 0` means "no reputation requirement". Registration also pays the default-insurance premium: the circuit proves `insuranceContribution == floor(invoiceAmount / 50)` (exactly 2%, floored) via `verifyUnitQuotient`, and that `newPoolBalance` equals the on-chain balance plus that premium — the first registration seeds the pool entry.
 - `confirmInvoice(nullifier, confirmedAmount)` — the corporate buyer proves in zero knowledge that the invoice is genuine and that it owes exactly `invoiceAmount`: the circuit asserts the invoice exists, is not already financed, is not already verified, and that `confirmedAmount == invoiceAmount` (a mismatch fails the proof). It stores an opaque per-invoice commitment `deriveBuyerCommitment(buyerSecret, nullifier)` and flips the public `buyerVerified` flag. Only the boolean flag and that commitment go on-chain — the buyer's identity, other supplier relationships and terms never do, and the commitment binds the confirmation to this specific invoice (no replay, no forging across invoices).
 - `submitBid(nullifier, commitment)` — asserts `lenderCreditScore >= 700` *without disclosing it*, asserts the SME's **stored reputationThreshold ≤ the lender's private minimum** `lenderMinReputation()` *without disclosing either value*, derives the lender's pseudonym and bid key, and stores a `SealedBid` holding only the commitment (`deriveBidCommitment(lenderSecret, nullifier, amount, dueDate, rateBps)`). No other lender can see the terms.
 - `revealBid(nullifier, amount, dueDate, rateBps)` — re-derives the commitment from the private lender secret, asserts it matches the stored seal (so only the genuine bidder can reveal), enforces the private exposure cap, and updates the invoice's **running best bid** if the terms beat it (lowest interest rate, then smallest amount, then earliest due date; ties keep the earlier revealer).
 - `settleInvoice(nullifier, financedAmount, financedDueDate, settledAt)` — asserts SME ownership, requires a resolved auction, pays the *running best* bid, and **returns** `disclose(settledAt) <= disclose(financedDueDate)` (on-time vs late). The SME cannot choose a losing lender; the returned boolean is the wallet-layer's reputation input (see below).
+- `claimInsurancePayout(nullifier, maxEntitlement, payout, newPoolBalance, claimedAt)` — pays default insurance from the shared pool. The circuit proves: the invoice exists and its auction resolved; it was **never settled** (`lender` is none); `claimedAt` is strictly past the winning bid's due date (a genuine default); authorization mirrors settlement exactly (auction-leader pseudonym before a transfer, re-derived `claimCommitment` after); the claim is single-use (`insuranceClaims` map); `maxEntitlement == floor(best.amount / 2)` (50%, proven via `verifyUnitQuotient`); and `payout == min(maxEntitlement, pool balance)` — enforced by two branches (fully covered claims must be maximal, partial claims must drain the pool to zero) plus a dynamic underflow check on the balance transition. Returns the payout actually granted.
+- `verifyUnitQuotient(total, quotient, unit)` — division-free percentage proof (Compact has no `/` operator): proves `quotient == floor(total / unit)` with two comparisons. Powers both percentages: unit = 50 for the 2% premium, unit = 2 for the 50% payout.
 - `deriveCommitment`, `derivePseudonym`, `deriveBidKey`, `deriveBidCommitment`, `deriveBuyerCommitment` — `persistentHash` helpers; `isBetter` is the deterministic comparison used at reveal.
 
 Bids live in a single-level `Map<Bytes<32>, SealedBid>` keyed by `deriveBidKey(nullifier, pseudonym)` because the runtime rejects member/lookup on absent nested-map keys; a flat map keeps every lookup guarded by a member check. The same flat-map style applies to the per-invoice running best (`Map<Bytes<32>, BestBid>`).
@@ -200,15 +204,16 @@ Menu options:
 2. **Submit sealed bid (Lender)** — nullifier, bid amount, due date (unix seconds), interest rate (basis points). Only a commitment goes on-chain.
 3. **Reveal bid (Lender)** — same terms as your sealed bid; competes for the lowest-rate lead.
 4. **Settle invoice (SME)** — nullifier, financed amount, due date. Pays the lowest-rate winner automatically; your reputation is updated +10/−20 depending on the on-time classification the circuit returned.
-5. **View ledger** — invoices (with credit *and* reputation bounds), sealed bids, and the leading revealed bid, read from the indexer.
+5. **View ledger** — invoices (with credit *and* reputation bounds), sealed bids, the leading revealed bid, and the insurance pool balance with its paid claims, read from the indexer.
 6. **Check wallet balance** — tNight and DUST.
 7. **Confirm invoice (Buyer)** — nullifier + the amount the buyer owes; the circuit proves the invoice is genuine and the amount matches the SME's claim exactly. Only a `buyerVerified` flag and an opaque per-invoice commitment go on-chain. Non-interactive form: `--confirm-invoice <nullifier> [--confirm-amount <N>]`.
 8. **Show my reputation (private)** — your score, on-time count and late count, read from your local private state.
 9. **Transfer my claim (Secondary market)** — resell your claim on an invoice to a new investor: enter the nullifier and the investor's 32-byte secret; only the commitment `hash(secret, nullifier)` goes on-chain. Non-interactive form: `--transfer-claim <nullifier> --new-owner-secret <secret>`.
 10. **Check my claim ownership** — holder-only local check of whether your claim secret opens an invoice's public commitment. Nothing is disclosed. Non-interactive form: `--check-claim <nullifier>`.
-11. **Exit**
+11. **Claim default insurance (Lender)** — collect 50% of a defaulted invoice's financed amount from the shared pool (partially, if thin): the CLI reads the public state, computes entitlement/payout/new balance, and the circuit proves all of them plus your authorization in ZK. Registration (option 1) automatically pays the 2% premium. Non-interactive form: `--claim-insurance <nullifier>`; pool overview: `--pool-balance`.
+12. **Exit**
 
-Non-interactive flags: `--sme-credit-threshold <N>` (registration credit bound), `--min-reputation <N>` (the lender's private minimum-reputation bar, enforced at `submitBid` — set it and it is disclosed to no one), `--show-reputation` (print the private reputation view and exit without prompting), `--demo-reputation-cycle` (run the demo-only reputation tool below and exit — no network or wallet needed), and the secondary-market forms above (`--transfer-claim`/`--new-owner-secret`, `--check-claim`).
+Non-interactive flags: `--sme-credit-threshold <N>` (registration credit bound), `--min-reputation <N>` (the lender's private minimum-reputation bar, enforced at `submitBid` — set it and it is disclosed to no one), `--show-reputation` (print the private reputation view and exit without prompting), `--demo-reputation-cycle` (run the demo-only reputation tool below and exit — no network or wallet needed), the secondary-market forms above (`--transfer-claim`/`--new-owner-secret`, `--check-claim`), and the default-insurance forms (`--claim-insurance <nullifier>`, `--pool-balance`).
 
 Each transaction takes 30–60s (proof generation via the local proof-server).
 
@@ -397,6 +402,29 @@ frontend, not of the protocol.
 Observe it live in the DApp: after `submitBid` the **Sealed bids** table shows
 `Commitment (terms hidden)` and nothing else, while **Leading bids** stays empty
 until a lender reveals.
+
+### Privacy model: default insurance pool
+
+Every registration pays exactly 2% of the invoice's face amount (floored) into
+ONE shared public pool; a proven default pays the current claim holder 50% of
+the financed amount — partially if the pool cannot cover it. Both percentages
+are proven in-circuit (`verifyUnitQuotient`, since Compact has no division):
+a caller cannot overpay, underpay, over-claim or double-claim.
+
+| Can an observer learn… | Yes / No | How |
+| --- | --- | --- |
+| The total pool balance and every payout | **Yes** | The pool is deliberately one public aggregate (`insurancePools` under a fixed domain key) — that is the mutual guarantee being sold. |
+| Which SME contributed a given premium | **No** | Premiums merge into the running balance; nothing links an amount back to a wallet. |
+| That *this* SME defaulted, or why a claim was paid | **No** | A paid claim is recorded only under the invoice's already-public nullifier with its size and time — no identity and no reason beyond the proven default conditions (financed, unsettled, past due). |
+| Who collected a payout | **Only as before** | Authorization reuses settlement's ZK exactly: the auction-leader pseudonym while untraded, an opaque commitment after any secondary-market transfer — no new identifier exists. |
+| That the percentages were honored | Always proven | `verifyUnitQuotient` proves premium == floor(amount/50) and entitlement == floor(financed/2); maximality/drain branches pin `payout == min(entitlement, balance)`. |
+| The same default paying out twice | Impossible | Presence in `insuranceClaims` blocks any second payout for that nullifier. |
+
+Known demo-scale limitations (documented, not hidden): a settled invoice can
+still be claimed later if it was past due at some earlier point (subrogation is
+out of scope); both percentages floor to whole tNight; a thin pool pays only
+partially rather than rejecting; and callers *may* under-claim (the wallet UI/CLI
+always claims the provable maximum).
 
 ## DApp demo walkthrough
 

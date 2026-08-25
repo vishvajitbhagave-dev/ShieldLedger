@@ -20,6 +20,12 @@ import {
   type ReputationView,
 } from '../../src/reputation.js';
 import {
+  insuranceContribution,
+  insurancePayoutFor,
+  fullInsurancePayout,
+  insurancePoolKey,
+} from '../../src/insurance.js';
+import {
   shieldLedgerPrivateStateKey,
   type DeployedShieldLedgerContract,
   type ShieldLedgerDerivedState,
@@ -70,12 +76,23 @@ function toDerivedState(state: Parameters<typeof ShieldLedger.ledger>[0]): Shiel
     dueDate: best.dueDate,
     rateBps: best.rateBps,
   }));
+  const poolKey = insurancePoolKey();
+  const insurancePool = lg.insurancePools.member(poolKey)
+    ? { balance: lg.insurancePools.lookup(poolKey).balance }
+    : null;
+  const insuranceClaims = Array.from(lg.insuranceClaims, ([nullifier, claim]) => ({
+    nullifier: toHex(nullifier),
+    payout: claim.payout,
+    claimedAt: claim.claimedAt,
+  }));
   return {
     ledger: lg,
     invoiceCount: lg.invoiceCount,
     invoices,
     bids,
     bestBids,
+    insurancePool,
+    insuranceClaims,
   };
 }
 
@@ -94,18 +111,43 @@ export class ShieldLedgerAPI {
   readonly deployedContractAddress: ContractAddress;
   readonly state$: Observable<ShieldLedgerDerivedState>;
 
+  /**
+   * Registers an invoice as the SME. The wallet computes the exact 2%
+   * default-insurance premium and the resulting public pool balance; the
+   * circuit proves both against the on-chain state (the caller cannot lie).
+   */
   async registerInvoice(
     nullifierHex: string,
     creditThreshold: bigint,
     invoiceAmount: bigint,
     reputationThreshold = 0n,
   ): Promise<void> {
+    const nullifier = fromHex(nullifierHex);
+    const contribution = insuranceContribution(invoiceAmount);
+    let currentPool = 0n;
+    const contractState = await this.providers.publicDataProvider.queryContractState(
+      this.deployedContractAddress,
+    );
+    if (contractState) {
+      const lg = ShieldLedger.ledger(contractState.data);
+      const poolKey = insurancePoolKey();
+      if (lg.insurancePools.member(poolKey)) {
+        currentPool = lg.insurancePools.lookup(poolKey).balance;
+      }
+    }
     await this.deployedContract.callTx.registerInvoice(
-      fromHex(nullifierHex),
+      nullifier,
       creditThreshold,
       invoiceAmount,
       reputationThreshold,
+      contribution,
+      currentPool + contribution,
     );
+  }
+
+  /** The insurance premium an SME owes for registering an invoice of this face amount. */
+  async getInsuranceContribution(invoiceAmount: bigint): Promise<bigint> {
+    return insuranceContribution(invoiceAmount);
   }
 
   /**
@@ -195,6 +237,44 @@ export class ShieldLedgerAPI {
       fromHex(nullifierHex),
     );
     return toHex(mine) === invoice.claimCommitment ? 'mine' : 'other';
+  }
+
+  /**
+   * Default insurance: collects 50% of the financed amount from the shared
+   * pool for an invoice that is financed, unsettled and past due (a thin pool
+   * pays partially). Entitlement, payout, new balance and the default itself
+   * are all proven inside the circuit; authorization is proven in ZK against
+   * lenderSecret/claimSecret exactly like settlement. Returns the payout
+   * actually granted.
+   */
+  async claimInsurancePayout(nullifierHex: string): Promise<bigint> {
+    const nullifier = fromHex(nullifierHex);
+    const contractState = await this.providers.publicDataProvider.queryContractState(
+      this.deployedContractAddress,
+    );
+    if (!contractState) throw new Error('Contract state unavailable.');
+    const lg = ShieldLedger.ledger(contractState.data);
+    if (!lg.invoices.member(nullifier)) throw new Error('Unknown invoice.');
+    if (lg.invoices.lookup(nullifier).lender.is_some) throw new Error('Invoice already settled.');
+    if (!lg.bestBids.member(nullifier)) throw new Error('Auction not resolved.');
+    const best = lg.bestBids.lookup(nullifier);
+    const poolKey = insurancePoolKey();
+    if (!lg.insurancePools.member(poolKey)) throw new Error('Insurance pool not seeded.');
+    const balance = lg.insurancePools.lookup(poolKey).balance;
+    const claimedAt = currentUnixSeconds();
+    if (claimedAt <= best.dueDate) {
+      throw new Error(`Invoice not defaulted yet (due ${new Date(Number(best.dueDate) * 1000).toISOString()}).`);
+    }
+    const maxEntitlement = fullInsurancePayout(best.amount);
+    const payout = insurancePayoutFor(best.amount, balance);
+    const results = await this.deployedContract.callTx.claimInsurancePayout(
+      nullifier,
+      maxEntitlement,
+      payout,
+      balance - payout,
+      claimedAt,
+    );
+    return results.private.result;
   }
 
   static async deploy(providers: ShieldLedgerProviders): Promise<ShieldLedgerAPI> {

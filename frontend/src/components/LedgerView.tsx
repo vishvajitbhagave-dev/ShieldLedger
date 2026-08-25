@@ -88,6 +88,20 @@ export const LedgerView: React.FC = () => {
         }
       }
 
+      // Insurance pool + paid claims
+      const poolKey = `insurancePool-${state.insurancePool?.balance.toString() ?? 'none'}`;
+      if (!(poolKey in next)) {
+        next[poolKey] = now;
+        changed = true;
+      }
+      for (const claim of state.insuranceClaims) {
+        const claimKey = `insuranceClaim-${claim.nullifier}`;
+        if (!(claimKey in next)) {
+          next[claimKey] = now;
+          changed = true;
+        }
+      }
+
       return changed ? next : prev;
     });
   }, [state]);
@@ -108,7 +122,8 @@ export const LedgerView: React.FC = () => {
         <>
           <p className="sl-meta">
             invoiceCount = {state.invoiceCount.toString()} · {state.invoices.length} invoice(s) · {state.bids.length}{' '}
-            sealed bid(s) · {state.bestBids.length} leading bid(s)
+            sealed bid(s) · {state.bestBids.length} leading bid(s) · insurance pool ={' '}
+            {state.insurancePool ? state.insurancePool.balance.toString() : '0'} tNight
           </p>
 
           <section className="sl-stage">
@@ -258,6 +273,62 @@ export const LedgerView: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+            )}
+          </section>
+
+          <section className="sl-stage">
+            <h3 className="sl-section-title">Default insurance pool</h3>
+            <p className="sl-note">
+              Every invoice registration pays in 2% of its face amount; a proven default pays out 50% of the financed
+              amount — partially if the pool is thin.
+            </p>
+            <details className="sl-details">
+              <summary>Learn more</summary>
+              <p>
+                The pool is one shared public balance. The premium and each payout are proven inside the circuit (the
+                exact percentages cannot be faked), but observers only ever see totals: which SME funded the pool and
+                why a specific claim was paid stays private. A paid claim is recorded solely under the invoice's
+                already-public nullifier, so every default can only ever pay out once.
+              </p>
+            </details>
+            {state.insurancePool === null ? (
+              <p className="sl-empty">Not seeded yet — it fills with the first invoice registration.</p>
+            ) : (
+              <>
+                <p
+                  className={isHighlighted(`insurancePool-${state.insurancePool.balance.toString()}`) ? 'sl-row-highlight' : ''}
+                  style={{ fontSize: '1.3em', fontWeight: 'bold', margin: '0.5rem 0' }}
+                >
+                  Balance: {state.insurancePool.balance.toString()} tNight
+                </p>
+                {state.insuranceClaims.length === 0 ? (
+                  <p className="sl-empty">No default claims paid yet.</p>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="sl-table">
+                      <thead>
+                        <tr>
+                          <th>Invoice</th>
+                          <th>Paid out</th>
+                          <th>Claimed at</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {state.insuranceClaims.map((claim) => {
+                          const highlighted = isHighlighted(`insuranceClaim-${claim.nullifier}`);
+                          return (
+                            <tr key={claim.nullifier} className={highlighted ? 'sl-row-highlight' : ''}>
+                              <td><HexBadge hex={claim.nullifier} /></td>
+                              <td style={{ fontWeight: 'bold' }}>{claim.payout.toString()} tNight</td>
+                              <td>{formatDate(claim.claimedAt)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
             )}
           </section>
         </>

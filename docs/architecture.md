@@ -57,12 +57,12 @@ Escrow:        smeCommitment = hash(nullifier, smeSecret)   ──┘ same value
 | 1 | Advanced ZK smart-contract development with a private/public data split | ✅ | `contracts/shield-ledger.compact` — every circuit, split annotated; bids, invoices, credit score stay private |
 | 2 | Event streaming & real-time updates on a public ledger | ✅ | DApp subscribes to `state$` (`frontend/src/use-ledger-state.ts`); live badge + last-update time in the header |
 | 3 | Deployment and interaction with the deployed contract | ✅ | `src/setup.ts`, `src/deploy.ts`, CLI, live **preview** deployment, `state$` interactions, `scripts/e2e-check.ts` |
-| 4 | Writing tests for contracts and frontend | ✅ | `tests/` — 9 suites, **131 tests**: `shield-ledger` (31), `cli-args` (19), `error-messages` (16), `reputation` (15), `inter-contract` (14), `buyer-verification` (10), `private-keys` (9), `invoice-status` (9), `invoice-nullifier` (8) |
+| 4 | Writing tests for contracts and frontend | ✅ | `tests/` — 13 suites, **188+ tests**: `shield-ledger`, `insurance-pool`, `cli-args`, `error-messages`, `reputation`, `inter-contract`, `buyer-verification`, `private-keys`, `invoice-status`, `invoice-nullifier` |
 | 5 | Error handling and loading states | ✅ | deploy/connect errors + dismissible banner, busy/working states, `wallet-locked` retry, new React `ErrorBoundary`, ledger-stream error badge |
 | 6 | Inter-contract communication | ✅ (platform-equivalent) | Second `Escrow` contract + off-chain communication layer (see above); on-chain cross-contract calls are not yet implemented by the Compact compiler |
 | 7 | Production deployment architecture | ✅ | CI + Pages CD, env-driven config, TS strict, single-version WASM override, gitignored secrets, public site at `/ShieldLedger/` |
 | 8 | Documentation and demo/presentation | ✅ | This file + README (architecture, demo script, privacy properties, live links) |
-| 9 | Advanced smart-contract development | ✅ | sealed-bid auction, commitment/reveal, ZK credit check & exposure cap, **ZK buyer verification**, **ZK cross-deal reputation (registration bound + lender minimum)**, contract-enforced settlement fairness |
+| 9 | Advanced smart-contract development | ✅ | sealed-bid auction, commitment/reveal, ZK credit check & exposure cap, **ZK buyer verification**, **ZK cross-deal reputation (registration bound + lender minimum)**, contract-enforced settlement fairness, **automated default insurance pool with division-free percentage proofs** |
 
 ### Demo tool: reputation across invoice cycles
 
@@ -93,11 +93,14 @@ nullifier), a **credit attestation** per invoice ("score ≥ N" — the proven
 bound), a **reputation attestation** per invoice ("reputation ≥ N" — the proven
 bound), lender **pseudonyms**, **sealed-bid commitments**, the **buyer-verified
 flag** with its opaque per-invoice **buyer commitment**, the **winning**
-bid's terms, and — for resold claims — the **claim commitment** to the current
-holder plus a `transferred` flag. Everything else — invoice contents, bid terms
+bid's terms, — for resold claims — the **claim commitment** to the current
+holder plus a `transferred` flag, and the **default-insurance pool**: one shared
+public balance plus paid-claim records keyed by already-public nullifiers.
+Everything else — invoice contents, bid terms
 until the owner reveals, both secrets, the credit score, the reputation score,
 the lender's minimum-reputation bar, the settlement's on-time/late
-classification, and every secondary-market party identity — stays in the wallet.
+classification, every secondary-market party identity, and which SME funded or
+defaulted into the insurance pool — stays in the wallet.
 
 ### ZK credit scoring (SME)
 
@@ -258,3 +261,60 @@ limitations: the winner's pseudonym was already public from the auction, and the
 demo contract has no token ledger — payout is the receipt record, so the second
 investor is simulated by sharing the claim secret out of band rather than by a
 real second wallet.
+
+### Default insurance pool � automated, proven, anonymous
+
+The pool turns individual financing risk into a shared public guarantee. It is
+ONE aggregate balance (`insurancePools`, stored under the fixed domain key
+`pad(32, "shieldledger:pool")` via `insurancePoolKey()`), funded automatically
+and drained by proof:
+
+1. **Premium in (automatic).** Every `registerInvoice` pays
+   `floor(invoiceAmount / 50)` � exactly 2%, floored. The SME discloses the
+   premium and the resulting balance; the circuit proves both with
+   `verifyUnitQuotient(invoiceAmount, contribution, 50)` and an equality
+   against the on-chain balance (`pool.balance + contribution ==
+   newPoolBalance`; the first registration seeds the entry from zero). The
+   wallet computes these values (see `src/insurance.ts`) but cannot lie about
+   them.
+2. **Payout out (proof-gated).** `claimInsurancePayout(nullifier,
+   maxEntitlement, payout, newPoolBalance, claimedAt)` requires, all proven
+   inside the circuit: auction resolved ? never settled ? `claimedAt` strictly
+   past the winning bid's due date; authorization identical to settlement
+   (leader pseudonym before any transfer, re-derived `claimCommitment` after);
+   single-use via `insuranceClaims`;
+   `maxEntitlement == floor(best.amount / 2)`; and the strict formula
+   `payout == min(maxEntitlement, balance)` � enforced by two branches
+   ("fully covered claims must be maximal" / "partially covered claims must
+   drain the pool") plus the dynamic underflow check inside the balance
+   equality.
+
+**Division-free percentages.** Compact 0.23 has no division operator, so both
+percentages use the verified-quotient pattern:
+`quotient*unit <= total && total - quotient*unit < unit` proves
+`quotient == floor(total/unit)` for any unit (50 ? 2% premiums, 2 ? 50%
+payouts) using only multiplication and comparison.
+
+**Why a map entry instead of a scalar ledger.** Compact's Uint arithmetic
+widens result bounds through `+`/`-` (e.g. `Uint<64> + Uint<64>` has bound
+`2^65-1`), so an arithmetic result can never be assigned back to a scalar
+`Uint<64>` ledger variable � the compiler rejects it statically. The pool is
+therefore a single-entry `Map<Bytes<32>, InsurancePool>`, and every transition
+passes the NEW balance as a public argument proven against the old one. The
+result is equivalent to a mutable scalar: observers read one number.
+
+#### Privacy model: default insurance pool � what an observer can and cannot learn
+
+| Can an observer learn� | Yes / No | How |
+| --- | --- | --- |
+| The pool balance and each payout | **Yes** | Deliberately public: that is the shared guarantee being sold. |
+| Which SME paid a given premium | **No** | Premiums merge into one running total; no per-SME record exists. |
+| That this SME defaulted / why a claim was paid | **No** | Claims are recorded only under the already-public nullifier with size + time. The default conditions are proven, not narrated. |
+| Who collected | **Only as before** | Settlement's exact authorization scheme is reused; no new identifier is introduced. |
+| That percentages were honored | Always | `verifyUnitQuotient` + maximality/drain branches prove the exact formulas in ZK. |
+| A double payout on one default | Impossible | Presence in `insuranceClaims` blocks re-claiming the nullifier. |
+
+Known demo-scale limits (documented): late settlement after a claim is possible
+(no subrogation); both percentages floor to whole tNight; a thin pool pays
+partially rather than rejecting; under-claiming is permitted (the CLI and DApp
+always claim the provable maximum).

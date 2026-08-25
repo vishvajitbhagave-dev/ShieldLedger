@@ -6,9 +6,10 @@ import {
   type RegisteredInvoice,
 } from '../invoice-registry.js';
 import { useLedgerState } from '../use-ledger-state.js';
-import { invoiceStatusOf, isAuctionResolved, isOpenInvoice } from '../invoice-status.js';
+import { invoiceStatusOf, isAuctionResolved, isOpenInvoice, isInsuranceClaimed } from '../invoice-status.js';
 import type { InvoiceView } from '../shield-ledger-types.js';
 import type { ReputationView } from '../../../src/reputation.js';
+import { insuranceContribution } from '../../../src/insurance.js';
 import { describeError, type UserFacingError } from '../lib/errorMessages.js';
 import { track } from '../lib/analytics.js';
 import { captureError } from '../lib/monitoring.js';
@@ -37,6 +38,7 @@ type FormState = {
   transferNullifier: string;
   transferSecret: string;
   checkNullifier: string;
+  claimNullifier: string;
 };
 
 const initialForm: FormState = {
@@ -61,6 +63,7 @@ const initialForm: FormState = {
   transferNullifier: '',
   transferSecret: '',
   checkNullifier: '',
+  claimNullifier: '',
 };
 
 const SAMPLE_REFERENCE = 'Sample invoice';
@@ -92,6 +95,7 @@ const sampleForm: FormState = {
   transferNullifier: SAMPLE_NULLIFIER,
   transferSecret: SAMPLE_SECRET,
   checkNullifier: SAMPLE_NULLIFIER,
+  claimNullifier: SAMPLE_NULLIFIER,
 };
 
 const isDigits = (s: string): boolean => /^\d+$/.test(s.trim());
@@ -260,9 +264,11 @@ export const InvoiceFinancing: React.FC = () => {
   // Sub-tabs navigation state per role
   const [smeTab, setSmeTab] = useState<'register' | 'track' | 'settle'>('register');
   const [buyerTab, setBuyerTab] = useState<'pending' | 'confirm' | 'confirmed'>('pending');
-  const [lenderTab, setLenderTab] = useState<'browse' | 'bid' | 'reveal' | 'market'>('browse');
+  const [lenderTab, setLenderTab] = useState<'browse' | 'bid' | 'reveal' | 'market' | 'insurance'>('browse');
   // Verdict of the last holder-only claim check in the secondary-market tab.
   const [claimCheck, setClaimCheck] = useState<{ nullifier: string; verdict: 'not-transferred' | 'mine' | 'other' } | null>(null);
+  // Payout actually granted by the last successful insurance claim.
+  const [insurancePayout, setInsurancePayout] = useState<string | null>(null);
 
   const refreshReputation = async () => {
     if (!api) return;
@@ -318,6 +324,22 @@ export const InvoiceFinancing: React.FC = () => {
   const openInvoices = (ledgerState?.invoices ?? []).filter(isOpenInvoice);
   const stateBuyerVerified = (ledgerState?.invoices ?? []).filter((inv) => inv.buyerVerified);
   const pendingBuyerCount = openInvoices.filter((inv) => !inv.buyerVerified).length;
+
+  const bestBids = ledgerState?.bestBids ?? [];
+  const resolved = (nullifier: string): boolean => isAuctionResolved(nullifier, bestBids);
+
+  // Default insurance (lender view): invoices that are financed (auction
+  // resolved), unsettled, past due and not yet paid out — claimable now.
+  const nowSeconds = BigInt(Math.floor(Date.now() / 1000));
+  const dueDateOf = (nullifier: string): bigint =>
+    bestBids.find((b) => b.nullifier === nullifier)?.dueDate ?? 0n;
+  const defaultedInvoices = (ledgerState?.invoices ?? []).filter(
+    (inv) =>
+      inv.lender === null &&
+      resolved(inv.nullifier) &&
+      !isInsuranceClaimed(inv.nullifier, ledgerState?.insuranceClaims ?? []) &&
+      nowSeconds > dueDateOf(inv.nullifier),
+  );
 
   const hero =
     role === 'sme'
@@ -480,12 +502,21 @@ export const InvoiceFinancing: React.FC = () => {
               active: lenderTab === 'market',
               onClick: () => setLenderTab('market'),
             },
+            {
+              key: 'insurance',
+              label: `Default Insurance (${defaultedInvoices.length})`,
+              icon: (
+                <Icon className="sl-action-icon">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+                  <path d="m9 11.5 2 2 4-4" />
+                </Icon>
+              ),
+              active: lenderTab === 'insurance',
+              onClick: () => setLenderTab('insurance'),
+            },
           ];
 
   const statusOf = (inv: RegisteredInvoice): string => invoiceStatusOf(inv, ledgerState?.invoices ?? []);
-
-  const bestBids = ledgerState?.bestBids ?? [];
-  const resolved = (nullifier: string): boolean => isAuctionResolved(nullifier, bestBids);
 
   const settleNullifier = form.settleNullifier.trim();
   const settleReady = settleNullifier !== '' && resolved(settleNullifier);
@@ -521,12 +552,14 @@ export const InvoiceFinancing: React.FC = () => {
     { key: 'bid', label: 'Submit Sealed Bid' },
     { key: 'reveal', label: 'Reveal Bid' },
     { key: 'market', label: 'Secondary Market' },
+    { key: 'insurance', label: 'Default Insurance' },
   ];
 
   let activeLenderStep = 'browse';
   if (lenderTab === 'bid') activeLenderStep = 'bid';
   else if (lenderTab === 'reveal') activeLenderStep = 'reveal';
   else if (lenderTab === 'market') activeLenderStep = 'market';
+  else if (lenderTab === 'insurance') activeLenderStep = 'insurance';
 
   return (
     <div className="sl-panel">
@@ -610,6 +643,13 @@ export const InvoiceFinancing: React.FC = () => {
                 <h3 className={sectionHeading}>1 · Register an invoice</h3>
                 <Field label="Reference" value={form.registerReference} placeholder="optional, private — e.g. INV-001" onChange={set('registerReference')} disabled={busy || working !== null} />
                 <Field label="Amount" value={form.registerAmount} placeholder="tNight units" onChange={set('registerAmount')} disabled={busy || working !== null} />
+                {isDigits(form.registerAmount) && (
+                  <p className="sl-note" style={{ marginTop: '-0.5rem' }}>
+                    🛡️ Registration pays a{' '}
+                    <strong>{insuranceContribution(BigInt(form.registerAmount.trim())).toString()} tNight</strong>{' '}
+                    default-insurance premium (2% of the face amount) into the shared public pool.
+                  </p>
+                )}
                 <Field label="Due date" value={form.registerDue} placeholder="unix seconds" onChange={set('registerDue')} disabled={busy || working !== null} />
                 <Field label="Credit check" value={form.registerThreshold} placeholder="e.g. 650 — your score stays private" onChange={set('registerThreshold')} disabled={busy || working !== null} />
                 <Field label="Reputation check" value={form.registerReputation} placeholder="e.g. 30 — proven in zero knowledge" onChange={set('registerReputation')} disabled={busy || working !== null} />
@@ -623,11 +663,12 @@ export const InvoiceFinancing: React.FC = () => {
                     on-chain. The invoice details never leave this browser; the nullifier is saved locally so you can
                     reuse it later. The <em>credit check</em> proves "my credit score is at least{' '}
                     {form.registerThreshold.trim() || '…'}" in zero knowledge — the score itself is never revealed, only
-                    the proven bound. The <em>reputation check</em> proves "my reputation is at least{' '}
+                    the proven bound.                     The <em>reputation check</em> proves "my reputation is at least{' '}
                     {form.registerReputation.trim() || '…'}" (set 0 for no requirement) — the current score is read from
                     your private wallet state and never disclosed. The <em>claimed amount</em> is posted publicly so your
                     corporate buyer can later vouch for it in zero knowledge; your reference, due date and secret stay
-                    private.
+                    private. Registration also pays a 2% default-insurance premium into the shared public pool — the
+                    exact premium is proven in-circuit and no one can link it back to you.
                   </p>
                 </details>
                 <button
@@ -1236,6 +1277,101 @@ export const InvoiceFinancing: React.FC = () => {
                   </div>
                 )}
               </section>
+            </>
+          )}
+
+          {lenderTab === 'insurance' && (
+            <>
+              <section className="sl-stage">
+                <h3 className={sectionHeading}>Default insurance pool</h3>
+                <p className="sl-note">
+                  Funded by 2% premiums at every registration; a proven default pays out 50% of the financed amount —
+                  partially if the pool is thin.
+                </p>
+                {ledgerState?.insurancePool ? (
+                  <p style={{ fontWeight: 'bold', fontSize: '1.2em', margin: '0.25rem 0' }}>
+                    Balance: {ledgerState.insurancePool.balance.toString()} tNight
+                  </p>
+                ) : (
+                  <p className="sl-empty">Not seeded yet — it fills with the first invoice registration.</p>
+                )}
+              </section>
+
+              <section className="sl-stage">
+                <h3 className={sectionHeading}>Defaulted invoices</h3>
+                <p className="sl-note">
+                  Financed, unsettled and past due — the current claim holder may collect now.
+                </p>
+                {defaultedInvoices.length === 0 ? (
+                  <p className="sl-empty">No defaulted invoices right now.</p>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="sl-table">
+                      <thead>
+                        <tr>
+                          <th>Invoice (nullifier)</th>
+                          <th>Financed amount</th>
+                          <th>Due date</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {defaultedInvoices.map((inv) => (
+                          <tr key={inv.nullifier}>
+                            <td><HexBadge hex={inv.nullifier} /></td>
+                            <td style={{ fontWeight: 'bold', color: 'var(--text)' }}>{inv.amount.toString()} tNight</td>
+                            <td>{formatDate(dueDateOf(inv.nullifier))}</td>
+                            <td>
+                              <button
+                                className="sl-button sl-button-secondary"
+                                type="button"
+                                disabled={busy || working !== null}
+                                onClick={() => {
+                                  setInsurancePayout(null);
+                                  setForm((f) => ({ ...f, claimNullifier: inv.nullifier }));
+                                }}
+                              >
+                                Claim ↓
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+
+              <form
+                className="sl-stage"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!api) return;
+                  const a = api;
+                  const nf = form.claimNullifier.trim().toLowerCase();
+                  setInsurancePayout(null);
+                  void run('claimInsurancePayout', async () => {
+                    const paid = await a.claimInsurancePayout(nf);
+                    setInsurancePayout(paid.toString());
+                  });
+                }}
+              >
+                <h3 className={sectionHeading}>Collect insurance payout</h3>
+                <Field label="Invoice nullifier" value={form.claimNullifier} placeholder="64 hex chars" onChange={set('claimNullifier')} disabled={busy || working !== null} />
+                <p className="sl-note">
+                  The circuit proves in zero knowledge that this invoice is financed, unsettled and past due, that you
+                  hold its financing claim, and that the payout is exactly min(50% of it, the pool balance). The
+                  defaulting SME stays anonymous.
+                </p>
+                {insurancePayout !== null && (
+                  <p className="sl-success" style={{ marginBottom: 0 }}>
+                    🛡️ Payout of <strong>{insurancePayout} tNight</strong> granted from the insurance pool.
+                  </p>
+                )}
+                <button className="sl-button" type="submit" disabled={busy || working !== null || !isHex64(form.claimNullifier)}>
+                  {working === 'claimInsurancePayout' ? 'Working…' : 'Claim payout'}
+                </button>
+              </form>
             </>
           )}
         </>
