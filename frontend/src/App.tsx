@@ -3,6 +3,7 @@ import { ShieldLedgerProvider, useShieldLedger, type Role } from './context.js';
 import { WalletConnect } from './components/WalletConnect.js';
 import { InvoiceFinancing } from './components/InvoiceFinancing.js';
 import { LedgerView } from './components/LedgerView.js';
+import { Dashboard } from './components/Dashboard.js';
 import { HexBadge } from './components/HexBadge.js';
 import { ErrorBoundary } from './components/ErrorBoundary.js';
 import { ErrorBanner } from './components/ErrorBanner.js';
@@ -180,6 +181,7 @@ const Body: React.FC = () => {
         <div className="sl-grid">
           <InvoiceFinancing />
           <LedgerView />
+          <Dashboard />
         </div>
       )}
     </div>
