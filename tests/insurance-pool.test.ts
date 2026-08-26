@@ -89,12 +89,12 @@ describe('ShieldLedger contract — default insurance pool', () => {
     );
     // Premium that is not floor(amount / 50) fails the quotient proof...
     expect(() =>
-      sim.contract.impureCircuits.registerInvoice(sim.circuitContext, NULLIFIER, 650n, 1000n, 0n, 21n, 21n),
+      sim.contract.impureCircuits.registerInvoice(sim.circuitContext, NULLIFIER, 650n, 1000n, 0n, 21n, 21n, 0n),
     ).toThrow(/quota mismatch/);
     // ...and a correct premium with a wrong resulting balance fails the
     // equality against the on-chain pool state.
     expect(() =>
-      sim.contract.impureCircuits.registerInvoice(sim.circuitContext, NULLIFIER, 650n, 1000n, 0n, 20n, 19n),
+      sim.contract.impureCircuits.registerInvoice(sim.circuitContext, NULLIFIER, 650n, 1000n, 0n, 20n, 19n, 0n),
     ).toThrow(/pool balance mismatch/);
     expect(sim.getLedger().invoices.isEmpty()).toBe(true);
   });

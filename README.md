@@ -90,7 +90,7 @@ Open the displayed URL in your browser and connect with the Midnight Lace wallet
 ## Run Tests
 
 ```bash
-npm test                 # 182 simulator tests (all circuits + frontend logic)
+npm test                 # 192 simulator tests (all circuits + frontend logic)
 npm run test:e2e         # read-only smoke check against the deployed contract
 npm run build            # TypeScript typecheck (root + frontend)
 ```
@@ -136,23 +136,60 @@ Because Compact circuits cannot iterate over a `Map`, "lowest rate wins" is buil
 4. Lenders who want to compete call `revealBid` with their true terms. The contract verifies the commitment, then compares against the running best; the best bid (lowest rate → smallest amount → earliest due) takes the lead.
 5. SME calls `settleInvoice` — the contract pays the *current* best bid; favoritism is impossible. The circuit classifies the settlement on-time or late.
 
+### Pooled Multi-Investor Financing
+
+Invoices can be financed by a pool of up to 4 lenders instead of a single winner. The SME sets `splitCount > 0` at registration, and multiple lenders each commit to a portion.
+
+1. SME registers with `splitCount` = 2–4 (e.g., `splitCount: 4` means up to 4 lenders can co-finance).
+2. Each lender places a sealed pool bid (`submitBid` + `revealPoolBid`) targeting a specific slot index (0–3).
+3. The contract fills pool slots in reveal order. All bids in a pool share the same `totalContribution` (= invoice amount) and `totalPayout` (repayment amount). The winning pool is the one with the **lowest weighted average rate** (sum of `rate × contribution` / total).
+4. SME calls `settleSplitInvoice` with per-lender contribution and payout arrays. The circuit verifies each payout is proportional to its contribution (floor-exact via `verifyProportionalPayout`) and that all contributions sum to the invoice amount.
+5. Any floor-rounding remainder (< 4 tNight for a 4-lender pool) is routed to the insurance pool as additional premium — modeled on Uniswap V3 fee-rounding behavior.
+
+### Pool Insurance (Per-Lender Claims)
+
+Each pool lender independently claims their proportional share of the 50% default insurance entitlement based on their contribution ratio:
+
+1. After pool settlement, the invoice's lender field is set to the `"shieldledger:pool"` marker.
+2. Each lender proves ownership of their slot via the same two-phase auth pattern (pseudonym for untraded slots, claim commitment for transferred slots).
+3. The circuit verifies `insurancePayout ≤ floor(settlementPayout × totalInsurance / invoice.amount)` — the upper bound. When the insurance pool is thin (total entitlement exceeds pool balance), each claimant receives a proportional share of the remaining balance, not a fixed amount.
+4. **Thin-pool behavior (intentional design):** When the pool cannot cover all entitlements, each claim is capped by `pool.balance × settlementPayout / invoice.amount`. The first claimant to collect receives a larger absolute amount than later claimants, but the fraction relative to their settlement payout is identical. Once the pool is drained, subsequent claimants receive zero. This is a **shared shortfall** — not first-come-first-served — because every lender's payout is proportionally reduced by the same ratio. The single-use `insuranceClaims[slotKey]` map prevents double-claiming.
+
+### Pool Secondary Market (Per-Lender Transfer)
+
+Each pool lender can independently transfer their claim to a new investor, even after pool settlement:
+
+1. Before settlement: the original lender transfers using their `lenderSecret` (pseudonym-based auth).
+2. After pool settlement: the original lender still transfers using `lenderSecret` (the lender field is `"shieldledger:pool"`, not a specific lender). The new holder stores an opaque `claimCommitment`.
+3. Later transfers (by the secondary buyer): the current holder proves ownership via their `claimSecret` (commitment-based auth).
+4. Insurance claims follow the same two-phase auth pattern, so the current holder collects regardless of how many transfers occurred.
+
 ### Key Circuits
 
-- **`registerInvoice`** — proves credit score ≥ threshold and reputation ≥ threshold in ZK; pays 2% insurance premium via `verifyUnitQuotient`; asserts pool balance update.
+- **`registerInvoice`** — proves credit score ≥ threshold and reputation ≥ threshold in ZK; pays 2% insurance premium via `verifyUnitQuotient`; asserts pool balance update. For pooled invoices (`splitCount > 0`), does NOT populate `bestBids`.
 - **`confirmInvoice`** — buyer proves invoice is genuine and amount matches; stores opaque buyer commitment.
 - **`submitBid`** — lender proves credit score ≥ 700; stores only a commitment to bid terms.
-- **`revealBid`** — re-derives commitment; enforces private exposure cap; updates running best.
+- **`revealBid`** — re-derives commitment; enforces private exposure cap; updates running best (single-lender auction only).
+- **`revealPoolBid`** — fills a slot in the pool map for `splitCount > 0` invoices; independently tracks pool bids.
 - **`settleInvoice`** — pays the winning bidder; proves on-time/late classification (returned to wallet only).
+- **`settleSplitInvoice`** — pays per-lender proportional payouts; verifies floor-exact proportional proof; routes floor-rounding remainder to insurance pool; sets lender to `"shieldledger:pool"`.
 - **`claimInsurancePayout`** — proves default conditions (past due, unsettled); pays 50% of financed amount from shared pool (partially if thin); prevents double-claim.
+- **`claimPoolInsurancePayout`** — per-lender pool insurance claim; proves `insurancePayout ≤ floor(settlementPayout × totalInsurance / invoice.amount)`; thin-pool shared-shortfall behavior; single-use per slot.
+- **`transferPoolClaim`** — per-lender claim transfer (two-phase auth: pseudonym before settlement, commitment after); allowed both before and after pool settlement.
+- **`verifyProportionalPayout`** — division-free floor-exact proportional proof (Compact has no division operator).
 - **`verifyUnitQuotient`** — division-free percentage proof powering both 2% premium and 50% payout.
 
 ### Default Insurance Pool
 
 Every registration pays 2% of the invoice face amount (floored) into one shared public pool. A proven default (financed, unsettled, past due) lets the current claim holder collect 50% of the financed amount — partially if the pool is thin. Both percentages are proven in-circuit via `verifyUnitQuotient` (Compact has no division operator). The defaulting SME's identity is never revealed.
 
+**Thin-pool behavior (both single-lender and pool invoices):** When the pool balance cannot cover the full entitlement, the payout is capped at the pool's remaining balance. For single-lender invoices, the claimant drains the pool entirely. For pool invoices, each lender receives a proportional share of the remaining balance based on their contribution ratio — the shortfall is shared equally across all slots. This is modeled on Uniswap V3 fee-rounding: the pool balance is a shared resource, not a queue.
+
 ### Secondary Market
 
 After auction resolution, the winning lender can resell their claim (`transferClaim`). Authorization mirrors settlement exactly: the auction-leader pseudonym before any transfer, an opaque commitment after. On-chain this is just a new commitment and a `transferred` flag — the investor's identity never appears.
+
+For pool invoices, each lender independently transfers their slot's claim via `transferPoolClaim`. The two-phase auth pattern (pseudonym → commitment) supports unlimited secondary transfers per slot.
 
 ### Cross-Deal Reputation
 
@@ -185,7 +222,7 @@ frontend/
   src/components/                 React components (WalletConnect, LedgerView, InvoiceFinancing, etc.)
   src/hooks/                      Custom hooks (use-ledger-state)
   src/shield-ledger-api.ts        Contract interaction layer
-tests/                            Vitest simulator tests (182 tests across 12 suites)
+tests/                            Vitest simulator tests (192 tests across 14 suites)
 scripts/
   e2e-check.ts                    On-chain smoke check
   demo-reputation-cycle.ts        Demo-only reputation tool
@@ -284,6 +321,14 @@ ShieldLedger is a **working demonstration on the Midnight Preview and Preprod te
 
 ![ShieldLedger test suite passing](docs/test-output.png)
 
+**Demo video** — wallet connect + a successful circuit call on the Preview testnet:
+
+https://drive.google.com/file/d/1Jo0o03gjT0YcqAVUUIzWBfvHHYL2rDv0/view?usp=drive_link
+
+## Future Work
+
+- **On-chain circuit breaker (Part B).** The current market health monitoring (Part A) is purely off-chain: the Dashboard computes a health status from public ledger data and displays a warning/critical banner when anomalous conditions are detected. An on-chain circuit breaker that automatically pauses new bids and registrations when a threshold is breached was scoped out for this pass. The contract currently has no access-control or admin/governance pattern — every circuit is authorized purely through cryptographic proofs (knowledge of a secret, credit score thresholds, claim-holder re-derivation). Introducing a privileged pause authority is a deliberate governance design decision that requires careful thought about who holds the key, how it is rotated, and what accountability exists. This is reserved for future work when the governance model is agreed upon.
+- **Historical trend tracking.** Current monitoring evaluates the latest snapshot of ledger state. Adding on-chain timestamps to registration events (not currently stored) would enable time-windowed velocity detection (claims per hour, payout rate trends).
 ## License
 
 MIT.

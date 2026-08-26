@@ -43,6 +43,7 @@ export struct Escrow {
 }
 
 export ledger escrows: Map<Bytes<32>, Escrow>;
+export ledger poolEscrows: Map<Bytes<32>, Escrow>;
 export ledger escrowCount: Counter;
 
 witness smeSecret(): Bytes<32>;
@@ -63,6 +64,42 @@ export circuit release(nullifier: Bytes<32>): [] {
   assert(!escrow.released, "already released");
   assert(escrow.smeCommitment == deriveCommitment(smeSecret(), disclose(nullifier)), "not the SME");
   escrows.insert(disclose(nullifier), Escrow { lender: escrow.lender, smeCommitment: escrow.smeCommitment, amount: escrow.amount, released: true });
+  escrowCount.increment(1);
+}
+
+// ─── Pool escrow: per-lender entries for pool-financed invoices ───────────────
+
+// Composite key for pool escrow: hash(nullifier, lenderPseudonym). Each lender
+// in a pool gets their own independently trackable escrow entry.
+export circuit poolEscrowKey(nullifier: Bytes<32>, lenderPseudonym: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([nullifier, lenderPseudonym]);
+}
+
+// Pool deposit: a lender locks their contribution for a pool-financed invoice.
+// The caller discloses their pseudonym; the circuit proves it matches the
+// lenderSecret witness. Keyed by composite (nullifier, pseudonym), so each
+// lender has their own independent escrow entry.
+export circuit poolDeposit(nullifier: Bytes<32>, lenderPseudonym: Bytes<32>, amount: Uint<64>): [] {
+  const derivedPseudonym = disclose(derivePseudonym(lenderSecret()));
+  assert(derivedPseudonym == disclose(lenderPseudonym), "pseudonym mismatch");
+  const key = poolEscrowKey(disclose(nullifier), disclose(lenderPseudonym));
+  assert(!poolEscrows.member(key), "pool escrow already exists");
+  assert(disclose(amount) > 0, "amount must be positive");
+  const smeCommitment = disclose(deriveCommitment(smeSecret(), disclose(nullifier)));
+  poolEscrows.insert(key, Escrow { lender: disclose(lenderPseudonym), smeCommitment: smeCommitment, amount: disclose(amount), released: false });
+  escrowCount.increment(1);
+}
+
+// Pool release: the SME releases a pool escrow entry. Authorization is the
+// same as single-lender release: the SME proves knowledge of smeSecret via
+// the shared smeCommitment.
+export circuit poolRelease(nullifier: Bytes<32>, lenderPseudonym: Bytes<32>): [] {
+  const key = poolEscrowKey(disclose(nullifier), disclose(lenderPseudonym));
+  assert(poolEscrows.member(key), "no pool escrow for this lender");
+  const escrow = poolEscrows.lookup(key);
+  assert(!escrow.released, "already released");
+  assert(escrow.smeCommitment == deriveCommitment(smeSecret(), disclose(nullifier)), "not the SME");
+  poolEscrows.insert(key, Escrow { lender: escrow.lender, smeCommitment: escrow.smeCommitment, amount: escrow.amount, released: true });
   escrowCount.increment(1);
 }
 

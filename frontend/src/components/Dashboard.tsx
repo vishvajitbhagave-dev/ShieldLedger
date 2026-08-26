@@ -1,8 +1,10 @@
 import React from 'react';
 import { useLedgerState } from '../use-ledger-state.js';
 import { computeDashboardMetrics } from '../dashboard-metrics.js';
+import { computeCircuitBreakerStatus } from '../circuit-breaker.js';
 import { describeError } from '../lib/errorMessages.js';
 import { ErrorBanner } from './ErrorBanner.js';
+import { HealthBanner } from './HealthBanner.js';
 
 const formatPct = (value: number | null): string =>
   value === null ? '—' : `${value.toFixed(1)}%`;
@@ -36,6 +38,12 @@ export const Dashboard: React.FC = () => {
     state!.insurancePool,
   );
 
+  const cb = computeCircuitBreakerStatus(
+    state!.invoices,
+    state!.insuranceClaims,
+    state!.insurancePool,
+  );
+
   const noData = m.totalInvoices === 0;
 
   return (
@@ -51,7 +59,9 @@ export const Dashboard: React.FC = () => {
       )}
 
       {!noData && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+        <>
+          <HealthBanner status={cb} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
           {/* ── Default Rate ── */}
           <div className="sl-stage" style={{ padding: '1rem' }}>
             <h3 className="sl-section-title" style={{ marginTop: 0 }}>Default Rate</h3>
@@ -101,7 +111,8 @@ export const Dashboard: React.FC = () => {
                 : 'Pool balance / total financed amount'}
             </p>
           </div>
-        </div>
+          </div>
+        </>
       )}
 
       {/* ── Summary table ── */}

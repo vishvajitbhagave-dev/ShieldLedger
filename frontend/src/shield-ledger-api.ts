@@ -62,6 +62,7 @@ function toDerivedState(state: Parameters<typeof ShieldLedger.ledger>[0]): Shiel
     rateBps: invoice.rateBps,
     transferred: invoice.transferred,
     claimCommitment: toHex(invoice.claimCommitment),
+    splitCount: invoice.splitCount,
   }));
   const bids = Array.from(lg.bids, ([bidKey, bid]) => ({
     bidKey: toHex(bidKey),
@@ -86,6 +87,20 @@ function toDerivedState(state: Parameters<typeof ShieldLedger.ledger>[0]): Shiel
     payout: claim.payout,
     claimedAt: claim.claimedAt,
   }));
+  const poolBids = Array.from(lg.bestPools, ([slotKey, bid]) => ({
+    slotKey: toHex(slotKey),
+    lender: toHex(bid.lender),
+    commitment: toHex(bid.commitment),
+  }));
+  const poolSettlements = Array.from(lg.poolSettlements, ([slotKey, settlement]) => ({
+    slotKey: toHex(slotKey),
+    payout: settlement.payout,
+  }));
+  const poolClaims = Array.from(lg.poolClaimCommitments, ([slotKey, claim]) => ({
+    slotKey: toHex(slotKey),
+    claimCommitment: toHex(claim.claimCommitment),
+    transferred: claim.transferred,
+  }));
   return {
     ledger: lg,
     invoiceCount: lg.invoiceCount,
@@ -94,6 +109,9 @@ function toDerivedState(state: Parameters<typeof ShieldLedger.ledger>[0]): Shiel
     bestBids,
     insurancePool,
     insuranceClaims,
+    poolBids,
+    poolSettlements,
+    poolClaims,
   };
 }
 
@@ -122,6 +140,7 @@ export class ShieldLedgerAPI {
     creditThreshold: bigint,
     invoiceAmount: bigint,
     reputationThreshold = 0n,
+    splitCount = 0n,
   ): Promise<void> {
     const nullifier = fromHex(nullifierHex);
     const contribution = insuranceContribution(invoiceAmount);
@@ -143,6 +162,7 @@ export class ShieldLedgerAPI {
       reputationThreshold,
       contribution,
       currentPool + contribution,
+      splitCount,
     );
   }
 
@@ -273,6 +293,152 @@ export class ShieldLedgerAPI {
       maxEntitlement,
       payout,
       balance - payout,
+      claimedAt,
+    );
+    return results.private.result;
+  }
+
+  // ─── Pool financing ────────────────────────────────────────────────────────
+
+  /**
+   * Reveals a sealed pool bid into a specific slot (0–3) for a split-count
+   * invoice. The commitment is re-derived from the same terms used when
+   * sealing; mismatch is rejected by the circuit.
+   */
+  async revealPoolBid(
+    nullifierHex: string,
+    slotIndex: bigint,
+    amount: bigint,
+    dueDate: bigint,
+    rateBps: bigint,
+  ): Promise<void> {
+    const nullifier = fromHex(nullifierHex);
+    const privateState = await this.providers.privateStateProvider.get(shieldLedgerPrivateStateKey);
+    const secret = privateState?.lenderSecret;
+    if (!secret) throw new Error('No private state available to derive commitment.');
+    const commitment = ShieldLedger.pureCircuits.deriveBidCommitment(secret, nullifier, amount, dueDate, rateBps, false);
+    await this.deployedContract.callTx.revealPoolBid(nullifier, slotIndex, commitment);
+  }
+
+  /**
+   * Settles a pool invoice: pays each lender their proportional share and
+   * routes the floor-rounding remainder to the insurance pool. The SME must
+   * provide the per-lender contributions, payouts, totals, and the resulting
+   * insurance pool balance (all verified in-circuit).
+   */
+  async settleSplitInvoice(
+    nullifierHex: string,
+    financedDueDate: bigint,
+    contributions: [bigint, bigint, bigint, bigint],
+    payouts: [bigint, bigint, bigint, bigint],
+    totalContribution: bigint,
+    totalPayout: bigint,
+  ): Promise<boolean> {
+    const nullifier = fromHex(nullifierHex);
+    const settledAt = currentUnixSeconds();
+    const poolKey = insurancePoolKey();
+    let currentPool = 0n;
+    const contractState = await this.providers.publicDataProvider.queryContractState(
+      this.deployedContractAddress,
+    );
+    if (contractState) {
+      const lg = ShieldLedger.ledger(contractState.data);
+      if (lg.insurancePools.member(poolKey)) {
+        currentPool = lg.insurancePools.lookup(poolKey).balance;
+      }
+    }
+    const remainder = totalPayout - payouts[0] - payouts[1] - payouts[2] - payouts[3];
+    const newInsurancePoolBalance = currentPool + remainder;
+    const results = await this.deployedContract.callTx.settleSplitInvoice(
+      nullifier,
+      financedDueDate,
+      settledAt,
+      contributions[0],
+      contributions[1],
+      contributions[2],
+      contributions[3],
+      payouts[0],
+      payouts[1],
+      payouts[2],
+      payouts[3],
+      totalContribution,
+      totalPayout,
+      newInsurancePoolBalance,
+    );
+    const onTime = results.private.result === true;
+    const privateState = await this.providers.privateStateProvider.get(shieldLedgerPrivateStateKey);
+    if (!privateState) return onTime;
+    const updated = applyReputationUpdate(privateState, onTime);
+    await this.providers.privateStateProvider.set(shieldLedgerPrivateStateKey, updated);
+    return onTime;
+  }
+
+  // ─── Pool secondary market ─────────────────────────────────────────────────
+
+  /**
+   * Transfers a pool claim slot to a new investor. For the first transfer
+   * (no poolClaimCommitment stored), the caller must be the original lender
+   * (pseudonym match). For subsequent transfers, the current holder proves
+   * ownership via their claim commitment.
+   */
+  async transferPoolClaim(
+    nullifierHex: string,
+    slotIndex: bigint,
+    newOwnerCommitmentHex: string,
+  ): Promise<void> {
+    await this.deployedContract.callTx.transferPoolClaim(
+      fromHex(nullifierHex),
+      slotIndex,
+      fromHex(newOwnerCommitmentHex),
+    );
+  }
+
+  // ─── Pool default insurance ────────────────────────────────────────────────
+
+  /**
+   * Per-lender pool insurance claim: collects the lender's proportional share
+   * of the 50% default entitlement from the shared pool. When the pool is
+   * thin, the payout is capped proportionally — all lenders share the shortfall.
+   * Returns the payout actually granted.
+   */
+  async claimPoolInsurancePayout(
+    nullifierHex: string,
+    slotIndex: bigint,
+  ): Promise<bigint> {
+    const nullifier = fromHex(nullifierHex);
+    const contractState = await this.providers.publicDataProvider.queryContractState(
+      this.deployedContractAddress,
+    );
+    if (!contractState) throw new Error('Contract state unavailable.');
+    const lg = ShieldLedger.ledger(contractState.data);
+    if (!lg.invoices.member(nullifier)) throw new Error('Unknown invoice.');
+    const invoice = lg.invoices.lookup(nullifier);
+    if (!invoice.lender.is_some) throw new Error('Invoice not settled.');
+    const poolMarker = ShieldLedger.pureCircuits.insurancePoolKey();
+    if (toHex(invoice.lender.value) !== toHex(poolMarker)) {
+      throw new Error('Not a pool-settled invoice.');
+    }
+    if (invoice.splitCount === 0n) throw new Error('Not a pool invoice.');
+    const slotKey = ShieldLedger.pureCircuits.poolSlotKey(nullifier, slotIndex);
+    if (!lg.poolSettlements.member(slotKey)) throw new Error('Pool slot not settled.');
+    const settlementPayout = lg.poolSettlements.lookup(slotKey).payout;
+    const poolKey = insurancePoolKey();
+    if (!lg.insurancePools.member(poolKey)) throw new Error('Insurance pool not seeded.');
+    const balance = lg.insurancePools.lookup(poolKey).balance;
+    const claimedAt = currentUnixSeconds();
+    if (claimedAt <= invoice.dueDate) {
+      throw new Error(`Invoice not defaulted yet (due ${new Date(Number(invoice.dueDate) * 1000).toISOString()}).`);
+    }
+    const totalInsurance = invoice.amount / 2n;
+    const insurancePayout = totalInsurance <= balance
+      ? (settlementPayout * totalInsurance) / invoice.amount
+      : (settlementPayout * balance) / invoice.amount;
+    const results = await this.deployedContract.callTx.claimPoolInsurancePayout(
+      nullifier,
+      slotIndex,
+      totalInsurance,
+      insurancePayout,
+      balance - insurancePayout,
       claimedAt,
     );
     return results.private.result;

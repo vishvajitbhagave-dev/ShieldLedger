@@ -17,6 +17,7 @@ function inv(overrides: Partial<InvoiceView> & { nullifier: string }): InvoiceVi
     rateBps: 0n,
     transferred: false,
     claimCommitment: '',
+    splitCount: 0n,
     ...overrides,
   };
 }

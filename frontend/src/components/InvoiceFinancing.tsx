@@ -23,6 +23,7 @@ type FormState = {
   registerDue: string;
   registerThreshold: string;
   registerReputation: string;
+  registerSplitCount: string;
   confirmNullifier: string;
   confirmAmount: string;
   bidNullifier: string;
@@ -42,6 +43,28 @@ type FormState = {
   transferSecret: string;
   checkNullifier: string;
   claimNullifier: string;
+  poolRevealNullifier: string;
+  poolRevealSlot: string;
+  poolRevealAmount: string;
+  poolRevealDue: string;
+  poolRevealRate: string;
+  poolSettleNullifier: string;
+  poolSettleDue: string;
+  poolSettleContrib0: string;
+  poolSettleContrib1: string;
+  poolSettleContrib2: string;
+  poolSettleContrib3: string;
+  poolSettlePayout0: string;
+  poolSettlePayout1: string;
+  poolSettlePayout2: string;
+  poolSettlePayout3: string;
+  poolSettleTotalContrib: string;
+  poolSettleTotalPayout: string;
+  poolInsuranceNullifier: string;
+  poolInsuranceSlot: string;
+  poolTransferNullifier: string;
+  poolTransferSlot: string;
+  poolTransferCommitment: string;
 };
 
 const initialForm: FormState = {
@@ -50,6 +73,7 @@ const initialForm: FormState = {
   registerDue: '',
   registerThreshold: '650',
   registerReputation: '0',
+  registerSplitCount: '0',
   confirmNullifier: '',
   confirmAmount: '',
   bidNullifier: '',
@@ -69,6 +93,28 @@ const initialForm: FormState = {
   transferSecret: '',
   checkNullifier: '',
   claimNullifier: '',
+  poolRevealNullifier: '',
+  poolRevealSlot: '',
+  poolRevealAmount: '',
+  poolRevealDue: '',
+  poolRevealRate: '',
+  poolSettleNullifier: '',
+  poolSettleDue: '',
+  poolSettleContrib0: '',
+  poolSettleContrib1: '',
+  poolSettleContrib2: '',
+  poolSettleContrib3: '',
+  poolSettlePayout0: '',
+  poolSettlePayout1: '',
+  poolSettlePayout2: '',
+  poolSettlePayout3: '',
+  poolSettleTotalContrib: '',
+  poolSettleTotalPayout: '',
+  poolInsuranceNullifier: '',
+  poolInsuranceSlot: '',
+  poolTransferNullifier: '',
+  poolTransferSlot: '',
+  poolTransferCommitment: '',
 };
 
 const SAMPLE_REFERENCE = 'Sample invoice';
@@ -84,6 +130,7 @@ const sampleForm: FormState = {
   registerDue: SAMPLE_DUE,
   registerThreshold: '650',
   registerReputation: '0',
+  registerSplitCount: '0',
   confirmNullifier: SAMPLE_NULLIFIER,
   confirmAmount: SAMPLE_AMOUNT,
   bidNullifier: SAMPLE_NULLIFIER,
@@ -103,6 +150,28 @@ const sampleForm: FormState = {
   transferSecret: SAMPLE_SECRET,
   checkNullifier: SAMPLE_NULLIFIER,
   claimNullifier: SAMPLE_NULLIFIER,
+  poolRevealNullifier: '',
+  poolRevealSlot: '0',
+  poolRevealAmount: '',
+  poolRevealDue: '',
+  poolRevealRate: '',
+  poolSettleNullifier: '',
+  poolSettleDue: '',
+  poolSettleContrib0: '5000',
+  poolSettleContrib1: '5000',
+  poolSettleContrib2: '0',
+  poolSettleContrib3: '0',
+  poolSettlePayout0: '4800',
+  poolSettlePayout1: '4800',
+  poolSettlePayout2: '0',
+  poolSettlePayout3: '0',
+  poolSettleTotalContrib: '10000',
+  poolSettleTotalPayout: '9600',
+  poolInsuranceNullifier: '',
+  poolInsuranceSlot: '0',
+  poolTransferNullifier: '',
+  poolTransferSlot: '0',
+  poolTransferCommitment: '',
 };
 
 const isDigits = (s: string): boolean => /^\d+$/.test(s.trim());
@@ -269,9 +338,9 @@ export const InvoiceFinancing: React.FC = () => {
   const [reputation, setReputation] = useState<ReputationView | null>(null);
 
   // Sub-tabs navigation state per role
-  const [smeTab, setSmeTab] = useState<'register' | 'track' | 'settle'>('register');
+  const [smeTab, setSmeTab] = useState<'register' | 'track' | 'settle' | 'settleSplit'>('register');
   const [buyerTab, setBuyerTab] = useState<'pending' | 'confirm' | 'confirmed'>('pending');
-  const [lenderTab, setLenderTab] = useState<'browse' | 'bid' | 'reveal' | 'market' | 'insurance'>('browse');
+  const [lenderTab, setLenderTab] = useState<'browse' | 'bid' | 'reveal' | 'poolBid' | 'market' | 'insurance'>('browse');
   // Verdict of the last holder-only claim check in the secondary-market tab.
   const [claimCheck, setClaimCheck] = useState<{ nullifier: string; verdict: 'not-transferred' | 'mine' | 'other' } | null>(null);
   // Payout actually granted by the last successful insurance claim.
@@ -437,6 +506,20 @@ export const InvoiceFinancing: React.FC = () => {
             active: smeTab === 'settle',
             onClick: () => setSmeTab('settle'),
           },
+          {
+            key: 'settleSplit',
+            label: 'Settle Pool',
+            icon: (
+              <Icon className="sl-action-icon">
+                <path d="M16 3h5v5" />
+                <path d="M8 3H3v5" />
+                <path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3" />
+                <path d="m15 9 6-6" />
+              </Icon>
+            ),
+            active: smeTab === 'settleSplit',
+            onClick: () => setSmeTab('settleSplit'),
+          },
         ]
       : role === 'buyer'
         ? [
@@ -577,6 +660,7 @@ export const InvoiceFinancing: React.FC = () => {
     { key: 'browse', label: 'Browse Invoices' },
     { key: 'bid', label: 'Submit Sealed Bid' },
     { key: 'reveal', label: 'Reveal Bid' },
+    { key: 'poolBid', label: 'Reveal Pool Bid' },
     { key: 'market', label: 'Secondary Market' },
     { key: 'insurance', label: 'Default Insurance' },
   ];
@@ -584,6 +668,7 @@ export const InvoiceFinancing: React.FC = () => {
   let activeLenderStep = 'browse';
   if (lenderTab === 'bid') activeLenderStep = 'bid';
   else if (lenderTab === 'reveal') activeLenderStep = 'reveal';
+  else if (lenderTab === 'poolBid') activeLenderStep = 'poolBid';
   else if (lenderTab === 'market') activeLenderStep = 'market';
   else if (lenderTab === 'insurance') activeLenderStep = 'insurance';
 
@@ -657,10 +742,11 @@ export const InvoiceFinancing: React.FC = () => {
                   const dueDate = BigInt(form.registerDue.trim());
                   const creditThreshold = BigInt(form.registerThreshold.trim());
                   const reputationThreshold = BigInt(form.registerReputation.trim());
+                  const splitCount = BigInt(form.registerSplitCount.trim() || '0');
                   void run('registerInvoice', async () => {
                     const record = await registerInvoiceLocally({ reference, amount, dueDate });
                     setInvoices(loadRegisteredInvoices());
-                    await a.registerInvoice(record.nullifier, creditThreshold, amount, reputationThreshold);
+                    await a.registerInvoice(record.nullifier, creditThreshold, amount, reputationThreshold, splitCount);
                     await refreshReputation();
                     setSmeTab('track');
                   });
@@ -679,6 +765,13 @@ export const InvoiceFinancing: React.FC = () => {
                 <Field label="Due date" value={form.registerDue} placeholder="unix seconds" onChange={set('registerDue')} disabled={busy || working !== null} />
                 <Field label="Credit check" value={form.registerThreshold} placeholder="e.g. 650 — your score stays private" onChange={set('registerThreshold')} disabled={busy || working !== null} />
                 <Field label="Reputation check" value={form.registerReputation} placeholder="e.g. 30 — proven in zero knowledge" onChange={set('registerReputation')} disabled={busy || working !== null} />
+                <Field label="Split count" value={form.registerSplitCount} placeholder="0 = single lender, 2–4 = pool" onChange={set('registerSplitCount')} disabled={busy || working !== null} />
+                {isDigits(form.registerSplitCount) && BigInt(form.registerSplitCount.trim()) > 0n && (
+                  <p className="sl-note" style={{ marginTop: '-0.5rem' }}>
+                    🏦 Pool financing: up to {form.registerSplitCount.trim()} lenders will co-finance this invoice.
+                    Each lender submits a sealed pool bid for a specific slot, and the SME later settles with proportional payouts.
+                  </p>
+                )}
                 <p className="sl-note">
                   Only a <em>nullifier</em> goes on-chain — your invoice details stay private.
                 </p>
@@ -707,7 +800,9 @@ export const InvoiceFinancing: React.FC = () => {
                     !isDigits(form.registerDue) ||
                     !isDigits(form.registerThreshold) ||
                     !isDigits(form.registerReputation) ||
-                    BigInt(form.registerThreshold.trim() || '0') < 650n
+                    !isDigits(form.registerSplitCount) ||
+                    BigInt(form.registerThreshold.trim() || '0') < 650n ||
+                    BigInt(form.registerSplitCount.trim() || '0') > 4n
                   }
                 >
                   {working === 'registerInvoice' ? 'Working…' : 'Register invoice'}
@@ -785,13 +880,23 @@ export const InvoiceFinancing: React.FC = () => {
                                   type="button"
                                   disabled={busy || working !== null}
                                   onClick={() => {
-                                    setForm((f) => ({
-                                      ...f,
-                                      settleNullifier: inv.nullifier,
-                                      settleAmount: inv.amount,
-                                      settleDue: inv.dueDate,
-                                    }));
-                                    setSmeTab('settle');
+                                    const onChainSplit = (ledgerState?.invoices ?? []).find((i) => i.nullifier === inv.nullifier)?.splitCount ?? 0n;
+                                    if (onChainSplit > 0n) {
+                                      setForm((f) => ({
+                                        ...f,
+                                        poolSettleNullifier: inv.nullifier,
+                                        poolSettleDue: inv.dueDate,
+                                      }));
+                                      setSmeTab('settleSplit');
+                                    } else {
+                                      setForm((f) => ({
+                                        ...f,
+                                        settleNullifier: inv.nullifier,
+                                        settleAmount: inv.amount,
+                                        settleDue: inv.dueDate,
+                                      }));
+                                      setSmeTab('settle');
+                                    }
                                   }}
                                 >
                                   Settle ↓
@@ -846,6 +951,83 @@ export const InvoiceFinancing: React.FC = () => {
                 disabled={busy || working !== null || form.settleNullifier.trim().length === 0 || form.settleAmount.trim().length === 0 || form.settleDue.trim().length === 0 || !settleReady}
               >
                 {working === 'settleInvoice' ? 'Working…' : settleNullifier !== '' && !settleReady ? 'Awaiting winning bid' : 'Settle'}
+              </button>
+            </form>
+          )}
+
+          {smeTab === 'settleSplit' && (
+            <form
+              className="sl-stage"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!api) return;
+                const a = api;
+                void run('settleSplitInvoice', async () => {
+                  await a.settleSplitInvoice(
+                    form.poolSettleNullifier,
+                    BigInt(form.poolSettleDue.trim()),
+                    [
+                      BigInt(form.poolSettleContrib0.trim() || '0'),
+                      BigInt(form.poolSettleContrib1.trim() || '0'),
+                      BigInt(form.poolSettleContrib2.trim() || '0'),
+                      BigInt(form.poolSettleContrib3.trim() || '0'),
+                    ],
+                    [
+                      BigInt(form.poolSettlePayout0.trim() || '0'),
+                      BigInt(form.poolSettlePayout1.trim() || '0'),
+                      BigInt(form.poolSettlePayout2.trim() || '0'),
+                      BigInt(form.poolSettlePayout3.trim() || '0'),
+                    ],
+                    BigInt(form.poolSettleTotalContrib.trim()),
+                    BigInt(form.poolSettleTotalPayout.trim()),
+                  );
+                  setSmeTab('track');
+                });
+              }}
+            >
+              <h3 className={sectionHeading}>Settle pool invoice</h3>
+              <InvoicePicker invoices={invoices} disabled={busy || working !== null} onPick={(inv) => {
+                setForm((f) => ({ ...f, poolSettleNullifier: inv.nullifier, poolSettleDue: inv.dueDate }));
+              }} />
+              <Field label="Invoice nullifier" value={form.poolSettleNullifier} placeholder="64 hex chars" onChange={set('poolSettleNullifier')} disabled={busy || working !== null} />
+              <Field label="Financed due date" value={form.poolSettleDue} placeholder="unix seconds" onChange={set('poolSettleDue')} disabled={busy || working !== null} />
+
+              <h4 className={sectionHeading} style={{ fontSize: '0.95em', marginTop: '1rem' }}>Per-lender contributions</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <Field label="Slot 0" value={form.poolSettleContrib0} placeholder="0" onChange={set('poolSettleContrib0')} disabled={busy || working !== null} />
+                <Field label="Slot 1" value={form.poolSettleContrib1} placeholder="0" onChange={set('poolSettleContrib1')} disabled={busy || working !== null} />
+                <Field label="Slot 2" value={form.poolSettleContrib2} placeholder="0" onChange={set('poolSettleContrib2')} disabled={busy || working !== null} />
+                <Field label="Slot 3" value={form.poolSettleContrib3} placeholder="0" onChange={set('poolSettleContrib3')} disabled={busy || working !== null} />
+              </div>
+
+              <h4 className={sectionHeading} style={{ fontSize: '0.95em', marginTop: '1rem' }}>Per-lender payouts</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <Field label="Slot 0" value={form.poolSettlePayout0} placeholder="0" onChange={set('poolSettlePayout0')} disabled={busy || working !== null} />
+                <Field label="Slot 1" value={form.poolSettlePayout1} placeholder="0" onChange={set('poolSettlePayout1')} disabled={busy || working !== null} />
+                <Field label="Slot 2" value={form.poolSettlePayout2} placeholder="0" onChange={set('poolSettlePayout2')} disabled={busy || working !== null} />
+                <Field label="Slot 3" value={form.poolSettlePayout3} placeholder="0" onChange={set('poolSettlePayout3')} disabled={busy || working !== null} />
+              </div>
+
+              <h4 className={sectionHeading} style={{ fontSize: '0.95em', marginTop: '1rem' }}>Totals</h4>
+              <Field label="Total contribution" value={form.poolSettleTotalContrib} placeholder="sum of all slot contributions" onChange={set('poolSettleTotalContrib')} disabled={busy || working !== null} />
+              <Field label="Total payout" value={form.poolSettleTotalPayout} placeholder="sum of all slot payouts" onChange={set('poolSettleTotalPayout')} disabled={busy || working !== null} />
+
+              <p className="sl-note">
+                Each payout = floor(contribution × totalPayout ÷ totalContribution). The floor-rounding remainder
+                is automatically routed to the default insurance pool. Contributions must sum to the invoice amount.
+              </p>
+              <button
+                className="sl-button"
+                type="submit"
+                disabled={
+                  busy || working !== null ||
+                  form.poolSettleNullifier.trim().length === 0 ||
+                  form.poolSettleDue.trim().length === 0 ||
+                  form.poolSettleTotalContrib.trim().length === 0 ||
+                  form.poolSettleTotalPayout.trim().length === 0
+                }
+              >
+                {working === 'settleSplitInvoice' ? 'Working…' : 'Settle pool invoice'}
               </button>
             </form>
           )}
@@ -1199,6 +1381,51 @@ export const InvoiceFinancing: React.FC = () => {
             </form>
           )}
 
+          {lenderTab === 'poolBid' && (
+            <form
+              className="sl-stage"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!api) return;
+                const a = api;
+                void run('revealPoolBid', async () => {
+                  await a.revealPoolBid(
+                    form.poolRevealNullifier,
+                    BigInt(form.poolRevealSlot.trim()),
+                    BigInt(form.poolRevealAmount.trim()),
+                    BigInt(form.poolRevealDue.trim()),
+                    BigInt(form.poolRevealRate.trim()),
+                  );
+                  setLenderTab('browse');
+                });
+              }}
+            >
+              <h3 className={sectionHeading}>Reveal a pool bid</h3>
+              <p className="sl-note" style={{ marginBottom: '0.75rem' }}>
+                For invoices registered with <code>splitCount &gt; 0</code>. Reveal your sealed pool bid into a specific slot (0–3).
+              </p>
+              <Field label="Invoice nullifier" value={form.poolRevealNullifier} placeholder="64 hex chars" onChange={set('poolRevealNullifier')} disabled={busy || working !== null} />
+              <Field label="Slot index" value={form.poolRevealSlot} placeholder="0–3" onChange={set('poolRevealSlot')} disabled={busy || working !== null} />
+              <Field label="Amount" value={form.poolRevealAmount} placeholder="must match your sealed bid" onChange={set('poolRevealAmount')} disabled={busy || working !== null} />
+              <Field label="Due date" value={form.poolRevealDue} placeholder="must match your sealed bid" onChange={set('poolRevealDue')} disabled={busy || working !== null} />
+              <Field label="Rate" value={form.poolRevealRate} placeholder="must match your sealed bid" onChange={set('poolRevealRate')} disabled={busy || working !== null} />
+              <button
+                className="sl-button"
+                type="submit"
+                disabled={
+                  busy || working !== null ||
+                  !isHex64(form.poolRevealNullifier) ||
+                  !isDigits(form.poolRevealSlot) ||
+                  !isDigits(form.poolRevealAmount) ||
+                  !isDigits(form.poolRevealDue) ||
+                  !isDigits(form.poolRevealRate)
+                }
+              >
+                {working === 'revealPoolBid' ? 'Working…' : 'Reveal pool bid'}
+              </button>
+            </form>
+          )}
+
           {lenderTab === 'market' && (
             <>
               <form
@@ -1330,6 +1557,35 @@ export const InvoiceFinancing: React.FC = () => {
                   </div>
                 )}
               </section>
+
+              <section className="sl-stage">
+                <h3 className={sectionHeading}>Pool claim transfer — per-lender</h3>
+                <p className="sl-note">
+                  Transfer your pool financing slot claim to another investor. Works before or after pool settlement.
+                </p>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!api) return;
+                    const a = api;
+                    void run('transferPoolClaim', async () => {
+                      await a.transferPoolClaim(
+                        form.poolTransferNullifier.trim(),
+                        BigInt(form.poolTransferSlot.trim()),
+                        form.poolTransferCommitment.trim(),
+                      );
+                      setMessage({ ok: true, text: 'Pool claim transferred successfully.' });
+                    });
+                  }}
+                >
+                  <Field label="Invoice nullifier" value={form.poolTransferNullifier} placeholder="64 hex chars" onChange={set('poolTransferNullifier')} disabled={busy || working !== null} />
+                  <Field label="Slot index" value={form.poolTransferSlot} placeholder="0–3" onChange={set('poolTransferSlot')} disabled={busy || working !== null} />
+                  <Field label="New owner commitment" value={form.poolTransferCommitment} placeholder="64 hex — hash(newSecret, nullifier)" onChange={set('poolTransferCommitment')} disabled={busy || working !== null} />
+                  <button className="sl-button" type="submit" disabled={busy || working !== null || !isHex64(form.poolTransferNullifier) || !isDigits(form.poolTransferSlot) || !isHex64(form.poolTransferCommitment)}>
+                    {working === 'transferPoolClaim' ? 'Working…' : 'Transfer pool claim'}
+                  </button>
+                </form>
+              </section>
             </>
           )}
 
@@ -1425,6 +1681,34 @@ export const InvoiceFinancing: React.FC = () => {
                   {working === 'claimInsurancePayout' ? 'Working…' : 'Claim payout'}
                 </button>
               </form>
+
+              <section className="sl-stage">
+                <h3 className={sectionHeading}>Pool insurance — per-lender claim</h3>
+                <p className="sl-note">
+                  For pool-settled invoices that defaulted. Each lender claims their proportional share of the 50% insurance
+                  entitlement based on their contribution. When the pool is thin, the shortfall is shared proportionally across all slots.
+                </p>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!api) return;
+                    const a = api;
+                    void run('claimPoolInsurancePayout', async () => {
+                      const paid = await a.claimPoolInsurancePayout(
+                        form.poolInsuranceNullifier.trim(),
+                        BigInt(form.poolInsuranceSlot.trim()),
+                      );
+                      setMessage({ ok: true, text: `Pool insurance payout: ${paid.toString()} tNight` });
+                    });
+                  }}
+                >
+                  <Field label="Invoice nullifier" value={form.poolInsuranceNullifier} placeholder="64 hex chars" onChange={set('poolInsuranceNullifier')} disabled={busy || working !== null} />
+                  <Field label="Slot index" value={form.poolInsuranceSlot} placeholder="0–3" onChange={set('poolInsuranceSlot')} disabled={busy || working !== null} />
+                  <button className="sl-button" type="submit" disabled={busy || working !== null || !isHex64(form.poolInsuranceNullifier) || !isDigits(form.poolInsuranceSlot)}>
+                    {working === 'claimPoolInsurancePayout' ? 'Working…' : 'Claim pool insurance'}
+                  </button>
+                </form>
+              </section>
             </>
           )}
         </>

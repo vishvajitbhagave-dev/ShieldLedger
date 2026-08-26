@@ -44,6 +44,8 @@ export interface InvoiceView {
   readonly transferred: boolean;
   /** Commitment to the CURRENT holder's secret: hash(claimSecret, nullifier). Identity stays hidden. */
   readonly claimCommitment: string;
+  /** Number of co-lenders (0 = single-lender auction, 1–4 = pool financing). */
+  readonly splitCount: bigint;
 }
 
 /**
@@ -83,6 +85,35 @@ export interface InsuranceClaimView {
   readonly claimedAt: bigint;
 }
 
+/**
+ * A pool bid slot on-chain (bestPools map). Keyed by poolSlotKey hash;
+ * stores only the lender pseudonym and bid commitment.
+ */
+export interface PoolBidView {
+  readonly slotKey: string;
+  readonly lender: string;
+  readonly commitment: string;
+}
+
+/**
+ * A per-lender settlement record for a pool-financed invoice. Keyed by
+ * poolSlotKey hash; stores only the payout amount.
+ */
+export interface PoolSettlementView {
+  readonly slotKey: string;
+  readonly payout: bigint;
+}
+
+/**
+ * Per-slot claim commitment for pool secondary market transfers. Keyed by
+ * poolSlotKey hash.
+ */
+export interface PoolClaimView {
+  readonly slotKey: string;
+  readonly claimCommitment: string;
+  readonly transferred: boolean;
+}
+
 /** The derived application state: public ledger data plus wallet context. */
 export interface ShieldLedgerDerivedState {
   readonly ledger: Ledger;
@@ -93,4 +124,7 @@ export interface ShieldLedgerDerivedState {
   /** Null until the first registration seeds the pool entry. */
   readonly insurancePool: InsurancePoolView | null;
   readonly insuranceClaims: InsuranceClaimView[];
+  readonly poolBids: PoolBidView[];
+  readonly poolSettlements: PoolSettlementView[];
+  readonly poolClaims: PoolClaimView[];
 }

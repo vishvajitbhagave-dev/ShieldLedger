@@ -333,6 +333,85 @@ export const LedgerView: React.FC = () => {
               </>
             )}
           </section>
+
+          {state.poolBids.length > 0 && (
+            <section className="sl-stage">
+              <h3 className="sl-section-title">Pool bids (bestPools)</h3>
+              <p className="sl-note">Revealed bids for pool-financed invoices — lender pseudonym and commitment only.</p>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="sl-table">
+                  <thead>
+                    <tr>
+                      <th>Slot key</th>
+                      <th>Lender pseudonym</th>
+                      <th>Bid commitment</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {state.poolBids.map((bid) => (
+                      <tr key={bid.slotKey}>
+                        <td><HexBadge hex={bid.slotKey} /></td>
+                        <td><HexBadge hex={bid.lender} /></td>
+                        <td><HexBadge hex={bid.commitment} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
+          {state.poolSettlements.length > 0 && (
+            <section className="sl-stage">
+              <h3 className="sl-section-title">Pool settlements</h3>
+              <p className="sl-note">Per-lender proportional payouts for pool-financed invoices.</p>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="sl-table">
+                  <thead>
+                    <tr>
+                      <th>Slot key</th>
+                      <th>Payout</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {state.poolSettlements.map((s) => (
+                      <tr key={s.slotKey}>
+                        <td><HexBadge hex={s.slotKey} /></td>
+                        <td style={{ fontWeight: 'bold' }}>{s.payout.toString()} tNight</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
+          {state.poolClaims.length > 0 && (
+            <section className="sl-stage">
+              <h3 className="sl-section-title">Pool claim commitments</h3>
+              <p className="sl-note">Per-lender secondary-market claim ownership for pool invoices.</p>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="sl-table">
+                  <thead>
+                    <tr>
+                      <th>Slot key</th>
+                      <th>Claim commitment</th>
+                      <th>Transferred</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {state.poolClaims.map((c) => (
+                      <tr key={c.slotKey}>
+                        <td><HexBadge hex={c.slotKey} /></td>
+                        <td><HexBadge hex={c.claimCommitment} /></td>
+                        <td>{c.transferred ? 'Yes' : 'No'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
         </>
       )}
     </div>

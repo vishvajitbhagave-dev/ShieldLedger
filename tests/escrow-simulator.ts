@@ -88,8 +88,32 @@ export class EscrowSimulator {
     ).context;
     return this.getLedger();
   }
+
+  poolDeposit(nullifier: Uint8Array, lenderPseudonym: Uint8Array, amount: bigint): Ledger {
+    this.circuitContext = this.contract.impureCircuits.poolDeposit(
+      this.circuitContext,
+      nullifier,
+      lenderPseudonym,
+      amount,
+    ).context;
+    return this.getLedger();
+  }
+
+  poolRelease(nullifier: Uint8Array, lenderPseudonym: Uint8Array): Ledger {
+    this.circuitContext = this.contract.impureCircuits.poolRelease(
+      this.circuitContext,
+      nullifier,
+      lenderPseudonym,
+    ).context;
+    return this.getLedger();
+  }
 }
 
 export function escrowCommitment(secret: Uint8Array, nullifier: Uint8Array): Uint8Array {
   return pureCircuits.deriveCommitment(secret, nullifier);
+}
+
+/** Derive the composite pool escrow key for (nullifier, lenderPseudonym). */
+export function derivePoolEscrowKey(nullifier: Uint8Array, lenderPseudonym: Uint8Array): Uint8Array {
+  return pureCircuits.poolEscrowKey(nullifier, lenderPseudonym);
 }

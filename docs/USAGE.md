@@ -31,6 +31,7 @@ This is how an SME puts an invoice up for financing.
    - **Due date** — when the buyer should pay (Unix timestamp).
    - **Credit check** — the credit-score threshold you want to prove (e.g. `650`). Your exact score stays private; lenders only see "score ≥ 650".
    - **Reputation check** — optional. Enter `0` if you have no reputation history, or a number up to your current reputation score. Lenders see "reputation ≥ N".
+   - **Split count** — enter `0` for a single-lender auction, or `2`–`4` to invite multiple lenders to co-finance (pooled financing).
 3. Click **Register invoice**.
 4. Wait 30–60 seconds for the zero-knowledge proof to generate and the transaction to confirm.
 5. Your invoice now appears in the **Open invoices** table. A 2% insurance premium is automatically paid into the default insurance pool.
@@ -107,6 +108,52 @@ A lender can resell their claim on an invoice to another investor before settlem
 4. Click **Transfer claim**.
 
 Only a commitment goes on-chain. The new investor's identity is never revealed. The new holder can later settle or claim insurance using their own secret.
+
+### Step 8a: Pool Financing — Co-Finance an Invoice (Lender Role)
+
+When an SME registers with `splitCount > 0`, multiple lenders can each finance a portion of the invoice.
+
+**Placing a pool bid:**
+1. Click the **Lender** tab and find a pool invoice (shows "Pool: N slots" in the table).
+2. Click **Pool bid ↓** next to it.
+3. Fill in your bid:
+   - **Slot index** — which slot you want (0, 1, 2, or 3).
+   - **Amount** — your contribution (all contributions must sum to the invoice face amount).
+   - **Due date** — repayment due date.
+   - **Interest rate** — your rate in basis points.
+4. Click **Submit pool bid**.
+
+**Revealing a pool bid:**
+1. After bidding closes, click **Reveal pool bid ↓**.
+2. Enter the exact same terms you sealed.
+3. Click **Reveal pool bid**.
+
+The contract fills pool slots in reveal order. The winning pool has the lowest weighted average interest rate (sum of `rate × contribution` / total). After all pool bids are revealed, the SME calls **Settle split invoice ↓** with per-lender contributions and payouts. The contract verifies each payout is proportional to its contribution — the SME cannot pay one lender more than another relative to what they contributed.
+
+### Step 8b: Pool Insurance — Claim Your Share (Lender Role)
+
+Each pool lender independently claims their proportional share of the 50% default insurance entitlement.
+
+1. Click the **Lender** tab and switch to the **Pool Insurance** sub-tab.
+2. The table shows pool-settled invoices that are past due — eligible for a claim.
+3. Click **Claim ↓** next to a defaulted pool invoice.
+4. Enter your **slot index** (0–3).
+5. Click **Claim pool insurance payout**.
+
+The payout is proportional to your contribution: if you contributed 30% of the pool, you get 30% of the 50% insurance entitlement.
+
+**What if the pool is thin?** If the insurance pool cannot cover all lenders' full entitlements, each lender receives a proportional share of whatever remains. For example, if the pool only has enough for 60% of the total entitlement, each lender gets 60% of their individual entitlement. The shortfall is shared equally across all slots — not first-come-first-served. Once the pool is drained, subsequent claimants receive zero.
+
+### Step 8c: Pool Secondary Market — Transfer a Pool Claim (Lender Role)
+
+Each pool lender can independently sell their claim share to a new investor, even after the invoice is pool-settled.
+
+1. Click the **Lender** tab.
+2. Click **Transfer pool claim ↓** next to a pool-settled invoice.
+3. Enter your **slot index** and the new investor's 32-byte secret (or claim commitment for subsequent transfers).
+4. Click **Transfer pool claim**.
+
+The new holder can later claim pool insurance using their own secret. Transfers follow a two-phase authorization pattern: the original lender uses their pseudonym, while subsequent holders use their commitment.
 
 ### Step 9: Claim Default Insurance (Lender Role)
 
