@@ -102,7 +102,7 @@ See [docs/USAGE.md](docs/USAGE.md) for a step-by-step guide covering all three r
 
 ## Product X Profile
 
-[PLACEHOLDER — I will add after creating the account]
+[@ShieldLedger](https://x.com/ShieldLedger)
 
 ---
 
