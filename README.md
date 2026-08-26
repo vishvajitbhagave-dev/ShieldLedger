@@ -8,6 +8,14 @@
 
 [Preprod demo URL](https://vishvajitbhagave-dev.github.io/ShieldLedger/)
 
+**Demo video** — wallet connect + a successful circuit call on the Preview testnet:
+
+https://drive.google.com/file/d/1Jo0o03gjT0YcqAVUUIzWBfvHHYL2rDv0/view?usp=drive_link
+
+**Link to the product X profile-**
+
+https://x.com/ShieldLedger
+
 ## Contract Address
 
 | Network | Address |
@@ -275,10 +283,6 @@ ShieldLedger is a **working demonstration on the Midnight Preview and Preprod te
 **Test output**
 
 ![ShieldLedger test suite passing](docs/test-output.png)
-
-**Demo video** — wallet connect + a successful circuit call on the Preview testnet:
-
-https://drive.google.com/file/d/1Jo0o03gjT0YcqAVUUIzWBfvHHYL2rDv0/view?usp=drive_link
 
 ## License
 
