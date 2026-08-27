@@ -361,23 +361,36 @@ export const LedgerView: React.FC = () => {
             </section>
           )}
 
-          {state.poolSettlements.length > 0 && (
+          {state.payoutCommitments.length > 0 && (
             <section className="sl-stage">
-              <h3 className="sl-section-title">Pool settlements</h3>
-              <p className="sl-note">Per-lender proportional payouts for pool-financed invoices.</p>
+              <h3 className="sl-section-title">Pool settlement commitments</h3>
+              <p className="sl-note">
+                Per-lender payout commitment hashes for pool-financed invoices. Individual payout <em>values</em> are
+                private — each commitment binds a slot to its payout (verified at insurance-claim time), without ever
+                publishing the amount.
+              </p>
+              <details className="sl-details">
+                <summary>Learn more</summary>
+                <p>
+                  At settlement the SME proves each payout is proportional to its contribution in zero knowledge, then
+                  writes <code>hash(slotKey, payout)</code> on-chain. Every lender keeps their payout in their own wallet;
+                  when default insurance is claimed, the circuit re-derives that hash from the undisclosed payout and
+                  requires it to match this ledger entry — so nobody can fabricate a payout to inflate their claim.
+                </p>
+              </details>
               <div style={{ overflowX: 'auto' }}>
                 <table className="sl-table">
                   <thead>
                     <tr>
                       <th>Slot key</th>
-                      <th>Payout</th>
+                      <th>Payout commitment (hash)</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {state.poolSettlements.map((s) => (
-                      <tr key={s.slotKey}>
-                        <td><HexBadge hex={s.slotKey} /></td>
-                        <td style={{ fontWeight: 'bold' }}>{s.payout.toString()} tNight</td>
+                    {state.payoutCommitments.map((c) => (
+                      <tr key={c.slotKey}>
+                        <td><HexBadge hex={c.slotKey} /></td>
+                        <td><HexBadge hex={c.hash} /></td>
                       </tr>
                     ))}
                   </tbody>

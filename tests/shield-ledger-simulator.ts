@@ -293,15 +293,12 @@ export class ShieldLedgerSimulator {
   claimPoolInsurancePayout(
     nullifier: Uint8Array,
     slotIndex: bigint,
+    settlementPayout: bigint,
     claimedAt: bigint,
   ): bigint {
     const current = this.getLedger();
     if (!current.invoices.member(nullifier)) throw new Error('unknown invoice');
     const invoice = current.invoices.lookup(nullifier);
-
-    const slotKey = pureCircuits.poolSlotKey(nullifier, slotIndex);
-    if (!current.poolSettlements.member(slotKey)) throw new Error('pool slot not settled');
-    const settlementPayout = current.poolSettlements.lookup(slotKey).payout;
 
     const totalInsurance = invoice.amount / 2n;
 
@@ -321,6 +318,7 @@ export class ShieldLedgerSimulator {
       insurancePayout,
       newPoolBalance,
       claimedAt,
+      settlementPayout,
     );
     this.circuitContext = results.context;
     return results.result;

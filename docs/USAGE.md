@@ -144,6 +144,18 @@ The payout is proportional to your contribution: if you contributed 30% of the p
 
 **What if the pool is thin?** If the insurance pool cannot cover all lenders' full entitlements, each lender receives a proportional share of whatever remains. For example, if the pool only has enough for 60% of the total entitlement, each lender gets 60% of their individual entitlement. The shortfall is shared equally across all slots — not first-come-first-served. Once the pool is drained, subsequent claimants receive zero.
 
+> **⚠️ Important — your settlement payout is stored locally.** When this wallet settles a pool invoice, your per-lender
+> **payout value is kept only in browser-local storage** (`localStorage`); on-chain, the ledger stores only a commitment
+> *hash* of it, never the amount itself. The insurance claim must re-present your exact payout as a private witness, so it
+> is read back from this local copy. This means:
+>
+> - **Clearing your browser data** (site data, cookies, local storage) will erase your payout and you will **no longer be
+>   able to claim pool insurance** on that slot.
+> - **Switching to another device or browser** will also lose it — your payout does not follow you unless it is on the
+>   ledger (it isn't; only a hash is).
+> - If you need to claim from a different device or after clearing storage, you will need **your own backup of the
+>   payout** for each slot (shown/entered when the pool was settled) to restore it locally before claiming.
+
 ### Step 8c: Pool Secondary Market — Transfer a Pool Claim (Lender Role)
 
 Each pool lender can independently sell their claim share to a new investor, even after the invoice is pool-settled.

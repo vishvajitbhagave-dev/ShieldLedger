@@ -209,12 +209,21 @@ export struct InsurancePool {
   balance: Uint<64>,
 }
 
-// Per-lender settlement record for pool-financed invoices. One entry per
-// lender slot, keyed by poolSlotKey(nullifier, slotIndex). Stores the
-// proven payout amount — nothing else (pseudonym lives in bestPools,
-// contribution amount stays private).
-export struct PoolSettlement {
+// Hash input for per-lender payout commitments. The settlement circuit
+// computes persistentHash<PayoutSeal> for each slot and stores the result
+// in payoutCommitments. This binds the payout value to the slot without
+// revealing it on-chain — the hash is the only thing stored.
+export struct PayoutSeal {
+  slotKey: Bytes<32>,
   payout: Uint<64>,
+}
+
+// Per-lender payout commitment for pool-financed invoices. One entry per
+// lender slot, keyed by poolSlotKey(nullifier, slotIndex). Stores only the
+// hash commitment — the actual payout amount stays private. At insurance
+// claim time, the claimant must provide values that hash to this commitment.
+export struct PayoutCommitment {
+  hash: Bytes<32>,
 }
 
 // A paid default-insurance claim. Keyed by the invoice nullifier (already
@@ -225,7 +234,7 @@ export struct InsuranceClaim {
 }
 
 // Per-lender claim ownership for pool-financed invoices. Stored under the
-// same poolSlotKey as PoolSettlement, so each lender slot has exactly one
+// same poolSlotKey as PayoutCommitment, so each lender slot has exactly one
 // claim commitment. Transfers mirror the single-lender secondary market:
 // the winning lender seeds it on first hand-over; later transfers prove the
 // stored claimCommitment via claimSecret.
@@ -238,7 +247,7 @@ export ledger invoices: Map<Bytes<32>, Invoice>;
 export ledger bids: Map<Bytes<32>, SealedBid>;
 export ledger bestBids: Map<Bytes<32>, BestBid>;
 export ledger bestPools: Map<Bytes<32>, PoolBid>;
-export ledger poolSettlements: Map<Bytes<32>, PoolSettlement>;
+export ledger payoutCommitments: Map<Bytes<32>, PayoutCommitment>;
 export ledger insurancePools: Map<Bytes<32>, InsurancePool>;
 export ledger insuranceClaims: Map<Bytes<32>, InsuranceClaim>;
 export ledger poolClaimCommitments: Map<Bytes<32>, PoolClaim>;
@@ -539,14 +548,14 @@ export circuit revealPoolBid(nullifier: Bytes<32>, slotIndex: Uint<64>, commitme
 //   (2^32 - 1) * (2^32 - 1) = 2^64 - 2^33 + 1 < 2^64 ✓
 export circuit verifyProportionalPayout(contribution: Uint<64>, payout: Uint<64>, totalContribution: Uint<64>, totalPayout: Uint<64>): Boolean {
   // Overflow cap: each contribution must be < 2^32 BEFORE any multiplication.
-  assert(disclose(contribution) < 4294967296, "contribution exceeds overflow cap");
+  assert(contribution < 4294967296, "contribution exceeds overflow cap");
   // Floor proof: payout * totalContribution ≤ contribution * totalPayout
   // (payout does not exceed the exact proportional share)
-  const product = disclose(contribution) * disclose(totalPayout);
-  const scaledPayout = disclose(payout) * disclose(totalContribution);
+  const product = contribution * totalPayout;
+  const scaledPayout = payout * totalContribution;
   assert(scaledPayout <= product, "proportional payout too large");
   // Remainder check: the "leftover" from flooring is less than totalContribution
-  assert(product - scaledPayout < disclose(totalContribution), "proportional payout too small");
+  assert(product - scaledPayout < totalContribution, "proportional payout too small");
   return true;
 }
 
@@ -557,8 +566,13 @@ export circuit verifyProportionalPayout(contribution: Uint<64>, payout: Uint<64>
 //   2. Each payout_i satisfies the proportional formula via verifyProportionalPayout
 //   3. The invoice is updated to FINANCED with the pool settlement marker
 //
-// Per-lender payout records are written to poolSettlements for downstream
-// escrow and insurance tracking.
+// CONTRIBUTIONS ARE PRIVATE: individual contribution amounts are never
+// disclosed to the verifier — they are constrained only by the sum proof
+// and proportional checks. PAYOUTS ARE PUBLIC: Compact 0.23 requires
+// disclose() for any value that flows into a ledger write, even indirectly
+// via persistentHash. Since payout commitments are written to the
+// payoutCommitments ledger, payouts must be disclosed as public inputs.
+// See docs/compact-privacy-notes.md for the full analysis.
 //
 // FLOOR-ROUNDING REMAINDER (→ insurance pool, modeled on Uniswap V3 fee rounding):
 //   Because each payout_i is the FLOOR of (contribution_i * totalPayout / totalContribution),
@@ -591,32 +605,39 @@ export circuit settleSplitInvoice(
   assert(!current.lender.is_some, "already financed");
   assert(current.splitCount > 0, "not a pool invoice");
 
-  // Sum proof: the caller's contributions must exactly equal the invoice amount.
-  assert(disclose(contribution0) + disclose(contribution1) + disclose(contribution2) + disclose(contribution3) == current.invoiceAmount, "contributions do not sum to invoice amount");
+  // Sum proof: undisclosed contributions must exactly equal the invoice amount.
+  assert(contribution0 + contribution1 + contribution2 + contribution3 == current.invoiceAmount, "contributions do not sum to invoice amount");
 
   // Proportional payout verification for all 4 lender slots.
   // Unused slots have contribution_i == 0, so payout_i must also be 0
   // (because 0 * totalContribution == payout * 0 implies payout == 0).
-  verifyProportionalPayout(disclose(contribution0), disclose(payout0), disclose(totalContribution), disclose(totalPayout));
-  verifyProportionalPayout(disclose(contribution1), disclose(payout1), disclose(totalContribution), disclose(totalPayout));
-  verifyProportionalPayout(disclose(contribution2), disclose(payout2), disclose(totalContribution), disclose(totalPayout));
-  verifyProportionalPayout(disclose(contribution3), disclose(payout3), disclose(totalContribution), disclose(totalPayout));
+  // Parameters are passed as undisclosed private witnesses.
+  verifyProportionalPayout(contribution0, payout0, totalContribution, totalPayout);
+  verifyProportionalPayout(contribution1, payout1, totalContribution, totalPayout);
+  verifyProportionalPayout(contribution2, payout2, totalContribution, totalPayout);
+  verifyProportionalPayout(contribution3, payout3, totalContribution, totalPayout);
 
   // Floor-rounding remainder: route (totalPayout - sum(payouts)) to the insurance
   // pool. The remainder is non-negative (each payout_i ≤ floor of exact share, so
   // sum(payouts) ≤ totalPayout) and bounded to < 4 (each slot's floor error < 1).
-  const sumPayouts = disclose(payout0) + disclose(payout1) + disclose(payout2) + disclose(payout3);
+  const sumPayouts = payout0 + payout1 + payout2 + payout3;
   const poolKey = insurancePoolKey();
   assert(insurancePools.member(poolKey), "insurance pool not seeded");
   const pool = insurancePools.lookup(poolKey);
-  assert(pool.balance + (disclose(totalPayout) - sumPayouts) == disclose(newInsurancePoolBalance), "insurance pool balance mismatch on remainder");
+  assert(pool.balance + (totalPayout - sumPayouts) == disclose(newInsurancePoolBalance), "insurance pool balance mismatch on remainder");
   insurancePools.insert(poolKey, InsurancePool { balance: disclose(newInsurancePoolBalance) });
 
-  // Write per-lender settlement records.
-  poolSettlements.insert(poolSlotKey(disclose(nullifier), 0), PoolSettlement { payout: disclose(payout0) });
-  poolSettlements.insert(poolSlotKey(disclose(nullifier), 1), PoolSettlement { payout: disclose(payout1) });
-  poolSettlements.insert(poolSlotKey(disclose(nullifier), 2), PoolSettlement { payout: disclose(payout2) });
-  poolSettlements.insert(poolSlotKey(disclose(nullifier), 3), PoolSettlement { payout: disclose(payout3) });
+  // Payout commitment: per-slot hash binding payout values to slot keys.
+  // The hash is stored on-chain but doesn't reveal the payout — it only binds
+  // the prover to the exact payout they proved during settlement.
+  const slotKey0 = poolSlotKey(disclose(nullifier), 0);
+  const slotKey1 = poolSlotKey(disclose(nullifier), 1);
+  const slotKey2 = poolSlotKey(disclose(nullifier), 2);
+  const slotKey3 = poolSlotKey(disclose(nullifier), 3);
+  payoutCommitments.insert(slotKey0, PayoutCommitment { hash: persistentHash<PayoutSeal>(PayoutSeal { slotKey: slotKey0, payout: disclose(payout0) }) });
+  payoutCommitments.insert(slotKey1, PayoutCommitment { hash: persistentHash<PayoutSeal>(PayoutSeal { slotKey: slotKey1, payout: disclose(payout1) }) });
+  payoutCommitments.insert(slotKey2, PayoutCommitment { hash: persistentHash<PayoutSeal>(PayoutSeal { slotKey: slotKey2, payout: disclose(payout2) }) });
+  payoutCommitments.insert(slotKey3, PayoutCommitment { hash: persistentHash<PayoutSeal>(PayoutSeal { slotKey: slotKey3, payout: disclose(payout3) }) });
 
   // Mark invoice as FINANCED with the pool settlement marker, per the design.
   invoices.insert(disclose(nullifier), Invoice { smeCommitment: current.smeCommitment, creditThreshold: current.creditThreshold, reputationThreshold: current.reputationThreshold, invoiceAmount: current.invoiceAmount, buyerVerified: current.buyerVerified, buyerCommitment: current.buyerCommitment, lender: some<Bytes<32>>(pad(32, "shieldledger:pool")), amount: disclose(totalPayout), dueDate: disclose(financedDueDate), rateBps: 0, claimCommitment: current.claimCommitment, transferred: current.transferred, splitCount: current.splitCount });
@@ -743,6 +764,11 @@ export circuit transferPoolClaim(nullifier: Bytes<32>, slotIndex: Uint<64>, newO
 // Each lender's share is the floor of (settlementPayout_i * totalInsurance / invoice.amount),
 // proven via the same verifyProportionalPayout pattern used in settlement.
 //
+// The settlementPayout is an undisclosed private witness verified against the
+// on-chain payout commitment hash stored during settlement. This binds the
+// insurance claim to the exact payout proved during settlement, without
+// revealing individual payout amounts on-chain.
+//
 // Authorization mirrors transferPoolClaim: the caller proves they own the
 // slot either as the original lender (lenderSecret → pseudonym match against
 // bestPools) or as a secondary buyer (claimSecret → stored commitment match).
@@ -750,7 +776,7 @@ export circuit transferPoolClaim(nullifier: Bytes<32>, slotIndex: Uint<64>, newO
 // Single-use: each slot can only claim once, keyed by poolSlotKey in
 // insuranceClaims. When the pool is thin, the first slot to claim drains it;
 // subsequent slots for the same invoice get nothing (payout forced to 0).
-export circuit claimPoolInsurancePayout(nullifier: Bytes<32>, slotIndex: Uint<64>, totalInsurance: Uint<64>, insurancePayout: Uint<64>, newPoolBalance: Uint<64>, claimedAt: Uint<64>): Uint<64> {
+export circuit claimPoolInsurancePayout(nullifier: Bytes<32>, slotIndex: Uint<64>, totalInsurance: Uint<64>, insurancePayout: Uint<64>, newPoolBalance: Uint<64>, claimedAt: Uint<64>, settlementPayout: Uint<64>): Uint<64> {
   assert(invoices.member(disclose(nullifier)), "unknown invoice");
   const invoice = invoices.lookup(disclose(nullifier));
   // Pool insurance: the invoice must be pool-settled (lender == "shieldledger:pool")
@@ -762,7 +788,14 @@ export circuit claimPoolInsurancePayout(nullifier: Bytes<32>, slotIndex: Uint<64
 
   const slotKey = poolSlotKey(disclose(nullifier), disclose(slotIndex));
   assert(bestPools.member(slotKey), "pool slot not filled");
-  assert(poolSettlements.member(slotKey), "pool slot not settled");
+
+  // Payout commitment binding: verify the claimant's settlementPayout matches
+  // the on-chain commitment hash stored during settlement. This prevents a
+  // malicious prover from claiming a fabricated payout amount.
+  assert(payoutCommitments.member(slotKey), "pool slot not settled");
+  const storedCommitment = payoutCommitments.lookup(slotKey).hash;
+  const expectedCommitment = persistentHash<PayoutSeal>(PayoutSeal { slotKey: slotKey, payout: settlementPayout });
+  assert(expectedCommitment == storedCommitment, "payout commitment mismatch");
 
   // Authorization: same two-phase check as transferPoolClaim.
   if (!poolClaimCommitments.member(slotKey)) {
@@ -783,7 +816,6 @@ export circuit claimPoolInsurancePayout(nullifier: Bytes<32>, slotIndex: Uint<64
   // is thin, a claimant may receive less than the full proportional share — the pool
   // drains to zero and later claimants get nothing. The "too small" check is omitted
   // to permit this honest partial-coverage behavior.
-  const settlementPayout = poolSettlements.lookup(slotKey).payout;
   assert(settlementPayout < 4294967296, "settlement payout exceeds overflow cap");
   const product = settlementPayout * disclose(totalInsurance);
   const scaledPayout = disclose(insurancePayout) * invoice.amount;

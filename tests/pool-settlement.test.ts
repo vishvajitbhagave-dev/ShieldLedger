@@ -4,8 +4,6 @@ import { describe, it, expect } from 'vitest';
 import {
   ShieldLedgerSimulator,
   derivePseudonym,
-  deriveBidKey,
-  deriveBidCommitment,
   derivePoolSlotKey,
 } from './shield-ledger-simulator.js';
 import { EscrowSimulator, derivePoolEscrowKey } from './escrow-simulator.js';
@@ -91,12 +89,25 @@ describe('Pool settlement — proportional payout (2 lenders)', () => {
     expect(invoice.rateBps).toBe(0n);
     expect(invoice.splitCount).toBe(2n);
 
-    // Per-lender settlement records
-    expect(lg.poolSettlements.member(derivePoolSlotKey(NULLIFIER, 0n))).toBe(true);
-    expect(lg.poolSettlements.lookup(derivePoolSlotKey(NULLIFIER, 0n)).payout).toBe(4800n);
-    expect(lg.poolSettlements.lookup(derivePoolSlotKey(NULLIFIER, 1n)).payout).toBe(4800n);
-    expect(lg.poolSettlements.lookup(derivePoolSlotKey(NULLIFIER, 2n)).payout).toBe(0n);
-    expect(lg.poolSettlements.lookup(derivePoolSlotKey(NULLIFIER, 3n)).payout).toBe(0n);
+    // Per-lender payout commitments are recorded for every slot (all 4).
+    // Individual payout VALUES are bound cryptographically via the commitment
+    // hash; matching against the exact hash requires recomputing persistentHash
+    // (see the binding tests in pool-insurance.test.ts).
+    const keys = [0n, 1n, 2n, 3n].map((i) => derivePoolSlotKey(NULLIFIER, i));
+    for (const key of keys) {
+      expect(lg.payoutCommitments.member(key)).toBe(true);
+      // Each slot hash is deterministic and non-empty.
+      const h = lg.payoutCommitments.lookup(key).hash;
+      expect(h.length).toBe(32);
+      expect(hex(h)).not.toBe('0'.repeat(64));
+      expect(hex(h)).toBe(hex(lg.payoutCommitments.lookup(key).hash));
+    }
+    // Binding: the funded slots (0,1: payout 4800) differ from the empty
+    // slots (2,3: payout 0) in their commitment hash.
+    expect(hex(lg.payoutCommitments.lookup(keys[0]).hash))
+      .not.toBe(hex(lg.payoutCommitments.lookup(keys[2]).hash));
+    expect(hex(lg.payoutCommitments.lookup(keys[1]).hash))
+      .not.toBe(hex(lg.payoutCommitments.lookup(keys[3]).hash));
   });
 
   it('unequal split: 3000+7000=10000, payout 9600 → 2880+6720', () => {
@@ -118,8 +129,14 @@ describe('Pool settlement — proportional payout (2 lenders)', () => {
     sim.settleSplitInvoice(NULLIFIER, DUE, DUE, contributions, payouts);
 
     const lg = sim.getLedger();
-    expect(lg.poolSettlements.lookup(derivePoolSlotKey(NULLIFIER, 0n)).payout).toBe(2880n);
-    expect(lg.poolSettlements.lookup(derivePoolSlotKey(NULLIFIER, 1n)).payout).toBe(6720n);
+    const key0 = derivePoolSlotKey(NULLIFIER, 0n);
+    const key1 = derivePoolSlotKey(NULLIFIER, 1n);
+    expect(lg.payoutCommitments.member(key0)).toBe(true);
+    expect(lg.payoutCommitments.member(key1)).toBe(true);
+    // Different contribution → different payout → different commitment hash
+    // (binding of the payout value).
+    expect(hex(lg.payoutCommitments.lookup(key0).hash))
+      .not.toBe(hex(lg.payoutCommitments.lookup(key1).hash));
   });
 });
 
@@ -144,9 +161,19 @@ describe('Pool settlement — proportional payout (3 lenders)', () => {
     sim.settleSplitInvoice(NULLIFIER, DUE, DUE, contributions, payouts);
 
     const lg = sim.getLedger();
-    expect(lg.poolSettlements.lookup(derivePoolSlotKey(NULLIFIER, 0n)).payout).toBe(1900n);
-    expect(lg.poolSettlements.lookup(derivePoolSlotKey(NULLIFIER, 1n)).payout).toBe(2850n);
-    expect(lg.poolSettlements.lookup(derivePoolSlotKey(NULLIFIER, 2n)).payout).toBe(4750n);
+    const key0 = derivePoolSlotKey(NULLIFIER, 0n);
+    const key1 = derivePoolSlotKey(NULLIFIER, 1n);
+    const key2 = derivePoolSlotKey(NULLIFIER, 2n);
+    expect(lg.payoutCommitments.member(key0)).toBe(true);
+    expect(lg.payoutCommitments.member(key1)).toBe(true);
+    expect(lg.payoutCommitments.member(key2)).toBe(true);
+    // Binding: all three distinct payouts (1900/2850/4750) → distinct hashes.
+    const h0 = hex(lg.payoutCommitments.lookup(key0).hash);
+    const h1 = hex(lg.payoutCommitments.lookup(key1).hash);
+    const h2 = hex(lg.payoutCommitments.lookup(key2).hash);
+    expect(h0).not.toBe(h1);
+    expect(h1).not.toBe(h2);
+    expect(h0).not.toBe(h2);
   });
 });
 
@@ -173,10 +200,17 @@ describe('Pool settlement — proportional payout (4 lenders)', () => {
     sim.settleSplitInvoice(NULLIFIER, DUE, DUE, contributions, payouts);
 
     const lg = sim.getLedger();
-    expect(lg.poolSettlements.lookup(derivePoolSlotKey(NULLIFIER, 0n)).payout).toBe(700n);
-    expect(lg.poolSettlements.lookup(derivePoolSlotKey(NULLIFIER, 1n)).payout).toBe(2100n);
-    expect(lg.poolSettlements.lookup(derivePoolSlotKey(NULLIFIER, 2n)).payout).toBe(2800n);
-    expect(lg.poolSettlements.lookup(derivePoolSlotKey(NULLIFIER, 3n)).payout).toBe(1400n);
+    const keys = [0n, 1n, 2n, 3n].map((i) => derivePoolSlotKey(NULLIFIER, i));
+    for (const key of keys) {
+      expect(lg.payoutCommitments.member(key)).toBe(true);
+    }
+    // Binding: all four distinct payouts (700/2100/2800/1400) → distinct hashes.
+    const hashes = keys.map((k) => hex(lg.payoutCommitments.lookup(k).hash));
+    for (let i = 0; i < hashes.length; i++) {
+      for (let j = i + 1; j < hashes.length; j++) {
+        expect(hashes[i]).not.toBe(hashes[j]);
+      }
+    }
 
     // Invoice marked as pool-financed
     const invoice = lg.invoices.lookup(NULLIFIER);
@@ -211,10 +245,17 @@ describe('Pool settlement — proportional payout (4 lenders)', () => {
     sim.settleSplitInvoice(NULLIFIER, DUE, DUE, contributions, payouts, totalContribution, intendedTotalPayout);
 
     const lg = sim.getLedger();
-    expect(lg.poolSettlements.lookup(derivePoolSlotKey(NULLIFIER, 0n)).payout).toBe(777n);
-    expect(lg.poolSettlements.lookup(derivePoolSlotKey(NULLIFIER, 1n)).payout).toBe(2333n);
-    expect(lg.poolSettlements.lookup(derivePoolSlotKey(NULLIFIER, 2n)).payout).toBe(3110n);
-    expect(lg.poolSettlements.lookup(derivePoolSlotKey(NULLIFIER, 3n)).payout).toBe(1555n);
+    const keys = [0n, 1n, 2n, 3n].map((i) => derivePoolSlotKey(NULLIFIER, i));
+    for (const key of keys) {
+      expect(lg.payoutCommitments.member(key)).toBe(true);
+    }
+    // Binding: all four distinct floored payouts → distinct hashes.
+    const hashes = keys.map((k) => hex(lg.payoutCommitments.lookup(k).hash));
+    for (let i = 0; i < hashes.length; i++) {
+      for (let j = i + 1; j < hashes.length; j++) {
+        expect(hashes[i]).not.toBe(hashes[j]);
+      }
+    }
 
     // Invoice marked as pool-financed
     const invoice = lg.invoices.lookup(NULLIFIER);
@@ -235,8 +276,23 @@ describe('Pool settlement — proportional payout (4 lenders)', () => {
     sim.settleSplitInvoice(NULLIFIER, DUE, DUE, contributions, payouts);
 
     const lg = sim.getLedger();
-    for (let i = 0; i < 4; i++) {
-      expect(lg.poolSettlements.lookup(derivePoolSlotKey(NULLIFIER, BigInt(i))).payout).toBe(2500n);
+    const keys = [0n, 1n, 2n, 3n].map((i) => derivePoolSlotKey(NULLIFIER, i));
+    for (const key of keys) {
+      expect(lg.payoutCommitments.member(key)).toBe(true);
+      // Each slot hash is deterministic and non-empty. Note: the PayoutSeal
+      // hashes (slotKey, payout), so even with equal payouts each slot's hash
+      // differs because its slotKey differs.
+      const h = lg.payoutCommitments.lookup(key).hash;
+      expect(h.length).toBe(32);
+      expect(hex(h).length).toBe(64);
+      expect(hex(h)).toBe(hex(lg.payoutCommitments.lookup(key).hash));
+    }
+    // The four slotKeys differ, so their commitment hashes differ (binding).
+    const hashes = keys.map((k) => hex(lg.payoutCommitments.lookup(k).hash));
+    for (let i = 0; i < hashes.length; i++) {
+      for (let j = i + 1; j < hashes.length; j++) {
+        expect(hashes[i]).not.toBe(hashes[j]);
+      }
     }
   });
 });

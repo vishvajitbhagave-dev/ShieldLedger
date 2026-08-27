@@ -38,13 +38,13 @@ Only opaque nullifiers, commitments, pseudonyms, and disclosed terms ever touch 
 ## Privacy Model
 
 **What is PUBLIC (on-chain, anyone can see):**
-Invoice nullifiers, SME commitments, credit/reputation attestation bounds ("score ≥ N"), lender pseudonyms, sealed-bid commitments, winning bid terms after reveal, settlement receipt, buyer-verified flag + buyer commitment, insurance pool balance, paid insurance claims (keyed by nullifier).
+Invoice nullifiers, SME commitments, credit/reputation attestation bounds ("score ≥ N"), lender pseudonyms, sealed-bid commitments, winning bid terms after reveal, settlement receipt, buyer-verified flag + buyer commitment, insurance pool balance, paid insurance claims (keyed by nullifier), **per-lender pool settlement payout amounts** (required by Compact 0.23 ledger-write disclosure rule — see [docs/compact-privacy-notes.md](docs/compact-privacy-notes.md)), **payout commitment hashes** (binding for insurance claims).
 
 **What is PRIVATE (private witness, never on-chain):**
-Invoice contents, SME secret, credit score (exact value), reputation score + on-time/late counts, lender secret, lender credit score, lender's minimum-reputation bar, lender exposure cap, bid terms before reveal, buyer secret, settlement on-time/late classification.
+Invoice contents, SME secret, credit score (exact value), reputation score + on-time/late counts, lender secret, lender credit score, lender's minimum-reputation bar, lender exposure cap, bid terms before reveal, buyer secret, settlement on-time/late classification, **per-lender pool contribution amounts** (constrained only by sum proof and proportional checks — never written to ledger).
 
 **What the user PROVES without revealing:**
-Credit score ≥ threshold, reputation score ≥ threshold, lender credit score ≥ 700, buyer knows the invoice is genuine, bid commitment matches revealed terms, SME owns the invoice, default conditions are met (financed, unsettled, past due) for insurance payout.
+Credit score ≥ threshold, reputation score ≥ threshold, lender credit score ≥ 700, buyer knows the invoice is genuine, bid commitment matches revealed terms, SME owns the invoice, default conditions are met (financed, unsettled, past due) for insurance payout, **individual contributions sum to the invoice amount** (zero-knowledge sum proof), **each payout is proportional to its contribution** (zero-knowledge floor proof via `verifyProportionalPayout`).
 
 ## Tech Stack
 
@@ -123,7 +123,7 @@ The contract (`contracts/shield-ledger.compact`) is written in Compact. Everythi
 | Invoice registration | nullifier (32-byte hash of the invoice), SME commitment (hash of SME secret + nullifier), **credit attestation** ("score ≥ N", the proven bound), **reputation attestation** ("reputation ≥ N", the proven bound) | invoice contents, SME secret, **credit score**, **reputation score** |
 | Bidding | bid key (hash of nullifier + pseudonym), lender pseudonym (hash of lender secret), **commitment to the bid terms** | bid terms (amount, due date, interest rate) until reveal, lender secret, credit score, exposure cap, **lender minimum reputation** |
 | Reveal | leading bid's terms + lender pseudonym (only if it beats the running best) | — (commitment re-derivation proves ownership) |
-| Settlement | winning lender pseudonym, financed amount, financed due date, winning interest rate | — (SME proves ownership via commitment); the on-time/late classification and the reputation update stay in the SME's wallet |
+| Settlement | winning lender pseudonym, financed amount, financed due date, winning interest rate; **pool settlement: per-lender payout amounts (public inputs), payout commitment hashes (on-chain binding), individual contribution amounts remain private** | — (SME proves ownership via commitment); the on-time/late classification and the reputation update stay in the SME's wallet; **pool: individual contributions are never visible** |
 | Default insurance | ONE shared pool balance (2% premiums in, 50% default payouts out), paid claims keyed only by the already-public nullifier | which SME funded the pool; why a specific claim was paid; the fact that *this* SME defaulted |
 
 ### Sealed-Bid Auction
@@ -143,7 +143,7 @@ Invoices can be financed by a pool of up to 4 lenders instead of a single winner
 1. SME registers with `splitCount` = 2–4 (e.g., `splitCount: 4` means up to 4 lenders can co-finance).
 2. Each lender places a sealed pool bid (`submitBid` + `revealPoolBid`) targeting a specific slot index (0–3).
 3. The contract fills pool slots in reveal order. All bids in a pool share the same `totalContribution` (= invoice amount) and `totalPayout` (repayment amount). The winning pool is the one with the **lowest weighted average rate** (sum of `rate × contribution` / total).
-4. SME calls `settleSplitInvoice` with per-lender contribution and payout arrays. The circuit verifies each payout is proportional to its contribution (floor-exact via `verifyProportionalPayout`) and that all contributions sum to the invoice amount.
+4. SME calls `settleSplitInvoice` with per-lender contribution and payout arrays. The circuit verifies each payout is proportional to its contribution (floor-exact via `verifyProportionalPayout`) and that all contributions sum to the invoice amount. **Individual contribution amounts are private** (never disclosed on-chain); **payout amounts are public inputs** (required by Compact 0.23's ledger-write disclosure rule — see [docs/compact-privacy-notes.md](docs/compact-privacy-notes.md)). Payout commitment hashes are stored on-chain to bind insurance claims to the proved payout values.
 5. Any floor-rounding remainder (< 4 tNight for a 4-lender pool) is routed to the insurance pool as additional premium — modeled on Uniswap V3 fee-rounding behavior.
 
 ### Pool Insurance (Per-Lender Claims)

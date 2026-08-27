@@ -96,12 +96,14 @@ export interface PoolBidView {
 }
 
 /**
- * A per-lender settlement record for a pool-financed invoice. Keyed by
- * poolSlotKey hash; stores only the payout amount.
+ * A per-lender payout commitment for a pool-financed invoice. Keyed by
+ * poolSlotKey hash; stores only the on-chain commitment hash of
+ * (slotKey, payout). The payout value itself is NOT on-chain — it is verified
+ * against this commitment at insurance-claim time via an undisclosed witness.
  */
-export interface PoolSettlementView {
+export interface PayoutCommitmentView {
   readonly slotKey: string;
-  readonly payout: bigint;
+  readonly hash: string;
 }
 
 /**
@@ -125,6 +127,6 @@ export interface ShieldLedgerDerivedState {
   readonly insurancePool: InsurancePoolView | null;
   readonly insuranceClaims: InsuranceClaimView[];
   readonly poolBids: PoolBidView[];
-  readonly poolSettlements: PoolSettlementView[];
+  readonly payoutCommitments: PayoutCommitmentView[];
   readonly poolClaims: PoolClaimView[];
 }

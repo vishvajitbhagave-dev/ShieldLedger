@@ -31,6 +31,7 @@ import {
   type ShieldLedgerDerivedState,
   type ShieldLedgerProviders,
 } from './shield-ledger-types.js';
+import { persistPoolPayout, lookupPoolPayout } from './pool-payouts.js';
 
 function toHex(bytes: Uint8Array): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
@@ -92,9 +93,9 @@ function toDerivedState(state: Parameters<typeof ShieldLedger.ledger>[0]): Shiel
     lender: toHex(bid.lender),
     commitment: toHex(bid.commitment),
   }));
-  const poolSettlements = Array.from(lg.poolSettlements, ([slotKey, settlement]) => ({
+  const payoutCommitments = Array.from(lg.payoutCommitments, ([slotKey, commitment]) => ({
     slotKey: toHex(slotKey),
-    payout: settlement.payout,
+    hash: toHex(commitment.hash),
   }));
   const poolClaims = Array.from(lg.poolClaimCommitments, ([slotKey, claim]) => ({
     slotKey: toHex(slotKey),
@@ -110,7 +111,7 @@ function toDerivedState(state: Parameters<typeof ShieldLedger.ledger>[0]): Shiel
     insurancePool,
     insuranceClaims,
     poolBids,
-    poolSettlements,
+    payoutCommitments,
     poolClaims,
   };
 }
@@ -365,6 +366,12 @@ export class ShieldLedgerAPI {
       totalPayout,
       newInsurancePoolBalance,
     );
+    // The on-chain record is only a commitment hash, so persist each lender's
+    // payout locally (keyed by slot key) for later insurance claims.
+    for (let i = 0; i < 4; i++) {
+      const slotKey = toHex(ShieldLedger.pureCircuits.poolSlotKey(nullifier, BigInt(i)));
+      persistPoolPayout({ nullifier: toHex(nullifier), slotIndex: BigInt(i), slotKey, payout: payouts[i] });
+    }
     const onTime = results.private.result === true;
     const privateState = await this.providers.privateStateProvider.get(shieldLedgerPrivateStateKey);
     if (!privateState) return onTime;
@@ -420,8 +427,17 @@ export class ShieldLedgerAPI {
     }
     if (invoice.splitCount === 0n) throw new Error('Not a pool invoice.');
     const slotKey = ShieldLedger.pureCircuits.poolSlotKey(nullifier, slotIndex);
-    if (!lg.poolSettlements.member(slotKey)) throw new Error('Pool slot not settled.');
-    const settlementPayout = lg.poolSettlements.lookup(slotKey).payout;
+    if (!lg.payoutCommitments.member(slotKey)) throw new Error('Pool slot not settled.');
+    // The payout value is NOT on-chain (only a commitment hash is). It was
+    // persisted locally when this wallet settled the invoice; replay it here as
+    // the undisclosed witness. The circuit re-derives the commitment hash and
+    // requires it to match on-chain, so a stale/wrong value is rejected.
+    const settlementPayout = lookupPoolPayout(toHex(slotKey));
+    if (settlementPayout === null) {
+      throw new Error(
+        'No locally stored payout for this slot. This wallet must have settled the pool invoice (which stores the per-lender payout privately) before it can claim insurance on it.',
+      );
+    }
     const poolKey = insurancePoolKey();
     if (!lg.insurancePools.member(poolKey)) throw new Error('Insurance pool not seeded.');
     const balance = lg.insurancePools.lookup(poolKey).balance;
@@ -440,6 +456,7 @@ export class ShieldLedgerAPI {
       insurancePayout,
       balance - insurancePayout,
       claimedAt,
+      settlementPayout,
     );
     return results.private.result;
   }
