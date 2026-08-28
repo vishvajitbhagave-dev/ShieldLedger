@@ -2,9 +2,15 @@ import React from 'react';
 import { useLedgerState } from '../use-ledger-state.js';
 import { computeDashboardMetrics } from '../dashboard-metrics.js';
 import { computeCircuitBreakerStatus } from '../circuit-breaker.js';
+import {
+  generateAuditReport,
+  auditReportBlob,
+  auditReportFilename,
+} from '../audit-export.js';
 import { describeError } from '../lib/errorMessages.js';
 import { ErrorBanner } from './ErrorBanner.js';
 import { HealthBanner } from './HealthBanner.js';
+import { track } from '../lib/analytics.js';
 
 const formatPct = (value: number | null): string =>
   value === null ? '—' : `${value.toFixed(1)}%`;
@@ -46,6 +52,20 @@ export const Dashboard: React.FC = () => {
 
   const noData = m.totalInvoices === 0;
 
+  const exportAuditTrail = (): void => {
+    if (!state) return;
+    const report = generateAuditReport(state);
+    const url = URL.createObjectURL(auditReportBlob(report));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = auditReportFilename();
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    track('audit_export', { invoices: report.summary.invoicesRegistered });
+  };
+
   return (
     <div className="sl-panel">
       <h2>Analytics Dashboard</h2>
@@ -53,6 +73,18 @@ export const Dashboard: React.FC = () => {
         Real-time platform health metrics computed from public on-chain ledger data. No private
         state is used.
       </p>
+
+      <div className="sl-stage" style={{ padding: '0.75rem 1rem', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+          <span className="sl-meta">
+            Export a compliance/audit trail built entirely from public on-chain state — no
+            private data is included.
+          </span>
+          <button type="button" className="sl-button" onClick={exportAuditTrail} disabled={noData}>
+            Export Audit Trail (JSON)
+          </button>
+        </div>
+      </div>
 
       {noData && (
         <p className="sl-empty">No invoices registered yet — metrics will appear once data is on-chain.</p>
