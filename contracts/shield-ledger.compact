@@ -479,7 +479,11 @@ export circuit isBetter(rate: Uint<64>, amount: Uint<64>, dueDate: Uint<64>, bes
   if (willingToSplit && !bestWillingToSplit) {
     return false;
   }
-  // Same group: lowest rate → smallest amount → earliest due date → first revealer.
+  // Same group: lowest rate → smallest amount → earliest due date. On an exact
+  // tie across all of these there is NO winner declared: `isBetter` returns
+  // false and `revealBid` leaves the previously stored bestBids entry in place
+  // (the first entry that became the best stays; no "first revealer" tiebreak
+  // exists in code — both SealedBid and BestBid carry no timestamp).
   return rate < bestRate
     || (rate == bestRate && amount < bestAmount)
     || (rate == bestRate && amount == bestAmount && dueDate < bestDueDate);
