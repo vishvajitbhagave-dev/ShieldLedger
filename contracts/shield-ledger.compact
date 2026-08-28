@@ -317,10 +317,10 @@ export circuit registerInvoice(nullifier: Bytes<32>, creditThreshold: Uint<64>, 
 // SME's claim fails the assert inside the circuit (not application logic).
 export circuit confirmInvoice(nullifier: Bytes<32>, confirmedAmount: Uint<64>): [] {
   assert(invoices.member(disclose(nullifier)), "unknown invoice");
-  assert(!invoices.lookup(disclose(nullifier)).lender.is_some, "invoice not in bidding");
-  assert(!invoices.lookup(disclose(nullifier)).buyerVerified, "already buyer verified");
-  assert(disclose(confirmedAmount) == invoices.lookup(disclose(nullifier)).invoiceAmount, "amount mismatch");
   const current = invoices.lookup(disclose(nullifier));
+  assert(!current.lender.is_some, "invoice not in bidding");
+  assert(!current.buyerVerified, "already buyer verified");
+  assert(disclose(confirmedAmount) == current.invoiceAmount, "amount mismatch");
   const buyerCommitment = disclose(deriveBuyerCommitment(buyerSecret(), disclose(nullifier)));
   invoices.insert(disclose(nullifier), Invoice { smeCommitment: current.smeCommitment, creditThreshold: current.creditThreshold, reputationThreshold: current.reputationThreshold, invoiceAmount: current.invoiceAmount, buyerVerified: true, buyerCommitment: buyerCommitment, lender: current.lender, amount: current.amount, dueDate: current.dueDate, rateBps: current.rateBps, claimCommitment: current.claimCommitment, transferred: current.transferred, splitCount: current.splitCount });
   invoiceCount.increment(1);
@@ -335,8 +335,9 @@ export circuit confirmInvoice(nullifier: Bytes<32>, confirmedAmount: Uint<64>): 
 export circuit submitBid(nullifier: Bytes<32>, commitment: Bytes<32>): [] {
   assert(lenderCreditScore() >= 700, "not creditworthy");
   assert(invoices.member(disclose(nullifier)), "unknown invoice");
-  assert(!invoices.lookup(disclose(nullifier)).lender.is_some, "invoice not in bidding");
-  assert(invoices.lookup(disclose(nullifier)).reputationThreshold >= lenderMinReputation(), "reputation below lender minimum");
+  const invoice = invoices.lookup(disclose(nullifier));
+  assert(!invoice.lender.is_some, "invoice not in bidding");
+  assert(invoice.reputationThreshold >= lenderMinReputation(), "reputation below lender minimum");
   const pseudonym = disclose(derivePseudonym(lenderSecret()));
   const bidKey = disclose(deriveBidKey(disclose(nullifier), pseudonym));
   assert(!bids.member(bidKey), "already bid");
@@ -376,8 +377,9 @@ export circuit revealBid(nullifier: Bytes<32>, amount: Uint<64>, dueDate: Uint<6
 
 export circuit settleInvoice(nullifier: Bytes<32>, financedAmount: Uint<64>, financedDueDate: Uint<64>, settledAt: Uint<64>): Boolean {
   assert(invoices.member(disclose(nullifier)), "unknown invoice");
-  assert(deriveCommitment(smeSecret(), disclose(nullifier)) == invoices.lookup(disclose(nullifier)).smeCommitment, "not the SME");
-  assert(!invoices.lookup(disclose(nullifier)).lender.is_some, "already financed");
+  const current = invoices.lookup(disclose(nullifier));
+  assert(deriveCommitment(smeSecret(), disclose(nullifier)) == current.smeCommitment, "not the SME");
+  assert(!current.lender.is_some, "already financed");
   assert(bestBids.member(disclose(nullifier)), "auction not resolved");
   const best = bestBids.lookup(disclose(nullifier));
   assert(disclose(financedAmount) <= best.amount, "amount exceeds winning bid");
@@ -388,7 +390,6 @@ export circuit settleInvoice(nullifier: Bytes<32>, financedAmount: Uint<64>, fin
   // ledger learns neither the holder's identity nor the transfer history.
   // The invoice keeps the latest claimCommitment, so the current holder can
   // always prove (in ZK) their right to the payout.
-  const current = invoices.lookup(disclose(nullifier));
   const receiptLender = pickPayee(current.transferred, disclose(best.lender));
   const receiptAmount = disclose(financedAmount);
   const receiptDueDate = disclose(financedDueDate);
