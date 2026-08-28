@@ -112,3 +112,31 @@ public slot-to-pseudonym mapping, and can see the pool as a whole — not per-le
 Closing it would require hiding or unlinking the public anchors used here (e.g. not publishing
 `totalPayout`/per-lender payouts in a form tied to `invoiceAmount`, or proving proportionality
 against a hidden total).
+
+### Known limitation: the credit score is self-reported and not private
+
+`smeCreditScore` is a private witness that is **100% self-reported** — it lives only in the
+SME's wallet and is verified against nothing. The circuit only enforces
+`smeCreditScore() >= creditThreshold`; it cannot check the value against reality because
+**no verifiable financial data exists in the system**. In the browser DApp it defaults to a
+hardcoded `720` (no UI field to set a real value); via the CLI or private-state file an SME
+can set it to any value and the contract accepts it.
+
+Privacy-wise, even the threshold mechanism offers **limited real secrecy**: if the SME
+maximizes `creditThreshold` for a better rate, the public bound converges toward the
+self-reported score. A genuinely private *and* verified score would require introducing new
+private off-chain data inputs (e.g. bank/tax/oracle disclosures under ZK credentials) that do
+not exist in the codebase today. This is documented as out-of-scope for the current
+implementation.
+
+### Known limitation: the reputation score is reconstructable, not secret
+
+`smeReputationScore` is also a private witness that is never written to the ledger — but it is
+**reconstructable by any observer**: the score starts at a known `0`, updates deterministically
+(`+10` on-time / `−20` late, clamped 0–100 in `src/reputation.ts`), and each settlement's
+on-time/late outcome is public (the settlement's `settledAt` vs the invoice's public
+`dueDate`). An observer applies the same public formula to the on-chain settlement timeline
+and recovers the exact score and on-time/late counts at any point. This is the same
+forced-leak pattern as the pooled-contribution and credit-threshold issues above; closing it
+would require proving reputation against hidden or noise-perturbed state or making the
+on-time/late classification private.

@@ -36,7 +36,7 @@ This is how an SME puts an invoice up for financing.
 4. Wait 30–60 seconds for the zero-knowledge proof to generate and the transaction to confirm.
 5. Your invoice now appears in the **Open invoices** table. A 2% insurance premium is automatically paid into the default insurance pool.
 
-**What happened privately:** Your credit score, reputation score, invoice contents, and identity never left your browser. The contract only learned a nullifier (hash), your commitment, and the bounds "score ≥ N".
+**What happened privately:** Your credit score, reputation score, invoice contents, and identity never left your browser — the contract only learned a nullifier (hash), your commitment, and the bounds "score ≥ N". **Caveat:** the credit score is self-reported with no verification, and the reputation score/counts are reconstructable from your public settlement timeline (see [Known limitations](../README.md#known-limitations)); only the bound values are *directly* exposed on-chain.
 
 ### Step 3: Confirm the Invoice (Buyer Role)
 
@@ -96,7 +96,7 @@ The contract pays the winning lender. Your private reputation updates: +10 if yo
 1. Click the **SME** tab.
 2. Your current reputation score, on-time count, and late count are shown under **Your private reputation**.
 
-This information never leaves your browser. The contract never sees your exact score — only the bound you choose to prove.
+This information never leaves your browser — the contract never sees your exact score, only the bound you choose to prove. **Caveat:** although the score/counts are never written on-chain, they are *publicly reconstructable* from your settlement timeline (on-time/late is visible from the on-chain `settledAt` vs `dueDate`, and the score updates deterministically from a known start) — see the README's [Known limitations](../README.md#known-limitations).
 
 ### Step 8: Secondary Market — Transfer a Claim (Lender Role)
 
@@ -202,7 +202,7 @@ The contract pays 50% of the financed amount from the pool (or whatever is avail
 | Buyer confirms invoice | "The invoice is genuine and the amount matches" | Buyer identity, supplier relationships, contract terms |
 | Lender places bid | "Lender credit score ≥ 700" | Bid terms (amount, rate, due date), lender identity, credit score |
 | Lender reveals bid | The winning bid's terms (amount, rate, due date) | Losing bid terms (unless the owner reveals) |
-| SME settles invoice | Winning lender pseudonym, financed amount, rate | SME identity, on-time/late classification (wallet-side only) |
+| SME settles invoice | Winning lender pseudonym, financed amount, rate | SME identity. (The on-time/late outcome is publicly observable from the settlement's `settledAt` vs the public `dueDate`, and drives the reconstructable reputation score — see the README's [Known limitations](../README.md#known-limitations).) |
 | Claim transferred | New claim commitment | Buyer/seller identity, number of transfers |
 | Insurance claimed | Payout amount and pool balance update | Which SME defaulted, why the claim was paid |
 

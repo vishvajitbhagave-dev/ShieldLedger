@@ -97,36 +97,51 @@ bid's terms, — for resold claims — the **claim commitment** to the current
 holder plus a `transferred` flag, and the **default-insurance pool**: one shared
 public balance plus paid-claim records keyed by already-public nullifiers.
 Everything else — invoice contents, bid terms
-until the owner reveals, both secrets, the credit score, the reputation score,
-the lender's minimum-reputation bar, the settlement's on-time/late
-classification, every secondary-market party identity, and which SME funded or
-defaulted into the insurance pool — stays in the wallet.
+until the owner reveals, both secrets, the lender's minimum-reputation bar,
+every secondary-market party identity, and which SME funded or defaulted into
+the insurance pool — stays in the wallet. **Caveat:** the credit score, the
+reputation score / on-time-late counts, and the settlement's on-time/late
+classification are never written to the ledger, but several are **reconstructable
+from public data** (credit threshold, on-chain settlement timeline) — see the
+ZK credit / cross-deal reputation sections below and the README's
+[Known limitations](../README.md#known-limitations).
 
 ### ZK credit scoring (SME)
 
 `registerInvoice(nullifier, creditThreshold)` proves the SME's private
-`smeCreditScore() >= creditThreshold` inside the circuit. Only the bound is
-disclosed; the score and the financial history behind it never leave the wallet.
-A contract floor of 650 stops "score ≥ 0" gaming. The attestation survives
+`self-reported smeCreditScore() >= creditThreshold` inside the circuit. Only the
+bound is disclosed; the score value itself is never written to the ledger. A
+contract floor of 650 stops "score ≥ 0" gaming. The attestation survives
 settlement (it is carried on the `Invoice` struct) and is shown to lenders as
 `score ≥ N` in the DApp's Open-invoices and Public-ledger tables.
+
+**Important — the score is self-reported, not verified.** `smeCreditScore` is a
+wallet-private witness with **no verification against any external or platform
+reality**. In the browser DApp it defaults to a hardcoded `720` with no UI field
+to set a real value; via the CLI or manual private-state file editing an SME can
+set it to any arbitrary value (e.g. `1,000,000`) and the contract accepts it.
+The only constraint is `smeCreditScore() >= creditThreshold`, which binds the
+*self-reported* value to the chosen bound — it does not bind the value to real
+financial data, because no such verifiable data source exists in the system.
+See the README's [Known limitations](../README.md#known-limitations).
 
 #### Privacy model: ZK credit scoring — what an observer can and cannot learn
 
 | Can an observer learn… | Yes / No | How |
 | --- | --- | --- |
-| The SME's exact credit score | **No** | Private witness `smeCreditScore`, consumed only inside the ZK circuit; never disclosed, stored, or serialized into any transaction payload. |
+| The SME's exact credit score | **Depends** | It is never disclosed or stored, but if the SME maximizes `creditThreshold` for a better rate (the rational choice) the public threshold converges toward the self-reported score, so the exact value can leak (see [Known limitations](../README.md#known-limitations)). |
 | The proven bound ("score ≥ N") | **Yes** | `creditThreshold` is a public field of the `Invoice` struct, written by `disclose(creditThreshold)`. |
 | That the score meets the attested minimum | **Yes** | The bound *is* the attestation — a viewer sees "score ≥ 650". |
-| The financial history behind the score | **No** | Never leaves the wallet; the circuit sees only the score value. |
+| The financial history behind the score | **No** | The wallet holds only the self-reported score; there is no financial history in the system to leak. |
 | The SME's identity | **No** | The invoice is keyed by a nullifier; ownership is a commitment hash, not an identifier. |
 
-**Why it is unforgeable.** The check is a circuit `assert`
-(`smeCreditScore() >= disclose(creditThreshold)`), so a score below the
-threshold makes **proof generation fail**. Registration is a proof of
-creditworthiness, not a claim an SME can make or fake through application
-logic: only a threshold at or below the true score is cryptographically
-provable, and the verifier checks that proof on-chain.
+**What the proof actually guarantees.** The check is a circuit `assert`
+(`smeCreditScore() >= disclose(creditThreshold)`), so a *self-reported* score
+below the threshold makes **proof generation fail**. This guarantees the SME
+cannot claim a bound above the value in their own wallet — it is **not** a
+guarantee that the wallet value reflects real creditworthiness, since that value
+is self-set with no verification. Registration proves "my self-reported score ≥
+N," not "my real-world credit score ≥ N."
 
 ### ZK buyer verification
 
@@ -199,19 +214,22 @@ score via `savePrivateState` (CLI) or the in-memory provider (DApp).
 
 | Can an observer learn… | Yes / No | How |
 | --- | --- | --- |
-| The SME's exact reputation score | **No** | `smeReputationScore` is a private witness consumed only inside the ZK circuits. |
-| How many deals were on-time / late | **No** | `smeOnTimeCount`/`smeLateCount` are private witnesses; no count ever appears on-chain. |
+| The SME's exact reputation score | **Yes** | Never disclosed/stored, but **reconstructable**: the score starts at a known `0`, updates deterministically (`+10`/−`20`, clamped 0–100), and every settlement's on-time/late outcome is public — an observer replays the formula over the on-chain timeline (see [Known limitations](../README.md#known-limitations)). |
+| How many deals were on-time / late | **Yes** | `smeOnTimeCount`/`smeLateCount` are never written on-chain, but they follow from the same publicly observable on-time/late settlement sequence. |
 | The proven bound ("rep ≥ N") | **Yes** | `reputationThreshold` is a public field of the `Invoice` struct, written by `disclose(reputationThreshold)`. |
 | The lender's minimum-reputation bar | **No** | `lenderMinReputation` is a private witness; `submitBid` compares it to the bound inside the circuit. |
-| The settlement's on-time classification | **No** | The boolean is the circuit *return value*, delivered only to the caller's wallet. |
+| The settlement's on-time classification | **Yes** | Publicly observable: the settlement's `settledAt` and the invoice's public `dueDate` are both on-chain, so `settledAt <= dueDate` (on-time vs late) is visible to anyone. |
 | The SME's identity | **No** | The invoice is keyed by a nullifier; ownership is a commitment hash, not an identifier. |
 
 **Why it is unforgeable.** Both comparisons are circuit `assert`s: a
-registration bound above the true score, or a bid against a bound below the
-lender's bar, makes **proof generation fail**. The score is therefore an
-incentive that reliably compounds across deals (on-time SMEs register
-progressively higher bounds, which lenders trust), without ever publishing a
-financial history.
+registration bound above the wallet's self-reported score, or a bid against a
+bound below the lender's bar, makes **proof generation fail**. The bound
+attestation is therefore real relative to the wallet's score. **It does not
+keep the score secret from observers** — because the score evolves
+deterministically from a public start with publicly observable outcomes (above),
+the exact value and counts are reconstructable. Accept the reputation as an
+incentive that compounds across deals, but do not rely on it as a private/
+hidden value.
 
 ### Secondary market — private claim transfers
 
@@ -262,7 +280,7 @@ demo contract has no token ledger — payout is the receipt record, so the secon
 investor is simulated by sharing the claim secret out of band rather than by a
 real second wallet.
 
-### Default insurance pool � automated, proven, anonymous
+### Default insurance pool � automated, proven, anonymous
 
 The pool turns individual financing risk into a shared public guarantee. It is
 ONE aggregate balance (`insurancePools`, stored under the fixed domain key
@@ -270,7 +288,7 @@ ONE aggregate balance (`insurancePools`, stored under the fixed domain key
 and drained by proof:
 
 1. **Premium in (automatic).** Every `registerInvoice` pays
-   `floor(invoiceAmount / 50)` � exactly 2%, floored. The SME discloses the
+   `floor(invoiceAmount / 50)` � exactly 2%, floored. The SME discloses the
    premium and the resulting balance; the circuit proves both with
    `verifyUnitQuotient(invoiceAmount, contribution, 50)` and an equality
    against the on-chain balance (`pool.balance + contribution ==
@@ -284,7 +302,7 @@ and drained by proof:
    (leader pseudonym before any transfer, re-derived `claimCommitment` after);
    single-use via `insuranceClaims`;
    `maxEntitlement == floor(best.amount / 2)`; and the strict formula
-   `payout == min(maxEntitlement, balance)` � enforced by two branches
+   `payout == min(maxEntitlement, balance)` � enforced by two branches
    ("fully covered claims must be maximal" / "partially covered claims must
    drain the pool") plus the dynamic underflow check inside the balance
    equality.
@@ -298,14 +316,14 @@ payouts) using only multiplication and comparison.
 **Why a map entry instead of a scalar ledger.** Compact's Uint arithmetic
 widens result bounds through `+`/`-` (e.g. `Uint<64> + Uint<64>` has bound
 `2^65-1`), so an arithmetic result can never be assigned back to a scalar
-`Uint<64>` ledger variable � the compiler rejects it statically. The pool is
+`Uint<64>` ledger variable � the compiler rejects it statically. The pool is
 therefore a single-entry `Map<Bytes<32>, InsurancePool>`, and every transition
 passes the NEW balance as a public argument proven against the old one. The
 result is equivalent to a mutable scalar: observers read one number.
 
-#### Privacy model: default insurance pool � what an observer can and cannot learn
+#### Privacy model: default insurance pool � what an observer can and cannot learn
 
-| Can an observer learn� | Yes / No | How |
+| Can an observer learn� | Yes / No | How |
 | --- | --- | --- |
 | The pool balance and each payout | **Yes** | Deliberately public: that is the shared guarantee being sold. |
 | Which SME paid a given premium | **No** | Premiums merge into one running total; no per-SME record exists. |
