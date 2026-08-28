@@ -3,6 +3,8 @@ import { useLedgerState } from '../use-ledger-state.js';
 import { describeError } from '../lib/errorMessages.js';
 import { HexBadge } from './HexBadge.js';
 import { ErrorBanner } from './ErrorBanner.js';
+import { BidDepthChart } from './BidDepthChart.js';
+import { buildMarketDepth } from '../bid-depth.js';
 import * as ShieldLedger from '../../../contracts/managed/shield-ledger/contract/index.js';
 
 const toHex = (bytes: Uint8Array): string =>
@@ -276,6 +278,27 @@ export const LedgerView: React.FC = () => {
                 </table>
               </div>
             )}
+          </section>
+
+          <section className="sl-stage">
+            <h3 className="sl-section-title">Bid depth (order book)</h3>
+            <p className="sl-note">
+              Revealed winning bids across resolved auctions, grouped by rate. Shows disclosed
+              winner terms only — non-winning bids' terms and pool bid rates are never published.
+            </p>
+            <details className="sl-details">
+              <summary>Learn more</summary>
+              <p>
+                The on-chain design discloses the rate/amount of only the <em>single winning</em>{' '}
+                bid per single-lender auction; competing bids' terms are discarded at reveal and
+                pool-bid rates are committed (private). This chart therefore plots exactly what is
+                public — an order-book-style view of who is winning at each rate, not a bid ladder
+                of every competitor. Lowest rate = best offer.
+              </p>
+            </details>
+            <div style={{ overflowX: 'auto' }}>
+              <BidDepthChart depth={buildMarketDepth(state.bestBids, state.poolBids)} />
+            </div>
           </section>
 
           <section className="sl-stage">
