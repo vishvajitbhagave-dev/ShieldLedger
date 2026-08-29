@@ -8,6 +8,7 @@ import { HexBadge } from './components/HexBadge.js';
 import { ErrorBoundary } from './components/ErrorBoundary.js';
 import { ErrorBanner } from './components/ErrorBanner.js';
 import { LenderPortfolio } from './components/LenderPortfolio.js';
+import { RateTrendChart } from './components/RateTrendChart.js';
 import { describeError } from './lib/errorMessages.js';
 import { useLedgerState } from './use-ledger-state.js';
 import { track } from './lib/analytics.js';
@@ -184,6 +185,7 @@ const Body: React.FC = () => {
           <LedgerView />
           <Dashboard />
           {role === 'lender' && <LenderPortfolio />}
+          <RateTrendChart />
         </div>
       )}
     </div>
