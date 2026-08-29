@@ -84,6 +84,11 @@ and is explicitly not part of the production flow.
 - **Amounts are data.** Neither contract issues or moves real NIGHT/DUST tokens
   (no `Token`/`Coin` circuits); amounts are `Uint<64>` fields on a public ledger.
   Token-backed escrow would layer `send` circuits on the same structure.
+- **Data provenance / non-goals.** For where every displayed value comes from and how much
+  to trust it — the on-chain/private/off-chain trust categories, why a per-invoice
+  multi-bid "order book" is a deliberate non-goal, and why an indexer-based bid-history
+  service was considered and not pursued — see
+  [docs/TRUST_AND_DATA_PROVENANCE.md](TRUST_AND_DATA_PROVENANCE.md).
 
 ## Privacy model (recap)
 
