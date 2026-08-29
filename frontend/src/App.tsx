@@ -7,6 +7,7 @@ import { Dashboard } from './components/Dashboard.js';
 import { HexBadge } from './components/HexBadge.js';
 import { ErrorBoundary } from './components/ErrorBoundary.js';
 import { ErrorBanner } from './components/ErrorBanner.js';
+import { LenderPortfolio } from './components/LenderPortfolio.js';
 import { describeError } from './lib/errorMessages.js';
 import { useLedgerState } from './use-ledger-state.js';
 import { track } from './lib/analytics.js';
@@ -182,6 +183,7 @@ const Body: React.FC = () => {
           <InvoiceFinancing />
           <LedgerView />
           <Dashboard />
+          {role === 'lender' && <LenderPortfolio />}
         </div>
       )}
     </div>

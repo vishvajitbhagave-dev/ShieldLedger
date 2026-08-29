@@ -225,6 +225,19 @@ export class ShieldLedgerAPI {
   }
 
   /**
+   * Derives THIS wallet's own lender pseudonym from its private state. The
+   * secret never leaves the wallet and nothing is disclosed on-chain; the
+   * value is used to filter public entries (winning bids, pool slots) that
+   * belong to the connected lender.
+   */
+  async getMyPseudonym(): Promise<string | null> {
+    const privateState = await this.providers.privateStateProvider.get(shieldLedgerPrivateStateKey);
+    const secret = privateState?.lenderSecret;
+    if (!secret) return null;
+    return toHex(ShieldLedger.pureCircuits.derivePseudonym(secret));
+  }
+
+  /**
    * Secondary market: resells the caller's claim on `nullifierHex` to a new
    * investor. The wallet derives and publishes only the commitment to the
    * investor's secret — the secret itself is shared out of band.
