@@ -28,6 +28,17 @@ witness — never on-chain, never observed. So:
 **at most 4 lenders** (`contracts/shield-ledger.compact:291`, `splitCount <= 4`),
 so a single invoice cannot spread across an arbitrarily deep lender base.
 
+There is a second, assumption-free on-chain bound worth recording here:
+`verifyProportionalPayout` asserts **each pool contribution < 2^32**
+(`contracts/shield-ledger.compact:556`, the overflow cap, applied per slot at
+`settleSplitInvoice`). Since the four contributions must sum exactly to the
+invoice face, **any invoice with face > 4 × (2^32 − 1) ≈ 17.18 billion units
+(~₹171.8 Cr at ₹1/unit) is impossible to pool-finance at all** — a purely
+deterministic protocol bound, independent of the assumed market capital above.
+It sits far above every scenario in this document, so it does not change any
+conclusion here; it is recorded so the fundability ceiling is never mistaken
+for infinite.
+
 ## What "price impact" means here — and what it does NOT mean
 
 In a deep market, "big trade moves the price" assumes many small marginal
