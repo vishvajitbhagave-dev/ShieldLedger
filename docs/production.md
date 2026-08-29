@@ -31,8 +31,7 @@ requires at runtime, and the DApp reads its URL from the connected wallet's
    frontend dependencies, and builds the DApp.
 3. The build bakes in the deployment configuration:
    - `VITE_BASE_PATH=/ShieldLedger/` (Pages project site path)
-   - `VITE_NETWORK_ID=preview`
-   - `VITE_PROOF_SERVER_URL=http://localhost:6300`
+   - `VITE_NETWORK_ID=preprod`
    - `VITE_APP_RELEASE=<git SHA>` (release tag for error reports)
    - `VITE_SENTRY_DSN` / `VITE_ANALYTICS_DOMAIN` from GitHub repository
      **Variables** (leave unset to run without monitoring — see `monitoring.md`)
@@ -66,8 +65,8 @@ npm ci
 npm run compile                  # regenerates the ZK assets the DApp needs
 npm --prefix frontend ci
 $env:VITE_BASE_PATH='/ShieldLedger/'
-$env:VITE_NETWORK_ID='preview'
-$env:VITE_PROOF_SERVER_URL='http://localhost:6300'
+$env:VITE_NETWORK_ID='preprod'
+# proof server is unset → the DApp uses the wallet-reported prover URI
 npm --prefix frontend run build
 npm --prefix frontend run preview   # serves frontend/dist locally
 ```

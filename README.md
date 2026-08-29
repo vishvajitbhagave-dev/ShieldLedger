@@ -237,8 +237,8 @@ ShieldLedger is a **working demonstration on the Midnight Preview and Preprod te
 
 | Environment | Status | Details |
 | --- | --- | --- |
-| Midnight **Preview** (testnet) | **Active** | Live contract + DApp; funded with free test tokens from the [Preview faucet](https://faucet.preview.midnight.network/). |
-| Midnight **Preprod** (testnet) | **Active** | Live contract (no DApp build); funded with free test tokens from the [Preprod faucet](https://midnight-tmnight-preprod.nethermind.dev/). |
+| Midnight **Preview** (testnet) | **Active** | Live contract; funded with free test tokens from the [Preview faucet](https://faucet.preview.midnight.network/). |
+| Midnight **Preprod** (testnet) | **Active** | Live contract + DApp (GitHub Pages demo); funded with free test tokens from the [Preprod faucet](https://midnight-tmnight-preprod.nethermind.dev/). |
 | Midnight **Mainnet** | Not deployed | Requires Midnight mainnet tooling; nothing has been deployed there. |
 
 ## End-to-End Verification (Preview)

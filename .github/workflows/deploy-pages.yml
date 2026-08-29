@@ -52,8 +52,7 @@ jobs:
         run: npm --prefix frontend run build
         env:
           VITE_BASE_PATH: /ShieldLedger/
-          VITE_NETWORK_ID: preview
-          VITE_PROOF_SERVER_URL: http://localhost:6300
+          VITE_NETWORK_ID: preprod
           VITE_APP_RELEASE: ${{ github.sha }}
           VITE_SENTRY_DSN: ${{ vars.SENTRY_DSN }}
           VITE_ANALYTICS_DOMAIN: ${{ vars.ANALYTICS_DOMAIN }}
