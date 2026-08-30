@@ -120,9 +120,13 @@ const initialForm: FormState = {
 const SAMPLE_REFERENCE = 'Sample invoice';
 const SAMPLE_NULLIFIER = 'aa11bb22cc33dd44ee55ff66aa77bb88cc99dd00ee11ff22aa33bb44cc55dd66';
 const SAMPLE_AMOUNT = '1000';
-const SAMPLE_DUE = '4102444800';
 const SAMPLE_RATE = '400';
 const SAMPLE_SECRET = '11223344556677889900aabbccddeeff11223344556677889900aabbccddeeff';
+const SAMPLE_DUE = (() => {
+  const d = new Date(Date.now() + 30 * 86_400_000);
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+})();
 
 const sampleForm: FormState = {
   registerReference: SAMPLE_REFERENCE,
@@ -178,6 +182,30 @@ const isDigits = (s: string): boolean => /^\d+$/.test(s.trim());
 
 const isHex64 = (s: string): boolean => /^[0-9a-fA-F]{64}$/.test(s.trim());
 
+const isDateInput = (s: string): boolean => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s.trim());
+  if (!m) return false;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return false;
+  const utc = Date.UTC(year, month - 1, day);
+  const check = new Date(utc);
+  return check.getUTCFullYear() === year && check.getUTCMonth() === month - 1 && check.getUTCDate() === day;
+};
+
+const dateInputToUnixSeconds = (s: string): bigint => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s.trim());
+  if (!m) return 0n;
+  return BigInt(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / 1000);
+};
+
+const unixSecondsToDateInput = (unixSeconds: bigint | number): string => {
+  const d = new Date(Number(unixSeconds) * 1000);
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+};
+
 const formatDate = (unixSeconds: bigint): string => {
   if (unixSeconds <= 0n) return '—';
   return new Date(Number(unixSeconds) * 1000).toLocaleString();
@@ -189,17 +217,19 @@ const Field: React.FC<{
   label: string;
   value: string;
   placeholder?: string;
+  type?: string;
   suffix?: string;
   hint?: React.ReactNode;
   onChange: (v: string) => void;
   disabled?: boolean;
-}> = ({ label, value, placeholder, suffix, hint, onChange, disabled }) => {
+}> = ({ label, value, placeholder, type, suffix, hint, onChange, disabled }) => {
   const control =
     suffix !== undefined || hint !== undefined ? (
       <div className="sl-field-body">
         <div className="sl-input-wrap">
           <input
             className="sl-input"
+            type={type ?? 'text'}
             value={value}
             placeholder={placeholder}
             onChange={(e) => onChange(e.target.value)}
@@ -212,6 +242,7 @@ const Field: React.FC<{
     ) : (
       <input
         className="sl-input"
+        type={type ?? 'text'}
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
@@ -374,7 +405,7 @@ export const InvoiceFinancing: React.FC = () => {
   // Dynamic pricing suggestion: computed from public on-chain data.
   const suggestedRate: SuggestedRate | null = useMemo(() => {
     if (!selectedBidInvoice) return null;
-    const dueDateEstimate = form.bidDue.trim() !== '' ? BigInt(form.bidDue.trim()) : undefined;
+    const dueDateEstimate = form.bidDue.trim() !== '' && isDateInput(form.bidDue) ? dateInputToUnixSeconds(form.bidDue) : undefined;
     return getSuggestedRate(
       selectedBidInvoice.creditThreshold,
       selectedBidInvoice.reputationThreshold,
@@ -401,7 +432,7 @@ export const InvoiceFinancing: React.FC = () => {
   const pick = (kind: 'bid' | 'reveal' | 'settle') => (inv: RegisteredInvoice) => {
     setForm((f) => {
       const prefix = kind === 'bid' ? 'bid' : kind === 'reveal' ? 'reveal' : 'settle';
-      return { ...f, [`${prefix}Nullifier`]: inv.nullifier, [`${prefix}Amount`]: inv.amount, [`${prefix}Due`]: inv.dueDate } as FormState;
+      return { ...f, [`${prefix}Nullifier`]: inv.nullifier, [`${prefix}Amount`]: inv.amount, [`${prefix}Due`]: unixSecondsToDateInput(BigInt(inv.dueDate)) } as FormState;
     });
     if (kind === 'bid') {
       const onChain = (ledgerState?.invoices ?? []).find((i) => i.nullifier === inv.nullifier) ?? null;
@@ -761,7 +792,7 @@ export const InvoiceFinancing: React.FC = () => {
                   const a = api;
                   const reference = form.registerReference.trim();
                   const amount = BigInt(form.registerAmount.trim());
-                  const dueDate = BigInt(form.registerDue.trim());
+                  const dueDate = dateInputToUnixSeconds(form.registerDue.trim());
                   const creditThreshold = BigInt(form.registerThreshold.trim());
                   const reputationThreshold = BigInt(form.registerReputation.trim());
                   const splitCount = BigInt(form.registerSplitCount.trim() || '0');
@@ -784,7 +815,7 @@ export const InvoiceFinancing: React.FC = () => {
                     default-insurance premium (2% of the face amount) into the shared public pool.
                   </p>
                 )}
-                <Field label="Due date" value={form.registerDue} placeholder="unix seconds" onChange={set('registerDue')} disabled={busy || working !== null} />
+                <Field label="Due date" type="date" value={form.registerDue} hint="Stored on-chain as a Unix timestamp (UTC) — the calendar date is converted automatically on submit." onChange={set('registerDue')} disabled={busy || working !== null} />
                 <Field label="Credit check" value={form.registerThreshold} placeholder="e.g. 650 — your score stays private" onChange={set('registerThreshold')} disabled={busy || working !== null} />
                 <Field label="Reputation check" value={form.registerReputation} placeholder="e.g. 30 — proven in zero knowledge" onChange={set('registerReputation')} disabled={busy || working !== null} />
                 <Field label="Split count" value={form.registerSplitCount} placeholder="0 = single lender, 2–4 = pool" onChange={set('registerSplitCount')} disabled={busy || working !== null} />
@@ -819,7 +850,7 @@ export const InvoiceFinancing: React.FC = () => {
                     busy ||
                     working !== null ||
                     !isDigits(form.registerAmount) ||
-                    !isDigits(form.registerDue) ||
+                    !isDateInput(form.registerDue) ||
                     !isDigits(form.registerThreshold) ||
                     !isDigits(form.registerReputation) ||
                     !isDigits(form.registerSplitCount) ||
@@ -907,7 +938,7 @@ export const InvoiceFinancing: React.FC = () => {
                                       setForm((f) => ({
                                         ...f,
                                         poolSettleNullifier: inv.nullifier,
-                                        poolSettleDue: inv.dueDate,
+                                        poolSettleDue: unixSecondsToDateInput(BigInt(inv.dueDate)),
                                       }));
                                       setSmeTab('settleSplit');
                                     } else {
@@ -915,7 +946,7 @@ export const InvoiceFinancing: React.FC = () => {
                                         ...f,
                                         settleNullifier: inv.nullifier,
                                         settleAmount: inv.amount,
-                                        settleDue: inv.dueDate,
+                                        settleDue: unixSecondsToDateInput(BigInt(inv.dueDate)),
                                       }));
                                       setSmeTab('settle');
                                     }
@@ -947,7 +978,7 @@ export const InvoiceFinancing: React.FC = () => {
                   const updated = await a.settleInvoice(
                     form.settleNullifier,
                     BigInt(form.settleAmount.trim()),
-                    BigInt(form.settleDue.trim()),
+                    dateInputToUnixSeconds(form.settleDue.trim()),
                   );
                   setReputation(updated ?? (await a.getReputation()));
                   setSmeTab('track');
@@ -958,7 +989,7 @@ export const InvoiceFinancing: React.FC = () => {
               <InvoicePicker invoices={invoices} disabled={busy || working !== null} onPick={pick('settle')} />
               <Field label="Nullifier" value={form.settleNullifier} placeholder="64 hex chars" onChange={set('settleNullifier')} disabled={busy || working !== null} />
               <Field label="Amount" value={form.settleAmount} placeholder="financed amount (≤ winning bid)" onChange={set('settleAmount')} disabled={busy || working !== null} />
-              <Field label="Due date" value={form.settleDue} placeholder="unix seconds" onChange={set('settleDue')} disabled={busy || working !== null} />
+              <Field label="Due date" type="date" value={form.settleDue} onChange={set('settleDue')} disabled={busy || working !== null} />
               <p className="sl-note">
                 The contract pays the lowest-rate winner automatically.
               </p>
@@ -970,7 +1001,7 @@ export const InvoiceFinancing: React.FC = () => {
               <button
                 className="sl-button"
                 type="submit"
-                disabled={busy || working !== null || form.settleNullifier.trim().length === 0 || form.settleAmount.trim().length === 0 || form.settleDue.trim().length === 0 || !settleReady}
+                disabled={busy || working !== null || form.settleNullifier.trim().length === 0 || form.settleAmount.trim().length === 0 || !isDateInput(form.settleDue) || !settleReady}
               >
                 {working === 'settleInvoice' ? 'Working…' : settleNullifier !== '' && !settleReady ? 'Awaiting winning bid' : 'Settle'}
               </button>
@@ -987,7 +1018,7 @@ export const InvoiceFinancing: React.FC = () => {
                 void run('settleSplitInvoice', async () => {
                   await a.settleSplitInvoice(
                     form.poolSettleNullifier,
-                    BigInt(form.poolSettleDue.trim()),
+                    dateInputToUnixSeconds(form.poolSettleDue.trim()),
                     [
                       BigInt(form.poolSettleContrib0.trim() || '0'),
                       BigInt(form.poolSettleContrib1.trim() || '0'),
@@ -1009,10 +1040,10 @@ export const InvoiceFinancing: React.FC = () => {
             >
               <h3 className={sectionHeading}>Settle pool invoice</h3>
               <InvoicePicker invoices={invoices} disabled={busy || working !== null} onPick={(inv) => {
-                setForm((f) => ({ ...f, poolSettleNullifier: inv.nullifier, poolSettleDue: inv.dueDate }));
+                setForm((f) => ({ ...f, poolSettleNullifier: inv.nullifier, poolSettleDue: unixSecondsToDateInput(BigInt(inv.dueDate)) }));
               }} />
               <Field label="Invoice nullifier" value={form.poolSettleNullifier} placeholder="64 hex chars" onChange={set('poolSettleNullifier')} disabled={busy || working !== null} />
-              <Field label="Financed due date" value={form.poolSettleDue} placeholder="unix seconds" onChange={set('poolSettleDue')} disabled={busy || working !== null} />
+              <Field label="Financed due date" type="date" value={form.poolSettleDue} onChange={set('poolSettleDue')} disabled={busy || working !== null} />
 
               <h4 className={sectionHeading} style={{ fontSize: '0.95em', marginTop: '1rem' }}>Per-lender contributions</h4>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
@@ -1044,7 +1075,7 @@ export const InvoiceFinancing: React.FC = () => {
                 disabled={
                   busy || working !== null ||
                   form.poolSettleNullifier.trim().length === 0 ||
-                  form.poolSettleDue.trim().length === 0 ||
+                  !isDateInput(form.poolSettleDue) ||
                   form.poolSettleTotalContrib.trim().length === 0 ||
                   form.poolSettleTotalPayout.trim().length === 0
                 }
@@ -1320,7 +1351,7 @@ export const InvoiceFinancing: React.FC = () => {
                 if (!api) return;
                 const a = api;
                 void run('submitBid', async () => {
-                  await a.submitBid(form.bidNullifier, BigInt(form.bidAmount.trim()), BigInt(form.bidDue.trim()), BigInt(form.bidRate.trim()), form.bidWillingToSplit === 'true');
+                  await a.submitBid(form.bidNullifier, BigInt(form.bidAmount.trim()), dateInputToUnixSeconds(form.bidDue.trim()), BigInt(form.bidRate.trim()), form.bidWillingToSplit === 'true');
                   setLenderTab('reveal');
                 });
               }}
@@ -1329,7 +1360,7 @@ export const InvoiceFinancing: React.FC = () => {
               <InvoicePicker invoices={invoices} disabled={busy || working !== null} onPick={pick('bid')} />
               <Field label="Nullifier" value={form.bidNullifier} placeholder="64 hex chars" onChange={set('bidNullifier')} disabled={busy || working !== null} />
               <Field label="Amount" value={form.bidAmount} placeholder="tNight units" onChange={set('bidAmount')} disabled={busy || working !== null} />
-              <Field label="Due date" value={form.bidDue} placeholder="unix seconds" onChange={set('bidDue')} disabled={busy || working !== null} />
+              <Field label="Due date" type="date" value={form.bidDue} onChange={set('bidDue')} disabled={busy || working !== null} />
               <Field
                 label="Rate (basis points)"
                 value={form.bidRate}
@@ -1368,7 +1399,7 @@ export const InvoiceFinancing: React.FC = () => {
               <button
                 className="sl-button"
                 type="submit"
-                disabled={busy || working !== null || form.bidNullifier.trim().length === 0 || form.bidAmount.trim().length === 0 || form.bidDue.trim().length === 0 || form.bidRate.trim().length === 0}
+                disabled={busy || working !== null || form.bidNullifier.trim().length === 0 || form.bidAmount.trim().length === 0 || !isDateInput(form.bidDue) || form.bidRate.trim().length === 0}
               >
                 {working === 'submitBid' ? 'Working…' : 'Submit sealed bid'}
               </button>
@@ -1383,7 +1414,7 @@ export const InvoiceFinancing: React.FC = () => {
                 if (!api) return;
                 const a = api;
                 void run('revealBid', async () => {
-                  await a.revealBid(form.revealNullifier, BigInt(form.revealAmount.trim()), BigInt(form.revealDue.trim()), BigInt(form.revealRate.trim()), form.revealWillingToSplit === 'true');
+                  await a.revealBid(form.revealNullifier, BigInt(form.revealAmount.trim()), dateInputToUnixSeconds(form.revealDue.trim()), BigInt(form.revealRate.trim()), form.revealWillingToSplit === 'true');
                   setLenderTab('browse');
                 });
               }}
@@ -1392,7 +1423,7 @@ export const InvoiceFinancing: React.FC = () => {
               <InvoicePicker invoices={invoices} disabled={busy || working !== null} onPick={pick('reveal')} />
               <Field label="Nullifier" value={form.revealNullifier} placeholder="64 hex chars" onChange={set('revealNullifier')} disabled={busy || working !== null} />
               <Field label="Amount" value={form.revealAmount} placeholder="must match your sealed bid" onChange={set('revealAmount')} disabled={busy || working !== null} />
-              <Field label="Due date" value={form.revealDue} placeholder="must match your sealed bid" onChange={set('revealDue')} disabled={busy || working !== null} />
+              <Field label="Due date" type="date" value={form.revealDue} hint="Must be the same calendar date you used in your sealed bid." onChange={set('revealDue')} disabled={busy || working !== null} />
               <Field
                 label="Rate (basis points)"
                 value={form.revealRate}
@@ -1421,7 +1452,7 @@ export const InvoiceFinancing: React.FC = () => {
               <button
                 className="sl-button"
                 type="submit"
-                disabled={busy || working !== null || form.revealNullifier.trim().length === 0 || form.revealAmount.trim().length === 0 || form.revealDue.trim().length === 0 || form.revealRate.trim().length === 0}
+                disabled={busy || working !== null || form.revealNullifier.trim().length === 0 || form.revealAmount.trim().length === 0 || !isDateInput(form.revealDue) || form.revealRate.trim().length === 0}
               >
                 {working === 'revealBid' ? 'Working…' : 'Reveal bid'}
               </button>
@@ -1440,7 +1471,7 @@ export const InvoiceFinancing: React.FC = () => {
                     form.poolRevealNullifier,
                     BigInt(form.poolRevealSlot.trim()),
                     BigInt(form.poolRevealAmount.trim()),
-                    BigInt(form.poolRevealDue.trim()),
+                    dateInputToUnixSeconds(form.poolRevealDue.trim()),
                     BigInt(form.poolRevealRate.trim()),
                   );
                   setLenderTab('browse');
@@ -1454,7 +1485,7 @@ export const InvoiceFinancing: React.FC = () => {
               <Field label="Invoice nullifier" value={form.poolRevealNullifier} placeholder="64 hex chars" onChange={set('poolRevealNullifier')} disabled={busy || working !== null} />
               <Field label="Slot index" value={form.poolRevealSlot} placeholder="0–3" onChange={set('poolRevealSlot')} disabled={busy || working !== null} />
               <Field label="Amount" value={form.poolRevealAmount} placeholder="must match your sealed bid" onChange={set('poolRevealAmount')} disabled={busy || working !== null} />
-              <Field label="Due date" value={form.poolRevealDue} placeholder="must match your sealed bid" onChange={set('poolRevealDue')} disabled={busy || working !== null} />
+              <Field label="Due date" type="date" value={form.poolRevealDue} hint="Must be the same calendar date you used in your sealed bid." onChange={set('poolRevealDue')} disabled={busy || working !== null} />
               <Field
                 label="Rate (basis points)"
                 value={form.poolRevealRate}
@@ -1476,7 +1507,7 @@ export const InvoiceFinancing: React.FC = () => {
                   !isHex64(form.poolRevealNullifier) ||
                   !isDigits(form.poolRevealSlot) ||
                   !isDigits(form.poolRevealAmount) ||
-                  !isDigits(form.poolRevealDue) ||
+                  !isDateInput(form.poolRevealDue) ||
                   !isDigits(form.poolRevealRate)
                 }
               >
