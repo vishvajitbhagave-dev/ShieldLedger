@@ -695,6 +695,44 @@ select.sl-input {
   color: var(--text);
 }
 
+.sl-field-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.sl-input-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+}
+
+.sl-input-wrap .sl-input {
+  width: 100%;
+  min-width: 0;
+  padding-right: 58px;
+}
+
+.sl-input-suffix {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-faint);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.sl-field-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 /* ════════════════ Buttons ════════════════ */
 
 .sl-button {

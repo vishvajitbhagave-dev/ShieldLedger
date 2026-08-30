@@ -185,24 +185,46 @@ const formatDate = (unixSeconds: bigint): string => {
 
 const sectionHeading = 'sl-section-title';
 
-const Field: React.FC<{ label: string; value: string; placeholder?: string; onChange: (v: string) => void; disabled?: boolean }> = ({
-  label,
-  value,
-  placeholder,
-  onChange,
-  disabled,
-}) => (
-  <div className="sl-field">
-    <label className="sl-field-label">{label}</label>
-    <input
-      className="sl-input"
-      value={value}
-      placeholder={placeholder}
-      onChange={(e) => onChange(e.target.value)}
-      disabled={disabled}
-    />
-  </div>
-);
+const Field: React.FC<{
+  label: string;
+  value: string;
+  placeholder?: string;
+  suffix?: string;
+  hint?: React.ReactNode;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}> = ({ label, value, placeholder, suffix, hint, onChange, disabled }) => {
+  const control =
+    suffix !== undefined || hint !== undefined ? (
+      <div className="sl-field-body">
+        <div className="sl-input-wrap">
+          <input
+            className="sl-input"
+            value={value}
+            placeholder={placeholder}
+            onChange={(e) => onChange(e.target.value)}
+            disabled={disabled}
+          />
+          {suffix !== undefined && <span className="sl-input-suffix">{suffix}</span>}
+        </div>
+        {hint !== undefined && <span className="sl-field-hint">{hint}</span>}
+      </div>
+    ) : (
+      <input
+        className="sl-input"
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+      />
+    );
+  return (
+    <div className="sl-field">
+      <label className="sl-field-label">{label}</label>
+      {control}
+    </div>
+  );
+};
 
 const Icon: React.FC<{ className?: string; strokeWidth?: number; children: React.ReactNode }> = ({
   className = '',
@@ -1308,11 +1330,24 @@ export const InvoiceFinancing: React.FC = () => {
               <Field label="Nullifier" value={form.bidNullifier} placeholder="64 hex chars" onChange={set('bidNullifier')} disabled={busy || working !== null} />
               <Field label="Amount" value={form.bidAmount} placeholder="tNight units" onChange={set('bidAmount')} disabled={busy || working !== null} />
               <Field label="Due date" value={form.bidDue} placeholder="unix seconds" onChange={set('bidDue')} disabled={busy || working !== null} />
-              <Field label="Rate" value={form.bidRate} placeholder="basis points, e.g. 400 = 4%" onChange={set('bidRate')} disabled={busy || working !== null} />
+              <Field
+                label="Rate (basis points)"
+                value={form.bidRate}
+                placeholder="e.g. 400 = 4%"
+                suffix="bps"
+                hint={
+                  isDigits(form.bidRate)
+                    ? `${form.bidRate.trim()} bps = ${(Number(form.bidRate.trim()) / 100).toFixed(2)}% per year — 100 bps = 1%`
+                    : undefined
+                }
+                onChange={set('bidRate')}
+                disabled={busy || working !== null}
+              />
               {suggestedRate && (
                 <div className="sl-note" style={{ padding: '0.5rem 0.75rem', background: 'var(--card-bg, rgba(255,255,255,0.05))', borderRadius: '6px', borderLeft: '3px solid var(--accent, #4f8cff)' }}>
                   <strong>Suggested fair rate{suggestedRate.estimated ? ' (estimate)' : ''}:</strong>{' '}
-                  {(suggestedRate.lowBps / 100).toFixed(2)}% – {(suggestedRate.highBps / 100).toFixed(2)}%
+                  {(suggestedRate.lowBps / 100).toFixed(2)}% – {(suggestedRate.highBps / 100).toFixed(2)}%{' '}
+                  ({suggestedRate.lowBps}–{suggestedRate.highBps} bps)
                   <span style={{ display: 'block', fontSize: '0.8em', opacity: 0.7, marginTop: '0.25rem' }}>
                     Based on public credit threshold, reputation threshold, and invoice amount. Non-binding suggestion — you may bid any rate.
                   </span>
@@ -1358,7 +1393,19 @@ export const InvoiceFinancing: React.FC = () => {
               <Field label="Nullifier" value={form.revealNullifier} placeholder="64 hex chars" onChange={set('revealNullifier')} disabled={busy || working !== null} />
               <Field label="Amount" value={form.revealAmount} placeholder="must match your sealed bid" onChange={set('revealAmount')} disabled={busy || working !== null} />
               <Field label="Due date" value={form.revealDue} placeholder="must match your sealed bid" onChange={set('revealDue')} disabled={busy || working !== null} />
-              <Field label="Rate" value={form.revealRate} placeholder="must match your sealed bid" onChange={set('revealRate')} disabled={busy || working !== null} />
+              <Field
+                label="Rate (basis points)"
+                value={form.revealRate}
+                placeholder="must match your sealed bid, e.g. 400 = 4%"
+                suffix="bps"
+                hint={
+                  isDigits(form.revealRate)
+                    ? `Re-enter the sealed basis points: ${form.revealRate.trim()} bps = ${(Number(form.revealRate.trim()) / 100).toFixed(2)}%`
+                    : undefined
+                }
+                onChange={set('revealRate')}
+                disabled={busy || working !== null}
+              />
               <label className="sl-checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0.5rem 0' }}>
                 <input
                   type="checkbox"
@@ -1408,7 +1455,19 @@ export const InvoiceFinancing: React.FC = () => {
               <Field label="Slot index" value={form.poolRevealSlot} placeholder="0–3" onChange={set('poolRevealSlot')} disabled={busy || working !== null} />
               <Field label="Amount" value={form.poolRevealAmount} placeholder="must match your sealed bid" onChange={set('poolRevealAmount')} disabled={busy || working !== null} />
               <Field label="Due date" value={form.poolRevealDue} placeholder="must match your sealed bid" onChange={set('poolRevealDue')} disabled={busy || working !== null} />
-              <Field label="Rate" value={form.poolRevealRate} placeholder="must match your sealed bid" onChange={set('poolRevealRate')} disabled={busy || working !== null} />
+              <Field
+                label="Rate (basis points)"
+                value={form.poolRevealRate}
+                placeholder="must match your sealed pool bid, e.g. 400 = 4%"
+                suffix="bps"
+                hint={
+                  isDigits(form.poolRevealRate)
+                    ? `Re-enter the sealed basis points: ${form.poolRevealRate.trim()} bps = ${(Number(form.poolRevealRate.trim()) / 100).toFixed(2)}%`
+                    : undefined
+                }
+                onChange={set('poolRevealRate')}
+                disabled={busy || working !== null}
+              />
               <button
                 className="sl-button"
                 type="submit"
