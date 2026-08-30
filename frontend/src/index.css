@@ -356,12 +356,7 @@ body {
   display: grid;
   grid-template-columns: 1fr 1.1fr;
   gap: var(--sp-7);
-  align-items: start;
-}
-
-.sl-grid > .sl-panel:nth-child(2) {
-  position: sticky;
-  top: var(--sp-6);
+  align-items: stretch;
 }
 
 .sl-stage {
@@ -1596,9 +1591,6 @@ select.sl-input {
 @media (max-width: 1140px) {
   .sl-grid {
     grid-template-columns: 1fr;
-  }
-  .sl-grid > .sl-panel:nth-child(2) {
-    position: static;
   }
 }
 
