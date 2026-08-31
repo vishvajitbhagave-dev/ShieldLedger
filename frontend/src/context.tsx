@@ -21,10 +21,10 @@ export type Role = 'sme' | 'lender' | 'buyer';
 
 const ROLE_STORAGE_KEY = 'shieldledger.role';
 
-const loadRole = (): Role => {
-  if (typeof localStorage === 'undefined') return 'sme';
+const loadRole = (): Role | null => {
+  if (typeof localStorage === 'undefined') return null;
   const stored = localStorage.getItem(ROLE_STORAGE_KEY);
-  return stored === 'lender' || stored === 'buyer' ? stored : 'sme';
+  return stored === 'sme' || stored === 'lender' || stored === 'buyer' ? stored : null;
 };
 
 export interface ShieldLedgerContextValue {
@@ -34,8 +34,9 @@ export interface ShieldLedgerContextValue {
   readonly connected: boolean;
   readonly walletInfo: WalletInfo | null;
   readonly deployment: DeploymentState;
-  readonly role: Role;
+  readonly role: Role | null;
   readonly setRole: (role: Role) => void;
+  readonly clearRole: () => void;
   readonly connect: (selected?: WalletOption) => Promise<void>;
   readonly disconnect: () => void;
   readonly deploy: () => Promise<void>;
@@ -59,7 +60,7 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
   const [connecting, setConnecting] = useState(false);
   const [walletLocked, setWalletLocked] = useState(false);
   const [walletInfo, setWalletInfo] = useState<WalletInfo | null>(null);
-  const [role, setRoleState] = useState<Role>(() => loadRole());
+  const [role, setRoleState] = useState<Role | null>(() => loadRole());
   const [providers, setProviders] = useState<ShieldLedgerProviders | null>(null);
   const [deployment, setDeployment] = useState<DeploymentState>({ status: 'idle' });
   const [error, setError] = useState<UserFacingError | null>(null);
@@ -76,6 +77,17 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
         localStorage.setItem(ROLE_STORAGE_KEY, next);
       } catch {
         // Storage unavailable: the role applies for this session only.
+      }
+    }
+  }, []);
+
+  const clearRole = useCallback(() => {
+    setRoleState(null);
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.removeItem(ROLE_STORAGE_KEY);
+      } catch {
+        // Storage unavailable: nothing persisted to clear.
       }
     }
   }, []);
@@ -173,6 +185,7 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
       deployment,
       role,
       setRole,
+      clearRole,
       connect,
       disconnect,
       deploy,
@@ -180,7 +193,7 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
       error,
       clearError,
     }),
-    [networkId, connecting, walletLocked, walletInfo, deployment, role, setRole, connect, disconnect, deploy, join, error, clearError],
+    [networkId, connecting, walletLocked, walletInfo, deployment, role, setRole, clearRole, connect, disconnect, deploy, join, error, clearError],
   );
 
   return <ShieldLedgerContext.Provider value={value}>{children}</ShieldLedgerContext.Provider>;

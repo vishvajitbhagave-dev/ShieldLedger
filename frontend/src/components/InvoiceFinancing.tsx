@@ -375,10 +375,39 @@ const BuyerVerifiedBadge: React.FC = () => (
   </span>
 );
 
+type ChooseRoleIcon = React.FC<{ className?: string }>;
+
+const ChooseStoreIcon: ChooseRoleIcon = ({ className }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 7 6 4h12l2 3v3a2 2 0 0 1-2 2 2 2 0 0 1-4 0 2 2 0 0 1-4 0 2 2 0 0 1-4 0 2 2 0 0 1-2-2V7Z" />
+    <path d="M5 12v8h14v-8" />
+  </svg>
+);
+
+const ChooseShieldIcon: ChooseRoleIcon = ({ className }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2 4 5v6c0 5.25 3.4 9.74 8 11 4.6-1.26 8-5.75 8-11V5l-8-3Z" />
+    <path d="m9 11.5 2 2 4-4" />
+  </svg>
+);
+
+const ChooseTrendIcon: ChooseRoleIcon = ({ className }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m3 17 6-6 4 4 8-8" />
+    <path d="M14 7h7v7" />
+  </svg>
+);
+
+const WELCOME_ROLES: Array<{ value: 'sme' | 'buyer' | 'lender'; label: string; desc: string; Icon: ChooseRoleIcon }> = [
+  { value: 'sme', label: "I'm an SME", desc: 'Register invoices and raise financing.', Icon: ChooseStoreIcon },
+  { value: 'buyer', label: "I'm a Buyer", desc: 'Confirm invoices in zero knowledge.', Icon: ChooseShieldIcon },
+  { value: 'lender', label: "I'm a Lender", desc: 'Bid on invoices and manage your portfolio.', Icon: ChooseTrendIcon },
+];
+
 type Notice = { ok: true; text: string } | { ok: false; error: UserFacingError };
 
 export const InvoiceFinancing: React.FC = () => {
-  const { deployment, connected, role, connect, disconnect } = useShieldLedger();
+  const { deployment, connected, role, setRole, clearRole, connect, disconnect } = useShieldLedger();
   const api = deployment.status === 'deployed' ? deployment.api : null;
   const busy = deployment.status === 'in-progress' || !connected || api === null;
 
@@ -451,12 +480,12 @@ export const InvoiceFinancing: React.FC = () => {
     try {
       await op();
       setMessage({ ok: true, text: `${label} succeeded` });
-      track(label, { outcome: 'success', role });
+      track(label, { outcome: 'success', role: role ?? 'sme' });
     } catch (e) {
       console.error(`${label} failed:`, e);
       setMessage({ ok: false, error: describeError(label, e) });
       captureError(e, { step: label });
-      track(label, { outcome: 'error', role });
+      track(label, { outcome: 'error', role: role ?? 'sme' });
     } finally {
       setWorking(null);
     }
@@ -467,6 +496,15 @@ export const InvoiceFinancing: React.FC = () => {
     setMessage(null);
     disconnect();
     void connect();
+  };
+
+  // Switch identity: confirm first because the current role's form drafts are discarded.
+  const switchRole = () => {
+    if (!window.confirm('Switch role? Your current role selection and unsaved form fields will be cleared.')) return;
+    setMessage(null);
+    setWorking(null);
+    clearRole();
+    track('role_switch_clear', {});
   };
 
   const openInvoices = (ledgerState?.invoices ?? []).filter(isOpenInvoice);
@@ -727,10 +765,52 @@ export const InvoiceFinancing: React.FC = () => {
 
   return (
     <div className="sl-panel">
-      <h2>Invoice financing</h2>
-      <p className="sl-meta">
-        Lowest revealed rate wins — bids stay sealed until reveal.
-      </p>
+      {role === null && (
+        <div className="sl-welcome">
+          <h2 className="sl-welcome-title">Choose Your Role</h2>
+          <p className="sl-meta">Select how you'd like to use ShieldLedger.</p>
+          <div className="sl-welcome-roles">
+            {WELCOME_ROLES.map((opt) => {
+              const Icon = opt.Icon;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className="sl-welcome-card"
+                  onClick={() => {
+                    setRole(opt.value);
+                    track('role_switch', { role: opt.value });
+                  }}
+                >
+                  <span className="sl-welcome-card-icon">
+                    <Icon className="sl-nav-icon" />
+                  </span>
+                  <span className="sl-welcome-card-text">
+                    <span className="sl-welcome-card-label">{opt.label}</span>
+                    <span className="sl-welcome-card-desc">{opt.desc}</span>
+                  </span>
+                  <span className="sl-welcome-card-arrow" aria-hidden="true">
+                    →
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {role !== null && (
+        <>
+          <div className="sl-row">
+            <button className="sl-button sl-button-secondary" type="button" onClick={switchRole} disabled={busy || working !== null}>
+              ← Back / Switch Role
+            </button>
+          </div>
+          <div className="u-flex-1">
+            <h2>Invoice financing</h2>
+            <p className="sl-meta">
+              Lowest revealed rate wins — bids stay sealed until reveal.
+            </p>
+          </div>
       <div className="sl-row u-mb-5">
         <button className="sl-button sl-button-secondary" type="button" onClick={() => setForm(sampleForm)} disabled={busy || working !== null}>
           Use sample values
@@ -1801,6 +1881,8 @@ export const InvoiceFinancing: React.FC = () => {
             </>
           )}
         </>
+      )}
+      </>
       )}
 
       {working !== null && (
