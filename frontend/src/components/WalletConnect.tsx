@@ -273,14 +273,14 @@ export const WalletConnect: React.FC = () => {
     return (
       <div className="sl-panel">
         <h2>Wallet connected</h2>
-        <div className="sl-row" style={{ gap: 'var(--sp-4)' }}>
-          <div style={{ flex: '1 1 auto', minWidth: '200px' }}>
-            <p className="sl-meta" style={{ margin: 0 }}>
+        <div className="sl-row">
+            <div className="u-grow">
+            <p className="sl-meta">
               Unshielded: <HexBadge hex={walletInfo?.unshieldedAddress ?? ''} />
             </p>
           </div>
-          <div style={{ flex: '1 1 auto', minWidth: '200px' }}>
-            <p className="sl-meta" style={{ margin: 0 }}>
+          <div className="u-grow">
+            <p className="sl-meta">
               Shielded: <HexBadge hex={walletInfo?.shieldedAddress ?? ''} />
             </p>
           </div>
@@ -317,7 +317,7 @@ export const WalletConnect: React.FC = () => {
             <ChevronRightIcon />
           </button>
           {joining && (
-            <div className="sl-row" style={{ marginTop: 'var(--sp-1)' }}>
+            <div className="sl-row u-mt-1">
               <input
                 className="sl-input"
                 placeholder="Existing contract address (hex)"

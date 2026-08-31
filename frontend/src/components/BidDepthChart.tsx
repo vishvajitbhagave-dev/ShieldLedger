@@ -93,7 +93,8 @@ export const BidDepthChart: React.FC<Props> = ({ depth }) => {
         viewBox={`0 0 ${W} ${H}`}
         role="img"
         aria-label="Bid depth chart by interest rate"
-        style={{ width: '100%', maxWidth: W, height: 'auto', display: 'block' }}
+        className="u-chart"
+        style={{ maxWidth: W }}
       >
         {/* y-axis gridlines + labels (0..max amount) */}
         {yTicks.map((f) => {
@@ -164,7 +165,7 @@ export const BidDepthChart: React.FC<Props> = ({ depth }) => {
         <text x={PAD_L} y={H - 8} fontSize={10} fill={TEXT}>rate (lowest → best)</text>
       </svg>
 
-      <p className="sl-note" style={{ marginTop: '0.5rem' }}>
+      <p className="sl-note u-mt-2">
         {disclosedCount} winning bid(s) disclosed across {levels.length} rate level(s).
         Green = best (lowest) rate offer · blue = whole-invoice · grey cap = split winner.
         Dotted line = cumulative disclosed amount. Every bar is a real disclosed

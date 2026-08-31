@@ -74,8 +74,8 @@ export const Dashboard: React.FC = () => {
         state is used.
       </p>
 
-      <div className="sl-stage" style={{ padding: '0.75rem 1rem', marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+      <div className="sl-stage sl-stage-tight u-mb-4">
+        <div className="u-flex-between">
           <span className="sl-meta">
             Export a compliance/audit trail built entirely from public on-chain state — no
             private data is included.
@@ -93,51 +93,51 @@ export const Dashboard: React.FC = () => {
       {!noData && (
         <>
           <HealthBanner status={cb} />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+          <div className="u-grid-fit">
           {/* ── Default Rate ── */}
-          <div className="sl-stage" style={{ padding: '1rem' }}>
-            <h3 className="sl-section-title" style={{ marginTop: 0 }}>Default Rate</h3>
-            <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--accent)' }}>
+          <div className="sl-stage sl-stage-compact">
+            <h3 className="sl-section-title">Default Rate</h3>
+            <div className="u-stat">
               {formatPct(m.defaultRate)}
             </div>
-            <p className="sl-meta" style={{ margin: '0.5rem 0 0' }}>
+            <p className="sl-meta u-mt-2">
               {m.defaultedInvoices} defaulted / {m.totalInvoices} total invoices
             </p>
           </div>
 
           {/* ── Pool Utilization ── */}
-          <div className="sl-stage" style={{ padding: '1rem' }}>
-            <h3 className="sl-section-title" style={{ marginTop: 0 }}>Pool Utilization</h3>
-            <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--accent)' }}>
+          <div className="sl-stage sl-stage-compact">
+            <h3 className="sl-section-title">Pool Utilization</h3>
+            <div className="u-stat">
               {formatPct(m.poolUtilization)}
             </div>
-            <p className="sl-meta" style={{ margin: '0.5rem 0 0' }}>
+            <p className="sl-meta u-mt-2">
               {formatBigInt(m.totalPayouts)} paid / {formatBigInt(m.totalPremiums)} collected (tNight)
             </p>
           </div>
 
           {/* ── Pool Balance ── */}
-          <div className="sl-stage" style={{ padding: '1rem' }}>
-            <h3 className="sl-section-title" style={{ marginTop: 0 }}>Pool Balance</h3>
-            <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--accent)' }}>
-              {formatBigInt(m.poolBalance)} <span style={{ fontSize: '0.9rem', fontWeight: 'normal' }}>tNight</span>
+          <div className="sl-stage sl-stage-compact">
+            <h3 className="sl-section-title">Pool Balance</h3>
+            <div className="u-stat">
+              {formatBigInt(m.poolBalance)} <span className="u-stat-unit">tNight</span>
             </div>
-            <p className="sl-meta" style={{ margin: '0.5rem 0 0' }}>
+            <p className="sl-meta u-mt-2">
               Insurance pool reserves
             </p>
           </div>
 
           {/* ── Coverage Ratio ── */}
-          <div className="sl-stage" style={{ padding: '1rem' }}>
-            <h3 className="sl-section-title" style={{ marginTop: 0 }}>Coverage Ratio</h3>
-            <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--accent)' }}>
+          <div className="sl-stage sl-stage-compact">
+            <h3 className="sl-section-title">Coverage Ratio</h3>
+            <div className="u-stat">
               {m.coverageRatio !== null ? `${m.coverageRatio.toFixed(1)}%` : (
                 m.totalExposure === 0n && m.settledInvoices === 0
-                  ? <span style={{ fontSize: '1rem', fontWeight: 'normal' }}>No settled invoices yet</span>
+                  ? <span className="u-stat-sub">No settled invoices yet</span>
                   : '—'
               )}
             </div>
-            <p className="sl-meta" style={{ margin: '0.5rem 0 0' }}>
+            <p className="sl-meta u-mt-2">
               {m.totalExposure > 0n
                 ? `Pool balance / ${formatBigInt(m.totalExposure)} total exposure`
                 : 'Pool balance / total financed amount'}
@@ -149,7 +149,7 @@ export const Dashboard: React.FC = () => {
 
       {/* ── Summary table ── */}
       {!noData && (
-        <table className="sl-table" style={{ marginTop: '1rem' }}>
+        <table className="sl-table u-mt-4">
           <thead>
             <tr>
               <th>Metric</th>

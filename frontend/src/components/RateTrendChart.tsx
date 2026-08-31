@@ -32,18 +32,7 @@ const fmtBucket = (startMs: number, bucketMs: number): string => {
 
 const fmtClock = (ms: number): string => new Date(ms).toLocaleString();
 
-const chipStyle = (active: boolean): React.CSSProperties => ({
-  ...(active
-    ? { background: 'var(--accent-soft)', color: 'var(--accent)', borderColor: 'var(--accent)' }
-    : { background: 'var(--surface-2)', color: 'var(--text-muted)', borderColor: 'var(--border)' }),
-  padding: '3px 11px',
-  borderRadius: '999px',
-  fontSize: '11.5px',
-  fontWeight: 700,
-  border: '1px solid',
-  cursor: 'pointer',
-  whiteSpace: 'nowrap',
-});
+const chipClass = (active: boolean): string => `sl-chip${active ? ' sl-chip-active' : ''}`;
 
 const TrendChart: React.FC<{ buckets: readonly RateBucket[]; bucketMs: number }> = ({
   buckets,
@@ -82,7 +71,8 @@ const TrendChart: React.FC<{ buckets: readonly RateBucket[]; bucketMs: number }>
       viewBox={`0 0 ${W} ${H}`}
       role="img"
       aria-label="Average financing rate over time"
-      style={{ width: '100%', maxWidth: W, height: 'auto', display: 'block' }}
+      className="u-chart"
+      style={{ maxWidth: W }}
     >
       {yTicks.map((f) => {
         const yy = PAD_T + innerH - f * innerH;
@@ -150,7 +140,7 @@ export const RateTrendChart: React.FC = () => {
 
   return (
     <div className="sl-panel">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+      <div className="u-flex-between">
         <h2>Rate Trend (observed)</h2>
         <button type="button" className="sl-button sl-button-secondary" onClick={handleReset} disabled={records.length === 0}>
           Clear this browser's trend
@@ -178,33 +168,33 @@ export const RateTrendChart: React.FC = () => {
 
       {records.length > 0 && (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
-            <div className="sl-stage" style={{ padding: '0.75rem 1rem' }}>
-              <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--accent)' }}>{records.length}</div>
-              <p className="sl-meta" style={{ margin: '0.25rem 0 0' }}>records observed in this browser</p>
+          <div className="u-grid-fit-sm u-mb-4">
+            <div className="sl-stage sl-stage-tight">
+              <div className="u-stat u-stat-sm">{records.length}</div>
+              <p className="sl-meta u-mt-1">records observed in this browser</p>
             </div>
-            <div className="sl-stage" style={{ padding: '0.75rem 1rem' }}>
-              <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--accent)' }}>{sessionCount}</div>
-              <p className="sl-meta" style={{ margin: '0.25rem 0 0' }}>observed this session</p>
+            <div className="sl-stage sl-stage-tight">
+              <div className="u-stat u-stat-sm">{sessionCount}</div>
+              <p className="sl-meta u-mt-1">observed this session</p>
             </div>
-            <div className="sl-stage" style={{ padding: '0.75rem 1rem' }}>
-              <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--accent)' }}>
+            <div className="sl-stage sl-stage-tight">
+              <div className="u-stat u-stat-sm">
                 {avg === null ? '—' : `${avg.toString()} bps`}
               </div>
-              <p className="sl-meta" style={{ margin: '0.25rem 0 0' }}>average rate{band !== 'all' ? ` (${band})` : ' (all bands)'}</p>
+              <p className="sl-meta u-mt-1">average rate{band !== 'all' ? ` (${band})` : ' (all bands)'}</p>
             </div>
-            <div className="sl-stage" style={{ padding: '0.75rem 1rem' }}>
-              <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--accent)' }}>{buckets.length}</div>
-              <p className="sl-meta" style={{ margin: '0.25rem 0 0' }}>time buckets plotted</p>
+            <div className="sl-stage sl-stage-tight">
+              <div className="u-stat u-stat-sm">{buckets.length}</div>
+              <p className="sl-meta u-mt-1">time buckets plotted</p>
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-            <button type="button" style={chipStyle(band === 'all')} onClick={() => setBand('all')}>
+          <div className="u-flex u-mb-4">
+            <button type="button" className={chipClass(band === 'all')} onClick={() => setBand('all')}>
               All bands · {records.length}
             </button>
             {bandCounts.map(({ band: b, count }) => (
-              <button key={b} type="button" style={chipStyle(band === b)} onClick={() => setBand(b)}>
+              <button key={b} type="button" className={chipClass(band === b)} onClick={() => setBand(b)}>
                 {b} · {count}
               </button>
             ))}
@@ -215,7 +205,7 @@ export const RateTrendChart: React.FC = () => {
           ) : (
             <>
               <TrendChart buckets={buckets} bucketMs={bucketMs} />
-              <p className="sl-note" style={{ marginTop: '0.5rem' }}>
+              <p className="sl-note u-mt-2">
                 Each point is the average of the {band === 'all' ? 'observed' : band} financing
                 rate(s) in its time bucket. Risk bands group by the public{' '}
                 creditThreshold/reputationThreshold — the <em>attested lower bounds</em> an SME
@@ -225,28 +215,30 @@ export const RateTrendChart: React.FC = () => {
             </>
           )}
 
-          <table className="sl-table" style={{ marginTop: '1rem' }}>
-            <thead>
-              <tr>
-                <th>Observed</th>
-                <th>Credit band</th>
-                <th>Reputation</th>
-                <th>Rate</th>
-                <th>Financed</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.nullifier}>
-                  <td className="sl-meta">{fmtClock(r.observedAtMs)}</td>
-                  <td>{r.creditBand}</td>
-                  <td>{r.reputationBand}</td>
-                  <td>{r.rateBps.toString()} bps</td>
-                  <td>{r.financedAmount.toLocaleString()} tNight</td>
+          <div className="u-scroll-x">
+            <table className="sl-table u-mt-4">
+              <thead>
+                <tr>
+                  <th>Observed</th>
+                  <th>Credit band</th>
+                  <th>Reputation</th>
+                  <th>Rate</th>
+                  <th>Financed</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.nullifier}>
+                    <td className="sl-meta">{fmtClock(r.observedAtMs)}</td>
+                    <td>{r.creditBand}</td>
+                    <td>{r.reputationBand}</td>
+                    <td>{r.rateBps.toString()} bps</td>
+                    <td>{r.financedAmount.toLocaleString()} tNight</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           <p className="sl-meta">
             Records are stamped at observation time, not the on-chain block time; the chart is

@@ -731,7 +731,7 @@ export const InvoiceFinancing: React.FC = () => {
       <p className="sl-meta">
         Lowest revealed rate wins — bids stay sealed until reveal.
       </p>
-      <div className="sl-row" style={{ marginBottom: 'var(--sp-5)' }}>
+      <div className="sl-row u-mb-5">
         <button className="sl-button sl-button-secondary" type="button" onClick={() => setForm(sampleForm)} disabled={busy || working !== null}>
           Use sample values
         </button>
@@ -809,7 +809,7 @@ export const InvoiceFinancing: React.FC = () => {
                 <Field label="Reference" value={form.registerReference} placeholder="optional, private — e.g. INV-001" onChange={set('registerReference')} disabled={busy || working !== null} />
                 <Field label="Amount" value={form.registerAmount} placeholder="tNight units" onChange={set('registerAmount')} disabled={busy || working !== null} />
                 {isDigits(form.registerAmount) && (
-                  <p className="sl-note" style={{ marginTop: '-0.5rem' }}>
+                  <p className="sl-note u-neg-mt-2">
                     🛡️ Registration pays a{' '}
                     <strong>{insuranceContribution(BigInt(form.registerAmount.trim())).toString()} tNight</strong>{' '}
                     default-insurance premium (2% of the face amount) into the shared public pool.
@@ -820,7 +820,7 @@ export const InvoiceFinancing: React.FC = () => {
                 <Field label="Reputation check" value={form.registerReputation} placeholder="e.g. 30 — proven in zero knowledge" onChange={set('registerReputation')} disabled={busy || working !== null} />
                 <Field label="Split count" value={form.registerSplitCount} placeholder="0 = single lender, 2–4 = pool" onChange={set('registerSplitCount')} disabled={busy || working !== null} />
                 {isDigits(form.registerSplitCount) && BigInt(form.registerSplitCount.trim()) > 0n && (
-                  <p className="sl-note" style={{ marginTop: '-0.5rem' }}>
+                  <p className="sl-note u-neg-mt-2">
                     🏦 Pool financing: up to {form.registerSplitCount.trim()} lenders will co-finance this invoice.
                     Each lender submits a sealed pool bid for a specific slot, and the SME later settles with proportional payouts.
                   </p>
@@ -901,7 +901,7 @@ export const InvoiceFinancing: React.FC = () => {
               {invoices.length === 0 ? (
                 <p className="sl-empty">No invoices registered in this browser yet.</p>
               ) : (
-                <div style={{ overflowX: 'auto' }}>
+                <div className="u-scroll-x">
                   <table className="sl-table">
                     <thead>
                       <tr>
@@ -918,7 +918,7 @@ export const InvoiceFinancing: React.FC = () => {
                         <tr key={inv.nullifier}>
                           <td>{inv.reference || '—'}</td>
                           <td><HexBadge hex={inv.nullifier} /></td>
-                          <td style={{ fontWeight: 'bold', color: 'var(--text)' }}>{inv.amount} tNight</td>
+                          <td className="u-td-strong">{inv.amount} tNight</td>
                           <td>{formatDate(BigInt(inv.dueDate))}</td>
                           <td>
                             <span className={`sl-badge ${statusOf(inv) === 'Financed' ? '' : 'sl-badge-warn'}`}>
@@ -994,7 +994,7 @@ export const InvoiceFinancing: React.FC = () => {
                 The contract pays the lowest-rate winner automatically.
               </p>
               {settleNullifier !== '' && !settleReady && (
-                <p className="sl-info" style={{ marginBottom: 0 }}>
+                <p className="sl-info u-mb-0">
                   No winning bid yet — the auction is still open (see <strong>Public ledger → Leading bids</strong>).
                 </p>
               )}
@@ -1045,23 +1045,23 @@ export const InvoiceFinancing: React.FC = () => {
               <Field label="Invoice nullifier" value={form.poolSettleNullifier} placeholder="64 hex chars" onChange={set('poolSettleNullifier')} disabled={busy || working !== null} />
               <Field label="Financed due date" type="date" value={form.poolSettleDue} onChange={set('poolSettleDue')} disabled={busy || working !== null} />
 
-              <h4 className={sectionHeading} style={{ fontSize: '0.95em', marginTop: '1rem' }}>Per-lender contributions</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+              <h4 className={`${sectionHeading} sl-subheading-sm`}>Per-lender contributions</h4>
+              <div className="u-grid-2">
                 <Field label="Slot 0" value={form.poolSettleContrib0} placeholder="0" onChange={set('poolSettleContrib0')} disabled={busy || working !== null} />
                 <Field label="Slot 1" value={form.poolSettleContrib1} placeholder="0" onChange={set('poolSettleContrib1')} disabled={busy || working !== null} />
                 <Field label="Slot 2" value={form.poolSettleContrib2} placeholder="0" onChange={set('poolSettleContrib2')} disabled={busy || working !== null} />
                 <Field label="Slot 3" value={form.poolSettleContrib3} placeholder="0" onChange={set('poolSettleContrib3')} disabled={busy || working !== null} />
               </div>
 
-              <h4 className={sectionHeading} style={{ fontSize: '0.95em', marginTop: '1rem' }}>Per-lender payouts</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+              <h4 className={`${sectionHeading} sl-subheading-sm`}>Per-lender payouts</h4>
+              <div className="u-grid-2">
                 <Field label="Slot 0" value={form.poolSettlePayout0} placeholder="0" onChange={set('poolSettlePayout0')} disabled={busy || working !== null} />
                 <Field label="Slot 1" value={form.poolSettlePayout1} placeholder="0" onChange={set('poolSettlePayout1')} disabled={busy || working !== null} />
                 <Field label="Slot 2" value={form.poolSettlePayout2} placeholder="0" onChange={set('poolSettlePayout2')} disabled={busy || working !== null} />
                 <Field label="Slot 3" value={form.poolSettlePayout3} placeholder="0" onChange={set('poolSettlePayout3')} disabled={busy || working !== null} />
               </div>
 
-              <h4 className={sectionHeading} style={{ fontSize: '0.95em', marginTop: '1rem' }}>Totals</h4>
+              <h4 className={`${sectionHeading} sl-subheading-sm`}>Totals</h4>
               <Field label="Total contribution" value={form.poolSettleTotalContrib} placeholder="sum of all slot contributions" onChange={set('poolSettleTotalContrib')} disabled={busy || working !== null} />
               <Field label="Total payout" value={form.poolSettleTotalPayout} placeholder="sum of all slot payouts" onChange={set('poolSettleTotalPayout')} disabled={busy || working !== null} />
 
@@ -1133,7 +1133,7 @@ export const InvoiceFinancing: React.FC = () => {
               {openInvoices.length === 0 ? (
                 <p className="sl-empty">No pending invoices on the ledger to confirm.</p>
               ) : (
-                <div style={{ overflowX: 'auto' }}>
+                <div className="u-scroll-x">
                   <table className="sl-table">
                     <thead>
                       <tr>
@@ -1148,7 +1148,7 @@ export const InvoiceFinancing: React.FC = () => {
                       {openInvoices.map((inv) => (
                         <tr key={inv.nullifier}>
                           <td><HexBadge hex={inv.nullifier} /></td>
-                          <td style={{ fontWeight: 'bold', color: 'var(--text)' }}>{inv.invoiceAmount.toString()} tNight</td>
+                          <td className="u-td-strong">{inv.invoiceAmount.toString()} tNight</td>
                           <td>score ≥ {inv.creditThreshold.toString()}</td>
                           <td>{inv.buyerVerified ? <BuyerVerifiedBadge /> : <span className="sl-meta">not verified</span>}</td>
                           <td>
@@ -1220,7 +1220,7 @@ export const InvoiceFinancing: React.FC = () => {
               {stateBuyerVerified.length === 0 ? (
                 <p className="sl-empty">No invoices confirmed yet.</p>
               ) : (
-                <div style={{ overflowX: 'auto' }}>
+                <div className="u-scroll-x">
                   <table className="sl-table">
                     <thead>
                       <tr>
@@ -1233,7 +1233,7 @@ export const InvoiceFinancing: React.FC = () => {
                       {stateBuyerVerified.map((inv) => (
                         <tr key={inv.nullifier}>
                           <td><HexBadge hex={inv.nullifier} /></td>
-                          <td style={{ fontWeight: 'bold', color: 'var(--text)' }}>{inv.invoiceAmount.toString()} tNight</td>
+                          <td className="u-td-strong">{inv.invoiceAmount.toString()} tNight</td>
                           <td><BuyerVerifiedBadge /></td>
                         </tr>
                       ))}
@@ -1295,7 +1295,7 @@ export const InvoiceFinancing: React.FC = () => {
               {openInvoices.length === 0 ? (
                 <p className="sl-empty">No invoices are currently open for bidding.</p>
               ) : (
-                <div style={{ overflowX: 'auto' }}>
+                <div className="u-scroll-x">
                   <table className="sl-table">
                     <thead>
                       <tr>
@@ -1375,16 +1375,16 @@ export const InvoiceFinancing: React.FC = () => {
                 disabled={busy || working !== null}
               />
               {suggestedRate && (
-                <div className="sl-note" style={{ padding: '0.5rem 0.75rem', background: 'var(--card-bg, rgba(255,255,255,0.05))', borderRadius: '6px', borderLeft: '3px solid var(--accent, #4f8cff)' }}>
+                <div className="sl-note-accent">
                   <strong>Suggested fair rate{suggestedRate.estimated ? ' (estimate)' : ''}:</strong>{' '}
                   {(suggestedRate.lowBps / 100).toFixed(2)}% – {(suggestedRate.highBps / 100).toFixed(2)}%{' '}
                   ({suggestedRate.lowBps}–{suggestedRate.highBps} bps)
-                  <span style={{ display: 'block', fontSize: '0.8em', opacity: 0.7, marginTop: '0.25rem' }}>
+                  <span className="u-fine-sub">
                     Based on public credit threshold, reputation threshold, and invoice amount. Non-binding suggestion — you may bid any rate.
                   </span>
                 </div>
               )}
-              <label className="sl-checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0.5rem 0' }}>
+              <label className="sl-checkbox-label">
                 <input
                   type="checkbox"
                   checked={form.bidWillingToSplit === 'true'}
@@ -1437,7 +1437,7 @@ export const InvoiceFinancing: React.FC = () => {
                 onChange={set('revealRate')}
                 disabled={busy || working !== null}
               />
-              <label className="sl-checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0.5rem 0' }}>
+              <label className="sl-checkbox-label">
                 <input
                   type="checkbox"
                   checked={form.revealWillingToSplit === 'true'}
@@ -1479,7 +1479,7 @@ export const InvoiceFinancing: React.FC = () => {
               }}
             >
               <h3 className={sectionHeading}>Reveal a pool bid</h3>
-              <p className="sl-note" style={{ marginBottom: '0.75rem' }}>
+              <p className="sl-note u-mb-3">
                 For invoices registered with <code>splitCount &gt; 0</code>. Reveal your sealed pool bid into a specific slot (0–3).
               </p>
               <Field label="Invoice nullifier" value={form.poolRevealNullifier} placeholder="64 hex chars" onChange={set('poolRevealNullifier')} disabled={busy || working !== null} />
@@ -1566,10 +1566,9 @@ export const InvoiceFinancing: React.FC = () => {
                 <p className="sl-note">
                   Holder-only and fully local — your secret and the verdict never leave this browser.
                 </p>
-                <div className="sl-row" style={{ alignItems: 'stretch' }}>
+                <div className="sl-row u-align-stretch">
                   <input
-                    className="sl-input"
-                    style={{ flex: 1 }}
+                    className="sl-input u-flex-1"
                     value={form.checkNullifier}
                     placeholder="invoice nullifier (64 hex chars)"
                     onChange={(e) => set('checkNullifier')(e.target.value)}
@@ -1593,7 +1592,7 @@ export const InvoiceFinancing: React.FC = () => {
                   </button>
                 </div>
                 {claimCheck && (
-                  <p className={claimCheck.verdict === 'mine' ? 'sl-success' : 'sl-info'} style={{ marginBottom: 0 }}>
+                  <p className={`${claimCheck.verdict === 'mine' ? 'sl-success' : 'sl-info'} u-mb-0`}>
                     {claimCheck.verdict === 'mine'
                       ? '✅ You hold this claim — settlement pays its current holder.'
                       : claimCheck.verdict === 'other'
@@ -1608,7 +1607,7 @@ export const InvoiceFinancing: React.FC = () => {
                 {(ledgerState?.invoices ?? []).filter((inv) => inv.transferred).length === 0 ? (
                   <p className="sl-empty">No claims have been resold yet.</p>
                 ) : (
-                  <div style={{ overflowX: 'auto' }}>
+                  <div className="u-scroll-x">
                     <table className="sl-table">
                       <thead>
                         <tr>
@@ -1688,7 +1687,7 @@ export const InvoiceFinancing: React.FC = () => {
                   partially if the pool is thin.
                 </p>
                 {ledgerState?.insurancePool ? (
-                  <p style={{ fontWeight: 'bold', fontSize: '1.2em', margin: '0.25rem 0' }}>
+                  <p className="sl-subheading">
                     Balance: {ledgerState.insurancePool.balance.toString()} tNight
                   </p>
                 ) : (
@@ -1704,7 +1703,7 @@ export const InvoiceFinancing: React.FC = () => {
                 {defaultedInvoices.length === 0 ? (
                   <p className="sl-empty">No defaulted invoices right now.</p>
                 ) : (
-                  <div style={{ overflowX: 'auto' }}>
+                  <div className="u-scroll-x">
                     <table className="sl-table">
                       <thead>
                         <tr>
@@ -1718,7 +1717,7 @@ export const InvoiceFinancing: React.FC = () => {
                         {defaultedInvoices.map((inv) => (
                           <tr key={inv.nullifier}>
                             <td><HexBadge hex={inv.nullifier} /></td>
-                            <td style={{ fontWeight: 'bold', color: 'var(--text)' }}>{inv.amount.toString()} tNight</td>
+                            <td className="u-td-strong">{inv.amount.toString()} tNight</td>
                             <td>{formatDate(dueDateOf(inv.nullifier))}</td>
                             <td>
                               <button
@@ -1763,7 +1762,7 @@ export const InvoiceFinancing: React.FC = () => {
                   defaulting SME stays anonymous.
                 </p>
                 {insurancePayout !== null && (
-                  <p className="sl-success" style={{ marginBottom: 0 }}>
+                  <p className="sl-success u-mb-0">
                     🛡️ Payout of <strong>{insurancePayout} tNight</strong> granted from the insurance pool.
                   </p>
                 )}
@@ -1805,12 +1804,12 @@ export const InvoiceFinancing: React.FC = () => {
       )}
 
       {working !== null && (
-        <div className="sl-meta" style={{ marginBottom: 0 }}>
+        <div className="sl-meta u-mb-0">
           {working} in progress… (proof generation can take 30–60s) — when ready, approve in Lace.
         </div>
       )}
 
-      {message && message.ok && <div className="sl-success" style={{ marginBottom: 0 }}>{message.text}</div>}
+      {message && message.ok && <div className="sl-success u-mb-0">{message.text}</div>}
       {message && !message.ok && (
         <ErrorBanner error={message.error} onDismiss={() => setMessage(null)} onReconnect={reconnectWallet} />
       )}

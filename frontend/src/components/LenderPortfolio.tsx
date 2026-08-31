@@ -12,26 +12,14 @@ const formatBigInt = (value: bigint): string => value.toLocaleString();
 const shortNullifier = (hex: string): string =>
   hex.length > 14 ? `${hex.slice(0, 8)}…${hex.slice(-6)}` : hex;
 
-const badgeStyle: Record<PositionStatus, React.CSSProperties> = {
-  active: {
-    background: 'var(--accent-soft)',
-    color: 'var(--accent)',
-    border: '1px solid rgba(0, 168, 255, 0.25)',
-  },
-  settled: {
-    background: 'var(--success-soft)',
-    color: 'var(--success)',
-    border: '1px solid rgba(0, 191, 166, 0.25)',
-  },
-  defaulted: {
-    background: 'var(--danger-soft)',
-    color: 'var(--danger)',
-    border: '1px solid rgba(220, 38, 38, 0.25)',
-  },
+const badgeClass: Record<PositionStatus, string> = {
+  active: 'sl-badge',
+  settled: 'sl-badge sl-badge-success',
+  defaulted: 'sl-badge sl-badge-danger',
 };
 
 const StatusBadge: React.FC<{ status: PositionStatus }> = ({ status }) => (
-  <span className="sl-badge" style={badgeStyle[status]}>
+  <span className={badgeClass[status]}>
     {status}
   </span>
 );
@@ -127,7 +115,7 @@ export const LenderPortfolio: React.FC = () => {
   return (
     <div className="sl-panel">
       <h2>My Lender Portfolio</h2>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
+      <div className="u-flex u-mb-1">
         <span className="sl-meta">Pseudonym</span>
         <HexBadge hex={myPseudonym} />
       </div>
@@ -145,96 +133,98 @@ export const LenderPortfolio: React.FC = () => {
 
       {portfolio.positions.length > 0 && (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
-            <div className="sl-stage" style={{ padding: '1rem' }}>
-              <h3 className="sl-section-title" style={{ marginTop: 0 }}>Issued Exposure</h3>
-              <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--accent)' }}>
+          <div className="u-grid-fit u-mb-4">
+            <div className="sl-stage sl-stage-compact">
+              <h3 className="sl-section-title">Issued Exposure</h3>
+              <div className="u-stat">
                 {formatBigInt(portfolio.issuedExposure)}{' '}
-                <span style={{ fontSize: '0.9rem', fontWeight: 'normal' }}>tNight</span>
+                <span className="u-stat-unit">tNight</span>
               </div>
-              <p className="sl-meta" style={{ margin: '0.5rem 0 0' }}>
+              <p className="sl-meta u-mt-2">
                 {portfolio.singleCount} single-lender financing{pools.length > 0 && ` (${pools.length} pool slot principal confidential)`}
               </p>
             </div>
 
-            <div className="sl-stage" style={{ padding: '1rem' }}>
-              <h3 className="sl-section-title" style={{ marginTop: 0 }}>Contracted Return</h3>
-              <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--accent)' }}>
+            <div className="sl-stage sl-stage-compact">
+              <h3 className="sl-section-title">Contracted Return</h3>
+              <div className="u-stat">
                 {formatBigInt(portfolio.contractedReturn)}{' '}
-                <span style={{ fontSize: '0.9rem', fontWeight: 'normal' }}>tNight</span>
+                <span className="u-stat-unit">tNight</span>
               </div>
-              <p className="sl-meta" style={{ margin: '0.5rem 0 0' }}>
+              <p className="sl-meta u-mt-2">
                 Expected if repaid on time — not guaranteed
               </p>
             </div>
 
-            <div className="sl-stage" style={{ padding: '1rem' }}>
-              <h3 className="sl-section-title" style={{ marginTop: 0 }}>Positions</h3>
-              <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--accent)' }}>
+            <div className="sl-stage sl-stage-compact">
+              <h3 className="sl-section-title">Positions</h3>
+              <div className="u-stat">
                 {portfolio.activeCount}
-                <span style={{ fontSize: '1rem', fontWeight: 'normal' }}> / {portfolio.positions.length}</span>
+                <span className="u-stat-suffix"> / {portfolio.positions.length}</span>
               </div>
-              <p className="sl-meta" style={{ margin: '0.5rem 0 0' }}>
+              <p className="sl-meta u-mt-2">
                 {portfolio.settledCount} settled, {portfolio.defaultedCount} defaulted
               </p>
             </div>
 
-            <div className="sl-stage" style={{ padding: '1rem' }}>
-              <h3 className="sl-section-title" style={{ marginTop: 0 }}>Concentration</h3>
-              <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--accent)' }}>
+            <div className="sl-stage sl-stage-compact">
+              <h3 className="sl-section-title">Concentration</h3>
+              <div className="u-stat">
                 {portfolio.concentrationRate === null
                   ? '—'
                   : `${(portfolio.concentrationRate * 100).toFixed(1)}%`}
               </div>
-              <p className="sl-meta" style={{ margin: '0.5rem 0 0' }}>
+              <p className="sl-meta u-mt-2">
                 Largest position / disclosed exposure, across {portfolio.invoiceCount} invoiced position{portfolio.invoiceCount === 1 ? '' : 's'}
               </p>
             </div>
           </div>
 
-          <table className="sl-table" style={{ marginTop: '1rem' }}>
-            <thead>
-              <tr>
-                <th>Invoice</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Face amount</th>
-                <th>Financed</th>
-                <th>Rate</th>
-                <th>Due</th>
-                <th>Expected return</th>
-                <th>My share</th>
-              </tr>
-            </thead>
-            <tbody>
-              {singles.map((p) => (
-                <tr key={`single-${p.nullifier}`}>
-                  <td className="sl-mono">{shortNullifier(p.nullifier)}</td>
-                  <td>Single{!p.willingToSplit && ' (whole)'}</td>
-                  <td><StatusBadge status={p.status} /></td>
-                  <td>{formatBigInt(p.faceAmount)}</td>
-                  <td>{formatBigInt(p.financedAmount)}</td>
-                  <td>{p.rateBps.toString()} bps</td>
-                  <td className="sl-mono">{new Date(Number(p.dueDate) * 1000).toLocaleDateString()}</td>
-                  <td>{p.status === 'defaulted' ? '—' : `${formatBigInt(p.expectedReturn)}`}</td>
-                  <td>—</td>
+          <div className="u-scroll-x">
+            <table className="sl-table u-mt-4">
+              <thead>
+                <tr>
+                  <th>Invoice</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Face amount</th>
+                  <th>Financed</th>
+                  <th>Rate</th>
+                  <th>Due</th>
+                  <th>Expected return</th>
+                  <th>My share</th>
                 </tr>
-              ))}
-              {pools.map((p) => (
-                <tr key={`pool-${p.slotKey}`}>
-                  <td className="sl-mono">{shortNullifier(p.nullifier)}</td>
-                  <td>Pool slot {p.slotIndex + 1}</td>
-                  <td><StatusBadge status={p.status} /></td>
-                  <td>{formatBigInt(p.faceAmount)}</td>
-                  <td>—</td>
-                  <td>—</td>
-                  <td className="sl-mono">{new Date(Number(p.dueDate) * 1000).toLocaleDateString()}</td>
-                  <td>—</td>
-                  <td><PoolShare position={p} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {singles.map((p) => (
+                  <tr key={`single-${p.nullifier}`}>
+                    <td className="sl-mono">{shortNullifier(p.nullifier)}</td>
+                    <td>Single{!p.willingToSplit && ' (whole)'}</td>
+                    <td><StatusBadge status={p.status} /></td>
+                    <td>{formatBigInt(p.faceAmount)}</td>
+                    <td>{formatBigInt(p.financedAmount)}</td>
+                    <td>{p.rateBps.toString()} bps</td>
+                    <td className="sl-mono">{new Date(Number(p.dueDate) * 1000).toLocaleDateString()}</td>
+                    <td>{p.status === 'defaulted' ? '—' : `${formatBigInt(p.expectedReturn)}`}</td>
+                    <td>—</td>
+                  </tr>
+                ))}
+                {pools.map((p) => (
+                  <tr key={`pool-${p.slotKey}`}>
+                    <td className="sl-mono">{shortNullifier(p.nullifier)}</td>
+                    <td>Pool slot {p.slotIndex + 1}</td>
+                    <td><StatusBadge status={p.status} /></td>
+                    <td>{formatBigInt(p.faceAmount)}</td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td className="sl-mono">{new Date(Number(p.dueDate) * 1000).toLocaleDateString()}</td>
+                    <td>—</td>
+                    <td><PoolShare position={p} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           <p className="sl-meta">
             Pool positions: the invoice face, total pool payout and due date are public

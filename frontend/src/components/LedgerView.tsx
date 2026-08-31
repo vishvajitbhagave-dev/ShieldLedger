@@ -147,7 +147,7 @@ export const LedgerView: React.FC = () => {
             {state.invoices.length === 0 ? (
               <p className="sl-empty">No invoices registered yet.</p>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
+              <div className="u-scroll-x">
                 <table className="sl-table">
                   <thead>
                     <tr>
@@ -199,7 +199,7 @@ export const LedgerView: React.FC = () => {
                               <span className="sl-meta">— (bidding)</span>
                             )}
                           </td>
-                          <td style={{ fontWeight: 'bold' }}>{inv.amount.toString()}</td>
+                          <td className="u-td-strong">{inv.amount.toString()}</td>
                           <td>{inv.rateBps > 0n ? `${inv.rateBps.toString()} bps` : '—'}</td>
                           <td>{formatDate(inv.dueDate)}</td>
                         </tr>
@@ -216,7 +216,7 @@ export const LedgerView: React.FC = () => {
             {state.bids.length === 0 ? (
               <p className="sl-empty">No bids submitted yet.</p>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
+              <div className="u-scroll-x">
                 <table className="sl-table">
                   <thead>
                     <tr>
@@ -247,7 +247,7 @@ export const LedgerView: React.FC = () => {
             {state.bestBids.length === 0 ? (
               <p className="sl-empty">Nothing revealed yet — bids stay sealed until a lender reveals.</p>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
+              <div className="u-scroll-x">
                 <table className="sl-table">
                   <thead>
                     <tr>
@@ -267,8 +267,8 @@ export const LedgerView: React.FC = () => {
                         <tr key={best.nullifier} className={highlighted ? 'sl-row-highlight' : ''}>
                           <td><HexBadge hex={best.nullifier} /></td>
                           <td><HexBadge hex={best.lender} /></td>
-                          <td style={{ fontWeight: 'bold' }}>{best.amount.toString()}</td>
-                          <td style={{ color: 'var(--accent)', fontWeight: 'bold' }}>{best.rateBps.toString()} bps</td>
+                          <td className="u-td-strong">{best.amount.toString()}</td>
+                          <td className="u-td-accent">{best.rateBps.toString()} bps</td>
                           <td>{formatDate(best.dueDate)}</td>
                           <td>{best.willingToSplit ? 'Split' : 'Whole'}</td>
                         </tr>
@@ -296,7 +296,7 @@ export const LedgerView: React.FC = () => {
                 of every competitor. Lowest rate = best offer.
               </p>
             </details>
-            <div style={{ overflowX: 'auto' }}>
+            <div className="u-scroll-x">
               <BidDepthChart depth={buildMarketDepth(state.bestBids, state.poolBids)} />
             </div>
           </section>
@@ -321,15 +321,14 @@ export const LedgerView: React.FC = () => {
             ) : (
               <>
                 <p
-                  className={isHighlighted(`insurancePool-${state.insurancePool.balance.toString()}`) ? 'sl-row-highlight' : ''}
-                  style={{ fontSize: '1.3em', fontWeight: 'bold', margin: '0.5rem 0' }}
+                  className={[isHighlighted(`insurancePool-${state.insurancePool.balance.toString()}`) ? 'sl-row-highlight' : '', 'sl-subheading'].filter(Boolean).join(' ')}
                 >
                   Balance: {state.insurancePool.balance.toString()} tNight
                 </p>
                 {state.insuranceClaims.length === 0 ? (
                   <p className="sl-empty">No default claims paid yet.</p>
                 ) : (
-                  <div style={{ overflowX: 'auto' }}>
+                  <div className="u-scroll-x">
                     <table className="sl-table">
                       <thead>
                         <tr>
@@ -344,7 +343,7 @@ export const LedgerView: React.FC = () => {
                           return (
                             <tr key={claim.nullifier} className={highlighted ? 'sl-row-highlight' : ''}>
                               <td><HexBadge hex={claim.nullifier} /></td>
-                              <td style={{ fontWeight: 'bold' }}>{claim.payout.toString()} tNight</td>
+                              <td className="u-td-strong">{claim.payout.toString()} tNight</td>
                               <td>{formatDate(claim.claimedAt)}</td>
                             </tr>
                           );
@@ -361,7 +360,7 @@ export const LedgerView: React.FC = () => {
             <section className="sl-stage">
               <h3 className="sl-section-title">Pool bids (bestPools)</h3>
               <p className="sl-note">Revealed bids for pool-financed invoices — lender pseudonym and commitment only.</p>
-              <div style={{ overflowX: 'auto' }}>
+              <div className="u-scroll-x">
                 <table className="sl-table">
                   <thead>
                     <tr>
@@ -401,7 +400,7 @@ export const LedgerView: React.FC = () => {
                   requires it to match this ledger entry — so nobody can fabricate a payout to inflate their claim.
                 </p>
               </details>
-              <div style={{ overflowX: 'auto' }}>
+              <div className="u-scroll-x">
                 <table className="sl-table">
                   <thead>
                     <tr>
@@ -426,7 +425,7 @@ export const LedgerView: React.FC = () => {
             <section className="sl-stage">
               <h3 className="sl-section-title">Pool claim commitments</h3>
               <p className="sl-note">Per-lender secondary-market claim ownership for pool invoices.</p>
-              <div style={{ overflowX: 'auto' }}>
+              <div className="u-scroll-x">
                 <table className="sl-table">
                   <thead>
                     <tr>
