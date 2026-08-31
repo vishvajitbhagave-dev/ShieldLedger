@@ -56,8 +56,8 @@ Escrow:        smeCommitment = hash(nullifier, smeSecret)   ──┘ same value
 | --- | --- | --- | --- |
 | 1 | Advanced ZK smart-contract development with a private/public data split | ✅ | `contracts/shield-ledger.compact` — every circuit, split annotated; bids, invoices, credit score stay private |
 | 2 | Event streaming & real-time updates on a public ledger | ✅ | DApp subscribes to `state$` (`frontend/src/use-ledger-state.ts`); live badge + last-update time in the header |
-| 3 | Deployment and interaction with the deployed contract | ✅ | `src/setup.ts`, `src/deploy.ts`, CLI, live **preview** deployment, `state$` interactions, `scripts/e2e-check.ts` |
-| 4 | Writing tests for contracts and frontend | ✅ | `tests/` — 13 suites, **188+ tests**: `shield-ledger`, `insurance-pool`, `cli-args`, `error-messages`, `reputation`, `inter-contract`, `buyer-verification`, `private-keys`, `invoice-status`, `invoice-nullifier` |
+| 3 | Deployment and interaction with the deployed contract | ✅ | `src/setup.ts`, `src/deploy.ts`, CLI, live **preprod** deployment, `state$` interactions, `scripts/e2e-check.ts` |
+| 4 | Writing tests for contracts and frontend | ✅ | `tests/` — 25 files, **348 tests**: `shield-ledger`, `pool-financing`, `pool-settlement`, `pool-insurance`, `insurance-pool`, `secondary-market`, `buyer-verification`, `inter-contract`, `reputation`, `invoice-status`, `invoice-nullifier`, `time`, `cli-args`, `error-messages`, `private-keys`, `pricing`, `price-impact`, `bid-depth`, `rate-trend`, `lender-portfolio`, `dashboard-metrics`, `circuit-breaker`, `audit-export`, `reputation-backtest`, `stress-test` |
 | 5 | Error handling and loading states | ✅ | deploy/connect errors + dismissible banner, busy/working states, `wallet-locked` retry, new React `ErrorBoundary`, ledger-stream error badge |
 | 6 | Inter-contract communication | ✅ (platform-equivalent) | Second `Escrow` contract + off-chain communication layer (see above); on-chain cross-contract calls are not yet implemented by the Compact compiler |
 | 7 | Production deployment architecture | ✅ | CI + Pages CD, env-driven config, TS strict, single-version WASM override, gitignored secrets, public site at `/ShieldLedger/` |
@@ -89,6 +89,136 @@ and is explicitly not part of the production flow.
   multi-bid "order book" is a deliberate non-goal, and why an indexer-based bid-history
   service was considered and not pursued — see
   [docs/TRUST_AND_DATA_PROVENANCE.md](TRUST_AND_DATA_PROVENANCE.md).
+
+## Level-5 feature layer (added since the auction MVP)
+
+The core auction, buyer verification, reputation, single-lender secondary market,
+and single-lender insurance pool described above were the original product. Since
+then the contract and DApp have grown into the full feature set documented in the
+README:
+
+### Pooled multi-investor financing (split invoices)
+
+An SME can register an invoice with `splitCount` 2–4 so up to four lenders
+co-finance it instead of a single winner:
+
+- Registration with `splitCount > 0` does not populate `bestBids`; pool bids are
+  tracked independently in the pool maps.
+- Each lender submits the usual sealed `submitBid` commitment, then reveals it for a
+  specific slot with `revealPoolBid(nullifier, slotIndex, commitment)`. Slots are
+  keyed by `poolSlotKey(nullifier, slotIndex)`; the pool maps store only
+  `{ lender, commitment }`, so a pool bid's rate and amount stay private until
+  settlement. Slots fill in reveal order, and the winning pool is the one with the
+  lowest weighted average rate (sum of `rate × contribution` / total).
+- The SME settles with `settleSplitInvoice(nullifier, financedDueDate, settledAt,
+  contribution0–3, payout0–3, totalContribution, totalPayout,
+  newInsurancePoolBalance)`. The circuit verifies each payout against its
+  contribution with `verifyProportionalPayout` (division-free, floor-exact), proves
+  the contributions sum to the declared total (equal to the invoice amount), routes
+  any floor-rounding remainder (< 4 tNight for a 4-lender pool) to the insurance
+  pool, and records the constant `"shieldledger:pool"` lender marker.
+- Per-lender insurance: `claimPoolInsurancePayout(nullifier, slotIndex,
+  totalInsurance, insurancePayout, newPoolBalance, claimedAt, settlementPayout)`
+  proves `insurancePayout ≤ floor(settlementPayout × totalInsurance / invoice.amount)`
+  and is single-use per slot; a thin pool shares the shortfall proportionally
+  across slots.
+- Per-lender secondary market: `transferPoolClaim(nullifier, slotIndex,
+  newOwnerCommitment)` supports unlimited transfers per slot, before or after pool
+  settlement, using the same pseudonym → commitment two-phase auth as single-lender
+  transfers.
+- Privacy note: contribution amounts are private witnesses, but payout amounts are
+  public inputs (Compact 0.23 ledger-write disclosure rule) and, because of the
+  proportional proof, each contribution is mathematically derivable from the public
+  payouts. See `docs/compact-privacy-notes.md` and the README's Known limitations.
+
+### Off-chain dynamic pricing engine
+
+`frontend/src/pricing.ts` suggests a fair rate range before a lender bids, from
+PUBLIC on-chain data only (creditThreshold, reputationThreshold, invoiceAmount),
+plus an optional local due-date estimate:
+
+`midBps = 500 + (750 − creditThreshold) + 2·(50 − reputationThreshold) +
+log2(invoiceAmount / 10,000) × 25  [+ log2(daysToDue / 30) × 10 when a due date
+estimate is available]`, floored at 100 bps, with `midBps ± 50 bps` as the
+suggested range. It is informational only — lenders may bid any rate — and the
+result is labelled "estimated" when a due-date estimate was used.
+
+### Analytics dashboard & market circuit breaker (Part A)
+
+`frontend/src/dashboard-metrics.ts` computes real-time health metrics from public
+ledger state: invoices registered/settled/defaulted, default rate, pool balance,
+total premiums, total payouts, pool utilization (payouts/premiums), financed
+exposure, and coverage ratio (pool/exposure). Zero-denominator cases return
+`null` ("not enough data"), never NaN/Infinity.
+
+`frontend/src/circuit-breaker.ts` turns those into a `healthy | warning |
+critical` status using: default rate ≥ 15%/30%, pool utilization ≥ 60%/85%,
+coverage ratio ≤ 150%/100%, and payout-to-premium ≥ 0.60/0.90, taking the
+worst-of across triggered conditions. The DApp renders it as a HealthBanner. This
+is Part A (off-chain monitoring only); an on-chain breaker that pauses
+bids/registrations is explicitly deferred to future work (README Future Work).
+
+### Order-book / market-depth visualization
+
+`frontend/src/bid-depth.ts` charts exactly what the contract discloses: a
+per-invoice view (the winning bid's rate/amount/whole-or-split plus a "pool
+members (committed)" lane) and a cross-auction depth view grouping disclosed
+winning bids by rate with cumulative depth. It never fabricates a rate for a
+non-winning or pool bid, because none is public.
+
+### Price-impact / fundability simulation
+
+`frontend/src/price-impact.ts` is a deliberately separate, illustrative
+simulation (see `docs/PRICE_IMPACT_SIMULATION.md`). It layers fundability and
+concentration analysis on the unchanged pricing engine: with the hard 4-lender
+cap (`splitCount ≤ 4`), a large invoice is either fully funded by up to four
+lenders or cannot be filled; concentration means each lender then holds ≥ 25% of
+the face amount in a full four-way pool. Capital values are a configurable
+assumed model and every probability comes from a seeded deterministic PRNG — this
+demonstrates the concept; it is not a data-driven prediction.
+
+### Lender portfolio view
+
+`frontend/src/lender-portfolio.ts` + the `LenderPortfolio` component identify
+positions that belong to the connected wallet by its pseudonym: single-lender
+winning bids (terms public once the auction resolved) and pool slots keyed by
+`poolSlotKey` (the slot's contribution stays private, so principal/return are
+labelled as such; the wallet recalls its own payout from its browser-local
+pool-payout record).
+
+### Rate trend chart
+
+`frontend/src/rate-trend.ts` + `RateTrendChart` record a "winning rate over time"
+series only while THIS browser observes an on-chain financing transition —
+forward-only, browser-local, single-lender invoices only (pool invoices store
+`rateBps: 0`), grouped by the public credit/reputation lower bounds. It is
+honestly labelled as observed-since-tracking-began, never a complete history.
+
+### Compliance / audit trail export
+
+`frontend/src/audit-export.ts` produces a read-only JSON report from the
+already-public derived state (no new circuit or ledger state): invoice lines,
+settlement/claim evidence, health + circuit-breaker metrics, and privacy
+boundary notes. It excludes contribution amounts, credit/reputation scores, and
+buyer identity, which are not in the public view and therefore cannot leak. See
+`docs/COMPLIANCE_AUDIT_TRAIL.md`.
+
+### Gas optimization
+
+Circuit-level reductions in hash/multiply/preimage work and proof size, measured
+before/after on the headless simulator — see `docs/GAS_OPTIMIZATION.md`.
+
+### Stress testing & latency benchmarking
+
+Seed-driven adversarial scenarios across the whole system (auction, pools,
+insurance, secondary market, reputation, analytics) and 60-sample wall-clock
+latency measurements of every impure circuit — see `docs/STRESS_TEST_RESULTS.md`
+and `docs/LATENCY_BENCHMARKS.md`.
+
+### Reputation backtesting
+
+Deterministic simulations of the +10/−20 reputation dynamics and the resulting
+rate ordering — see `docs/REPUTATION_BACKTEST.md`.
 
 ## Privacy model (recap)
 
