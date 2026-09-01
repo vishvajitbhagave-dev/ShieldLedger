@@ -534,6 +534,14 @@ Ideas from the original proposal that are not yet built. These are distinct from
 
 ---
 
+## Level 5 — User Validation
+
+- Target: 50 Preprod users
+- Current: 0 / 50 (see [USERS.md](USERS.md))
+- See [docs/FEEDBACK.md](docs/FEEDBACK.md) for the feedback log and changes made in response
+
+---
+
 ## Documentation
 
 - [Architecture Document](docs/architecture.md)
