@@ -52,7 +52,10 @@ export const WALLET_DISCONNECTED_MESSAGE =
   'Your wallet got disconnected. Please reconnect your wallet and try again.';
 
 export const INSUFFICIENT_BALANCE_MESSAGE =
-  "Couldn't build this transaction — you may not have enough tNight to cover the fee. Get free test tokens from the Preview faucet.";
+  "Your wallet couldn't fund this transaction — you may not have enough DUST, the resource Midnight uses to pay transaction fees. Get free test tokens from the Preview faucet (holding NIGHT generates DUST) and make sure your wallet is synced, then try again.";
+
+export const INSUFFICIENT_DUST_MESSAGE =
+  "Your wallet ran out of DUST, the resource Midnight uses to pay transaction fees. DUST is generated over time from the NIGHT you hold: sync your wallet so it discovers its DUST, and try again once it has regenerated.";
 
 export const TIMEOUT_MESSAGE =
   'This operation timed out before finishing. Proof generation can take 30–60 seconds — please try again.';
@@ -92,8 +95,18 @@ export interface UserFacingError {
 
 const BALANCE_PATTERNS: RegExp[] = [
   /balancing\s+transaction/i,
+  /transaction\s+balancing\s+failed/i,
+  /wallet\s*balance\s*error/i,
   /insufficient\s+(funds|balance)/i,
   /not\s+enough\s+(funds|tnight|balance)/i,
+  /could\s+not\s+balance/i,
+];
+
+const DUST_PATTERNS: RegExp[] = [
+  /(?:ran\s+out\s+of|out\s+of|low\s+on|insufficient)\s+dust/i,
+  /dust\s*(?:failure|insufficient|overflow)/i,
+  /could\s+not\s+balance\s+dust/i,
+  /not\s+enough\s+dust/i,
 ];
 
 const DISCONNECTED_PATTERNS: RegExp[] = [
@@ -195,6 +208,14 @@ export function describeError(label: string, error: unknown): UserFacingError {
   }
   if (NETWORK_MISMATCH_PATTERN.test(raw)) {
     return { message: raw, technical: raw };
+  }
+
+  if (matchesAny(raw, DUST_PATTERNS)) {
+    return {
+      message: INSUFFICIENT_DUST_MESSAGE,
+      technical: raw,
+      action: { kind: 'link', label: 'Get free test tokens', href: FAUCET_URL },
+    };
   }
 
   if (error instanceof WalletBalanceError || matchesAny(raw, BALANCE_PATTERNS)) {

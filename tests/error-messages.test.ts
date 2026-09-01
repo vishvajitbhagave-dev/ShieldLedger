@@ -18,6 +18,7 @@ import {
   WALLET_NOT_RESPONDING_MESSAGE,
   WALLET_DISCONNECTED_MESSAGE,
   INSUFFICIENT_BALANCE_MESSAGE,
+  INSUFFICIENT_DUST_MESSAGE,
   TIMEOUT_MESSAGE,
   NO_WALLET_MESSAGE,
   GENERIC_TRANSACTION_FAILURE_MESSAGE,
@@ -143,6 +144,22 @@ describe('describeError — structured results with actions and technical detail
   it('detects insufficient-funds wording without the tagged error class', () => {
     const mapped = describeError('revealBid', new Error('insufficient funds to cover the fee'));
     expect(mapped.message).toBe(INSUFFICIENT_BALANCE_MESSAGE);
+    expect(mapped.action?.kind).toBe('link');
+  });
+
+  it('maps the SDK-wrapped "Transaction balancing failed" (loses the WalletBalanceError class) to the balance guidance', () => {
+    const err = new Error(
+      "Unexpected error submitting scoped transaction '<unnamed>': WalletBalanceError: Transaction balancing failed.",
+    );
+    const mapped = describeError('registerInvoice', err);
+    expect(mapped.message).toBe(INSUFFICIENT_BALANCE_MESSAGE);
+    expect(mapped.action).toEqual({ kind: 'link', label: 'Get free test tokens', href: FAUCET_URL });
+    expect(mapped.technical).toContain('Transaction balancing failed');
+  });
+
+  it('maps DUST-exhaustion wording to the DUST-specific guidance with a faucet action', () => {
+    const mapped = describeError('registerInvoice', new Error("Insufficient Funds: could not balance dust"));
+    expect(mapped.message).toBe(INSUFFICIENT_DUST_MESSAGE);
     expect(mapped.action?.kind).toBe('link');
   });
 
