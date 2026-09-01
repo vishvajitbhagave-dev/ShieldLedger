@@ -126,7 +126,8 @@ Credit score ≥ threshold, reputation score ≥ threshold, lender credit score 
 | **Live Demo (Midnight Preprod)** | https://vishvajitbhagave-dev.github.io/ShieldLedger/ |
 | **Demo Video** (wallet connect + a successful circuit call on the Preview testnet) | https://drive.google.com/file/d/1VFMtWUn_rTVSr8cfy7wJNeSbAMppjFbi/view?usp=drive_link |
 | **Product X Profile** | https://x.com/ShieldLedger |
-| **Feedback Form** | https://docs.google.com/forms/d/1ZoRdvx9hc24Nv9G9AEMwqWD45BqOGRGaza41hK4hEqI/edit |
+| **Feedback Form** | https://docs.google.com/forms/d/e/1FAIpQLSf2KQdtBEXqYsQzVzULJf2vXowjDfCLM7aKmb8SVQnKsOaNtg/viewform?usp=header |
+| **Feedback Responses (spreadsheet)** | https://docs.google.com/spreadsheets/d/13vO7Yoa064Kdkiq8DVWSJIchTBVrI2n2KFUz_RljIR8/edit?usp=sharing |
 | **Security Audit** | [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md) |
 | **Architecture Document** | [docs/architecture.md](docs/architecture.md) |
 | **Usage Guide** | [docs/USAGE.md](docs/USAGE.md) |
@@ -153,7 +154,9 @@ Credit score ≥ threshold, reputation score ≥ threshold, lender credit score 
 
 ### Google Form
 
-🔗 **Feedback Form:** *[PLACEHOLDER — link to the user-feedback Google Form once created]*
+🔗 **Feedback Form:** https://docs.google.com/forms/d/e/1FAIpQLSf2KQdtBEXqYsQzVzULJf2vXowjDfCLM7aKmb8SVQnKsOaNtg/viewform?usp=header
+
+📊 **Feedback Responses (spreadsheet):** https://docs.google.com/spreadsheets/d/13vO7Yoa064Kdkiq8DVWSJIchTBVrI2n2KFUz_RljIR8/edit?usp=sharing
 
 ### User Feedback Summary
 

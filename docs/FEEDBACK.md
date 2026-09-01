@@ -1,7 +1,7 @@
 # User Feedback — Level 5
 
 ## Feedback Collection Method
-[How feedback was collected — form, DMs, Telegram, etc.]
+Feedback is collected via a public Google Form linked from the README: https://docs.google.com/forms/d/e/1FAIpQLSf2KQdtBEXqYsQzVzULJf2vXowjDfCLM7aKmb8SVQnKsOaNtg/viewform?usp=header
 
 ## Raw Feedback Log
 | # | User | Feedback Summary | Date |
