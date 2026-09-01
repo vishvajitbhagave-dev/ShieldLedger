@@ -91,17 +91,19 @@ Credit score ≥ threshold, reputation score ≥ threshold, lender credit score 
 
 <img width="959" height="473" alt="Screenshot 2026-08-15 201031" src="https://github.com/user-attachments/assets/810e48c5-c5e9-4a02-90fe-c12db6e2eb1f" />
 
-<img width="959" height="473" alt="Screenshot 2026-08-15 201207" src="https://github.com/user-attachments/assets/14ee0f9b-f3d2-4274-92ab-a8e283806dad" />
+<img width="959" height="436" alt="Screenshot 2026-09-01 134951" src="https://github.com/user-attachments/assets/ba4ef62a-67c3-48e8-a390-91027ef02350" />
 
-<img width="959" height="473" alt="Screenshot 2026-08-15 201228" src="https://github.com/user-attachments/assets/ee315f88-4048-4d7c-a4fa-53b990c2a644" />
+<img width="959" height="437" alt="Screenshot 2026-09-01 135038" src="https://github.com/user-attachments/assets/73f01de5-7630-4202-a502-f4e3beb51ded" />
 
-<img width="959" height="473" alt="Screenshot 2026-08-15 201259" src="https://github.com/user-attachments/assets/81057bf2-dbbf-49a5-bd81-012bbf8092f5" />
+<img width="959" height="441" alt="Screenshot 2026-09-01 135140" src="https://github.com/user-attachments/assets/067cce14-6d4f-49e1-a6a7-6d1e35926bb0" />
 
-<img width="959" height="470" alt="Screenshot 2026-08-15 201328" src="https://github.com/user-attachments/assets/ebe4ca88-4e6a-4754-a53a-60631984326d" />
+<img width="959" height="434" alt="Screenshot 2026-09-01 135215" src="https://github.com/user-attachments/assets/cf2293c5-72fe-4216-8790-ae814d7db5ac" />
 
-<img width="959" height="473" alt="Screenshot 2026-08-15 201410" src="https://github.com/user-attachments/assets/5ed6f027-079e-4439-a32c-dcf84f41e62c" />
+<img width="959" height="439" alt="Screenshot 2026-09-01 135350" src="https://github.com/user-attachments/assets/0b85619d-3420-43f6-89b7-5cc48ab58480" />
 
-<img width="959" height="476" alt="Screenshot 2026-08-15 201448" src="https://github.com/user-attachments/assets/0315c5e0-9b1c-431f-b226-33e8da24eee5" />
+<img width="959" height="438" alt="Screenshot 2026-09-01 135545" src="https://github.com/user-attachments/assets/fb021098-e745-4759-b630-46a34c2ba092" />
+
+<img width="959" height="438" alt="Screenshot 2026-09-01 135816" src="https://github.com/user-attachments/assets/58fc4642-c4cc-4801-885a-4a543faa3d20" />
 
 ### Mobile responsive UI
 
@@ -112,14 +114,6 @@ Credit score ≥ threshold, reputation score ≥ threshold, lender credit score 
 <img width="576" height="1280" alt="WhatsApp Image 2026-08-16 at 7 15 09 PM (2)" src="https://github.com/user-attachments/assets/a3e256b9-8845-4cf5-b55a-7ddc44fd5382" />
 
 <img width="576" height="1280" alt="WhatsApp Image 2026-08-16 at 7 15 09 PM (3)" src="https://github.com/user-attachments/assets/e4fabe22-b7df-423c-9dde-fa75dd7743d0" />
-
-<img width="720" height="1600" alt="WhatsApp Image 2026-08-16 at 7 15 09 PM (4)" src="https://github.com/user-attachments/assets/9ee99dc3-00c4-4bb8-96d4-cc1970dca2b9" />
-
-<img width="576" height="1280" alt="WhatsApp Image 2026-08-16 at 7 15 09 PM (5)" src="https://github.com/user-attachments/assets/a7598f6a-8914-479d-bb20-02565e6843eb" />
-
-<img width="576" height="1280" alt="WhatsApp Image 2026-08-16 at 7 15 09 PM (6)" src="https://github.com/user-attachments/assets/ef6e3c77-c038-4bbd-bce7-7906afa11d35" />
-
-<img width="576" height="1280" alt="WhatsApp Image 2026-08-16 at 7 15 09 PM (7)" src="https://github.com/user-attachments/assets/2fdaeecf-0547-4536-91d2-1aba2e56f8c3" />
 
 **[PLACEHOLDER — add any updated/new screenshots here manually.]**
 
@@ -132,7 +126,7 @@ Credit score ≥ threshold, reputation score ≥ threshold, lender credit score 
 | **Live Demo (Midnight Preprod)** | https://vishvajitbhagave-dev.github.io/ShieldLedger/ |
 | **Demo Video** (wallet connect + a successful circuit call on the Preview testnet) | https://drive.google.com/file/d/1VFMtWUn_rTVSr8cfy7wJNeSbAMppjFbi/view?usp=drive_link |
 | **Product X Profile** | https://x.com/ShieldLedger |
-| **Feedback Form** | **[PLACEHOLDER — link to the user-feedback Google Form once created]** |
+| **Feedback Form** | https://docs.google.com/forms/d/1ZoRdvx9hc24Nv9G9AEMwqWD45BqOGRGaza41hK4hEqI/edit |
 | **Security Audit** | [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md) |
 | **Architecture Document** | [docs/architecture.md](docs/architecture.md) |
 | **Usage Guide** | [docs/USAGE.md](docs/USAGE.md) |
