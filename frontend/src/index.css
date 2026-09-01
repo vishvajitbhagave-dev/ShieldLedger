@@ -560,6 +560,138 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* ════════════════ Home polish (visual refinement, Home-only) ════════════════ */
+
+.sl-home {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  min-width: 0;
+}
+
+/* 1. Gentle multi-layer lift on the Home card (reuse --shadow-md token). */
+.sl-home .sl-panel {
+  box-shadow: var(--shadow-md);
+}
+
+/* 6. Bring the hero headline onto the type scale (was browser-default h2),
+      bolder + tighter tracking for a sharper hierarchy against the muted
+      section title and 11px caption labels. */
+.sl-home h2 {
+  font-size: var(--text-2xl);
+  font-weight: var(--fw-bold);
+  letter-spacing: -0.02em;
+  margin: 0;
+  color: var(--text);
+}
+
+/* 2. Tighten the inter-address rhythm within the Network & Account group. */
+.sl-home .sl-status-group {
+  gap: var(--sp-3) var(--sp-6);
+}
+
+/* 2/4. Slightly more breathing room above the divider, and soften/inset the
+      divider so it reads intentional rather than like a raw full-bleed <hr>. */
+.sl-home .sl-header-details {
+  border-top: 1px solid var(--border);
+  padding-top: var(--sp-5);
+  margin-inline: var(--sp-1);
+}
+
+/* 3. Reinforce the CTA lift on hover with a slightly deeper soft shadow,
+      matching the app's existing .sl-button hover pattern (translateY + shadow). */
+.sl-home .sl-button:hover:not(:disabled) {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+/* 5. Slightly more deliberate pill padding / hairline border for a polished,
+      less-thin badge (colors/meaning unchanged). */
+.sl-home .sl-status-pill {
+  padding: 6px 12px;
+  border-width: 1px;
+  letter-spacing: 0.04em;
+}
+
+/* ════════════════ Home advanced polish (Home-only) ════════════════ */
+
+/* 1. Anchor the right-side live-status + live-invoices stat in its own
+      subtle "status block" chip instead of floating loose. */
+.sl-home .sl-header-details-right {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-left: auto;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* 2. Real-time "live" glow pulse on the status dot (soft box-shadow breathe,
+      slow 2s loop). A new keyframe below; likes the existing 2s rhythm.
+      Reduced-motion is neutralised by the global prefers-reduced-motion rule. */
+.sl-home .sl-live-dot {
+  box-shadow: 0 0 0 0 rgba(0, 191, 166, 0.35);
+  animation: sl-live-glow 2s ease-in-out infinite;
+}
+
+@keyframes sl-live-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(0, 191, 166, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(0, 191, 166, 0);
+  }
+}
+
+/* 3. Address values read as inset "data chips" (deeper tint + subtle inset). */
+.sl-home .sl-hex-badge {
+  background: var(--surface-3);
+  border-color: var(--border);
+  box-shadow: inset 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+
+/* 3. Copy icon transition-in on hover: subtler at rest, revealed + un-scaled
+      when the chip is hovered/focused. */
+.sl-home .sl-hex-badge-icon {
+  opacity: 0.55;
+  transform: scale(0.9);
+  transition: opacity 0.18s ease, transform 0.18s ease, color 0.15s ease;
+}
+
+.sl-home .sl-hex-badge:hover .sl-hex-badge-icon,
+.sl-home .sl-hex-badge:focus-visible .sl-hex-badge-icon {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* 4. Thin teal accent rail on the Network & Account sub-section only, so the
+      account details are anchored without stamping the whole hero. */
+.sl-home .sl-status-group.sl-header-details {
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding-left: var(--sp-4);
+}
+
+/* 5. Deliberate tinted tag behind the section label (text-only; no icon
+      dependency exists in this codebase). */
+.sl-home .sl-section-tag {
+  display: inline-flex;
+  width: fit-content;
+  padding: 4px 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-sm);
+}
+
+/* 6. Barely-perceptible two-stop accent gradient on the primary CTA fill
+      (accent -> accent-hover, close tonally), replacing the flat solid. */
+.sl-home .sl-button {
+  background: linear-gradient(180deg, var(--accent), var(--accent-hover));
+}
+
 .sl-row {
   display: flex;
   align-items: center;

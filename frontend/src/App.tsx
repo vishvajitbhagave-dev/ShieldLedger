@@ -125,7 +125,13 @@ const HomeDashboard: React.FC<{
   role: Role;
   clearRole: () => void;
   onNavigate: (section: string) => void;
-}> = ({ role, clearRole, onNavigate }) => {
+  walletInfo: { unshieldedAddress: string; shieldedAddress: string } | null;
+  deploymentAddress: string;
+  deployed: boolean;
+  streamStatus: string;
+  ledgerError: string | null;
+  invoiceCount: bigint | null;
+}> = ({ role, clearRole, onNavigate, walletInfo, deploymentAddress, deployed, streamStatus, ledgerError, invoiceCount }) => {
   const { state, error } = useLedgerState();
   const heldRole = role;
 
@@ -243,7 +249,67 @@ const HomeDashboard: React.FC<{
           invoices are financed or claims are paid on-chain.
         </p>
       )}
+
+      <NetworkDetails
+        walletInfo={walletInfo}
+        deploymentAddress={deploymentAddress}
+        deployed={deployed}
+        streamStatus={streamStatus}
+        ledgerError={ledgerError}
+        invoiceCount={invoiceCount}
+      />
     </div>
+  );
+};
+
+const NetworkDetails: React.FC<{
+  walletInfo: { unshieldedAddress: string; shieldedAddress: string } | null;
+  deploymentAddress: string;
+  deployed: boolean;
+  streamStatus: string;
+  ledgerError: string | null;
+  invoiceCount: bigint | null;
+}> = ({ walletInfo, deploymentAddress, deployed, streamStatus, ledgerError, invoiceCount }) => {
+  return (
+    <>
+      <h3 className="sl-section-title sl-section-tag">Network &amp; Account</h3>
+      <div className="sl-status-group sl-header-details">
+        <div className="sl-status-item">
+          <span className="sl-status-label">Unshielded Address</span>
+          <span className="sl-status-value">
+            <HexBadge hex={walletInfo?.unshieldedAddress ?? ''} />
+          </span>
+        </div>
+        <div className="sl-status-item">
+          <span className="sl-status-label">Shielded Address</span>
+          <span className="sl-status-value">
+            <HexBadge hex={walletInfo?.shieldedAddress ?? ''} />
+          </span>
+        </div>
+        {deployed && (
+          <div className="sl-status-item">
+            <span className="sl-status-label">Contract Address</span>
+            <span className="sl-status-value">
+              <HexBadge hex={deploymentAddress} />
+            </span>
+          </div>
+        )}
+        <div className="sl-header-details-right">
+          {deployed && (
+            <span
+              className={ledgerError != null ? 'sl-status-pill sl-error' : 'sl-status-pill sl-live-pill'}
+              title={ledgerError != null ? describeError('ledgerStream', ledgerError).message : undefined}
+            >
+              {streamStatus}
+            </span>
+          )}
+          <div className="sl-top-metric">
+            <span className="sl-top-metric-value">{invoiceCount !== null ? invoiceCount.toString() : '—'}</span>
+            <span className="sl-top-metric-label">live invoices</span>
+          </div>
+        </div>
+      </div>
+    </>
   );
 };
 
@@ -309,10 +375,6 @@ const Body: React.FC = () => {
               </div>
             </div>
             <div className="sl-header-actions">
-              <span className="sl-status-pill">
-                <span className="sl-live-dot" aria-hidden="true" />
-                {networkId}
-              </span>
               <div className="sl-wallet-group">
                 <span className="sl-verified">
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -324,42 +386,6 @@ const Body: React.FC = () => {
                 <button className="sl-button sl-button-secondary sl-header-action" onClick={disconnect}>
                   Disconnect
                 </button>
-              </div>
-            </div>
-          </div>
-          <div className="sl-status-group sl-header-details">
-            <div className="sl-status-item">
-              <span className="sl-status-label">Unshielded Address</span>
-              <span className="sl-status-value">
-                <HexBadge hex={walletInfo?.unshieldedAddress ?? ''} />
-              </span>
-            </div>
-            <div className="sl-status-item">
-              <span className="sl-status-label">Shielded Address</span>
-              <span className="sl-status-value">
-                <HexBadge hex={walletInfo?.shieldedAddress ?? ''} />
-              </span>
-            </div>
-            {deployed && (
-              <div className="sl-status-item">
-                <span className="sl-status-label">Contract Address</span>
-                <span className="sl-status-value">
-                  <HexBadge hex={deployment.address} />
-                </span>
-              </div>
-            )}
-            <div className="sl-header-details-right">
-              {deployed && (
-                <span
-                  className={ledgerError != null ? 'sl-status-pill sl-error' : 'sl-status-pill sl-live-pill'}
-                  title={ledgerError != null ? describeError('ledgerStream', ledgerError).message : undefined}
-                >
-                  {streamStatus}
-                </span>
-              )}
-              <div className="sl-top-metric">
-                <span className="sl-top-metric-value">{ledgerState ? ledgerState.invoiceCount.toString() : '—'}</span>
-                <span className="sl-top-metric-label">live invoices</span>
               </div>
             </div>
           </div>
@@ -406,18 +432,50 @@ const Body: React.FC = () => {
 
       <WalletConnect />
 
-      {deployed && activeSection === 'home' &&
-        (role === null ? (
-          <div className="sl-panel sl-welcome">
-            <h2 className="sl-welcome-title">Welcome to ShieldLedger</h2>
-            <p className="sl-meta">Confidential invoice financing on the Midnight Network — commitments on-chain, invoice details private.</p>
-            <button type="button" className="sl-hero-action" onClick={() => setActiveSection('financing')}>
-              Choose your role
-            </button>
-          </div>
-        ) : (
-          <HomeDashboard role={role} clearRole={clearRole} onNavigate={setActiveSection} />
-        ))}
+      {deployed && activeSection === 'home' && (
+        <div className="sl-home">
+          {role === null ? (
+            <div className="sl-panel">
+              <NetworkDetails
+                walletInfo={walletInfo}
+                deploymentAddress={deployment.address}
+                deployed={deployed}
+                streamStatus={streamStatus}
+                ledgerError={ledgerError}
+                invoiceCount={ledgerState ? ledgerState.invoiceCount : null}
+              />
+              <h2>Get invoices financed in hours, not weeks</h2>
+              <p className="sl-meta">
+                Without exposing your books — bids stay sealed and only the winning rate is ever revealed.
+              </p>
+              <button type="button" className="sl-button" onClick={() => setActiveSection('financing')}>
+                Choose your role
+              </button>
+              <div className="u-flex-between u-mt-2">
+                <span className="sl-status-pill">
+                  <span className="sl-live-dot" aria-hidden="true" />
+                  {networkId}
+                </span>
+                <button type="button" className="sl-button-ghost" onClick={() => setActiveSection('ledger')}>
+                  Verify on-chain →
+                </button>
+              </div>
+            </div>
+          ) : (
+            <HomeDashboard
+              role={role}
+              clearRole={clearRole}
+              onNavigate={setActiveSection}
+              walletInfo={walletInfo}
+              deploymentAddress={deployment.address}
+              deployed={deployed}
+              streamStatus={streamStatus}
+              ledgerError={ledgerError}
+              invoiceCount={ledgerState ? ledgerState.invoiceCount : null}
+            />
+          )}
+        </div>
+      )}
 
       {deployed && ActiveComponent && <ActiveComponent />}
     </div>
