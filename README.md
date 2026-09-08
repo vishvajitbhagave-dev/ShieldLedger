@@ -4,7 +4,7 @@
 
 ![Status](https://img.shields.io/badge/Status-Live-brightgreen?style=flat-square)
 ![Network](https://img.shields.io/badge/Network-Midnight%20Preprod-blue?style=flat-square)
-![Tests](https://img.shields.io/badge/Tests-348%20Passing-success?style=flat-square)
+![Tests](https://img.shields.io/badge/Tests-350%20Passing-success?style=flat-square)
 ![CI/CD](https://github.com/vishvajitbhagave-dev/ShieldLedger/actions/workflows/ci.yml/badge.svg)
 
 ---
@@ -209,7 +209,7 @@ ShieldLedger/
 │       └── manager.ts           # Provider stack assembly (proof/indexer/wallet)
 ├── src/                         # Node tooling: compile.ts, setup.ts, deploy.ts, cli.ts,
 │                                # reputation.ts, insurance.ts, witnesses.ts, network.ts
-├── tests/                       # Vitest suites — 25 files, 348 tests
+├── tests/                       # Vitest suites — 25 files, 350 tests
 ├── scripts/                     # e2e-check.ts, demo-reputation-cycle.ts,
 │                                # latency-benchmark.ts, reputation backtest
 ├── docs/                        # architecture, security audit, privacy notes, runbooks,
@@ -469,7 +469,7 @@ All frontend configuration is build-time (`VITE_*`), so **rebuilding is the only
 ## Tests
 
 ```bash
-npm test               # full Vitest suite — 25 files, 348 tests
+npm test               # full Vitest suite — 25 files, 350 tests
 npm run test:e2e       # read-only smoke check against the deployed contract
 npm run build          # TypeScript typecheck (root + frontend)
 ```
