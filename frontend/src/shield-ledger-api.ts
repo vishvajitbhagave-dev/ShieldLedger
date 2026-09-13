@@ -37,6 +37,61 @@ function toHex(bytes: Uint8Array): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+// ─── Private-state persistence across sessions ──────────────────────────────
+// The in-memory provider drops all state on disconnect. To preserve reputation
+// and wallet identity across browser sessions, we cache the full private state
+// to localStorage (keyed by contract address) after every mutation, and hydrate
+// from the cache when joining an existing contract.
+
+const PS_CACHE_PREFIX = 'shieldledger.private-state.';
+
+function psCacheKey(contractAddress: ContractAddress): string {
+  return `${PS_CACHE_PREFIX}${contractAddress}`;
+}
+
+function encodePrivateState(state: ShieldLedgerPrivateState): string {
+  return JSON.stringify(state, (_key, value) => {
+    if (value instanceof Uint8Array) return { __bytes: toHex(value) };
+    if (typeof value === 'bigint') return { __bigint: value.toString() };
+    return value;
+  });
+}
+
+function decodePrivateState(json: string): ShieldLedgerPrivateState {
+  return JSON.parse(json, (_key, value) => {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const obj = value as Record<string, unknown>;
+      if (typeof obj.__bytes === 'string') {
+        const hex = obj.__bytes;
+        const out = new Uint8Array(hex.length / 2);
+        for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+        return out;
+      }
+      if (typeof obj.__bigint === 'string') return BigInt(obj.__bigint);
+    }
+    return value;
+  }) as ShieldLedgerPrivateState;
+}
+
+function persistPrivateState(contractAddress: ContractAddress, state: ShieldLedgerPrivateState): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(psCacheKey(contractAddress), encodePrivateState(state));
+  } catch {
+    // Storage unavailable or full — silently ignore.
+  }
+}
+
+function loadCachedPrivateState(contractAddress: ContractAddress): ShieldLedgerPrivateState | null {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    const raw = localStorage.getItem(psCacheKey(contractAddress));
+    return raw ? decodePrivateState(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 function fromHex(input: string): Uint8Array {
   const hex = input.trim().toLowerCase().replace(/^0x/, '');
   if (!/^[0-9a-f]{64}$/.test(hex)) {
@@ -215,6 +270,7 @@ export class ShieldLedgerAPI {
     if (!privateState) return null;
     const updated = applyReputationUpdate(privateState, onTime);
     await this.providers.privateStateProvider.set(shieldLedgerPrivateStateKey, updated);
+    persistPrivateState(this.deployedContractAddress, updated);
     return reputationView(updated);
   }
 
@@ -390,6 +446,7 @@ export class ShieldLedgerAPI {
     if (!privateState) return onTime;
     const updated = applyReputationUpdate(privateState, onTime);
     await this.providers.privateStateProvider.set(shieldLedgerPrivateStateKey, updated);
+    persistPrivateState(this.deployedContractAddress, updated);
     return onTime;
   }
 
@@ -480,7 +537,10 @@ export class ShieldLedgerAPI {
       privateStateId: shieldLedgerPrivateStateKey,
       initialPrivateState: createShieldLedgerPrivateState(),
     });
-    return new ShieldLedgerAPI(deployedContract, providers);
+    const api = new ShieldLedgerAPI(deployedContract, providers);
+    const initial = await providers.privateStateProvider.get(shieldLedgerPrivateStateKey);
+    if (initial) persistPrivateState(api.deployedContractAddress, initial);
+    return api;
   }
 
   static async join(
@@ -488,7 +548,14 @@ export class ShieldLedgerAPI {
     contractAddress: ContractAddress,
   ): Promise<ShieldLedgerAPI> {
     providers.privateStateProvider.setContractAddress(contractAddress);
-    const existing = await providers.privateStateProvider.get(shieldLedgerPrivateStateKey);
+    let existing = await providers.privateStateProvider.get(shieldLedgerPrivateStateKey);
+    if (!existing) {
+      const cached = loadCachedPrivateState(contractAddress);
+      if (cached) {
+        await providers.privateStateProvider.set(shieldLedgerPrivateStateKey, cached);
+        existing = cached;
+      }
+    }
     const initialPrivateState: ShieldLedgerPrivateState =
       existing ?? createShieldLedgerPrivateState();
 
