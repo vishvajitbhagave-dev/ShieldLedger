@@ -2,7 +2,8 @@
 //
 // Every error that reaches the UI flows through `describeError`, which maps
 // known raw failure patterns (proof-server fetch failures, an unresponsive or
-// disconnected wallet, transaction-balancing/fee failures, timeouts) to short,
+// disconnected wallet, transaction-balancing/fee failures, network-side
+// submission rejections, timeouts) to short,
 // actionable messages — and falls back to a friendly generic message so a raw
 // stack trace, wasm path or bare "Error" is never shown. The original technical
 // text travels along in `technical` so it can be revealed behind a
@@ -59,6 +60,9 @@ export const INSUFFICIENT_DUST_MESSAGE =
 
 export const TIMEOUT_MESSAGE =
   'This operation timed out before finishing. Proof generation can take 30–60 seconds — please try again.';
+
+export const NETWORK_REJECTED_TRANSACTION_MESSAGE =
+  "The network rejected this transaction before it was confirmed — your wallet and the network are probably momentarily out of sync (this is common right after a deploy). Resync or reconnect your wallet, wait a few moments, and try again.";
 
 export const NO_WALLET_MESSAGE =
   'No Midnight wallet was detected in this browser. Install a Midnight-compatible wallet (such as Lace), then try connecting again.';
@@ -136,6 +140,20 @@ const PROOF_SERVER_PATTERNS: RegExp[] = [
 ];
 
 const TIMEOUT_PATTERNS: RegExp[] = [/\btimed?\s*-?\s*out\b/i, /\btimeout\b/i];
+
+// Node-side submission rejections surfaced by the wallet SDK, e.g.
+// "Operation failed: 1010: Invalid Transaction: Custom error: 182:
+// (FiberFailure) SubmissionError: Transaction submission error".
+// 1010 is Substrate's generic invalid-transaction envelope; the inner
+// "Custom error: N" is a node-ledger variant code. Both mean the node
+// refused to apply the balanced transaction to its current ledger state
+// (commonly a transient/out-of-sync condition, not a DApp bug).
+const NODE_REJECTION_PATTERNS: RegExp[] = [
+  /\b1010\b[^\n]*invalid\s+transaction/i,
+  /invalid\s+transaction\s*:\s*custom\s+error/i,
+  /operation\s+failed\s*:\s*1010/i,
+  /\bsubmission\s*error\b/i,
+];
 
 const NO_WALLET_PATTERN = /could not find a midnight wallet/i;
 
@@ -240,6 +258,10 @@ export function describeError(label: string, error: unknown): UserFacingError {
 
   if (matchesAny(raw, TIMEOUT_PATTERNS)) {
     return { message: TIMEOUT_MESSAGE, technical: raw };
+  }
+
+  if (matchesAny(raw, NODE_REJECTION_PATTERNS)) {
+    return { message: NETWORK_REJECTED_TRANSACTION_MESSAGE, technical: raw };
   }
 
   const detail = assertionDetail(raw);

@@ -20,9 +20,52 @@ import {
   INSUFFICIENT_BALANCE_MESSAGE,
   INSUFFICIENT_DUST_MESSAGE,
   TIMEOUT_MESSAGE,
+  NETWORK_REJECTED_TRANSACTION_MESSAGE,
   NO_WALLET_MESSAGE,
   GENERIC_TRANSACTION_FAILURE_MESSAGE,
 } from '../frontend/src/lib/errorMessages.js';
+
+describe('userFacingFailureMessage — network submission rejections', () => {
+  it('maps the exact preprod 1010 / Custom error 182 / SubmissionError text', () => {
+    const err = new Error(
+      "Unexpected error submitting scoped transaction '<unnamed>': Error: Operation failed: 1010: Invalid Transaction: Custom error: 182: (FiberFailure) SubmissionError: Transaction submission error",
+    );
+    expect(userFacingFailureMessage('registerInvoice', err)).toBe(
+      NETWORK_REJECTED_TRANSACTION_MESSAGE,
+    );
+  });
+
+  it('is operation-agnostic (node rejections are not a DApp bug)', () => {
+    for (const label of ['registerInvoice', 'submitBid', 'confirmInvoice', 'settleInvoice']) {
+      expect(userFacingFailureMessage(label, new Error('Invalid Transaction: Custom error: 155'))).toBe(
+        NETWORK_REJECTED_TRANSACTION_MESSAGE,
+      );
+    }
+  });
+
+  it('keeps the raw technical detail available via describeError', () => {
+    const err = new Error(
+      "Operation failed: 1010: Invalid Transaction: Custom error: 182: (FiberFailure) SubmissionError: Transaction submission error",
+    );
+    const mapped = describeError('registerInvoice', err);
+    expect(mapped.message).toBe(NETWORK_REJECTED_TRANSACTION_MESSAGE);
+    expect(mapped.technical).toContain('Custom error: 182');
+    expect(mapped.action).toBeUndefined();
+  });
+
+  it('does not shadow proof-server or balancing failures wrapped in the same prefix', () => {
+    const proofServer = new Error(
+      "Unexpected error submitting scoped transaction '<unnamed>': Error: 'check' returned an error: TypeError: Failed to fetch",
+    );
+    expect(userFacingFailureMessage('registerInvoice', proofServer)).toBe(
+      PROOF_SERVER_UNREACHABLE_MESSAGE,
+    );
+    const balance = new Error(
+      "Unexpected error submitting scoped transaction '<unnamed>': WalletBalanceError: Transaction balancing failed.",
+    );
+    expect(describeError('registerInvoice', balance).message).toBe(INSUFFICIENT_BALANCE_MESSAGE);
+  });
+});
 
 describe('userFacingFailureMessage — registerInvoice circuit assertions', () => {
   it('maps the "not creditworthy" assert to the friendly credit message', () => {
