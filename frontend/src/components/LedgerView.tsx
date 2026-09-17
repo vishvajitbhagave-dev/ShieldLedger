@@ -38,7 +38,7 @@ const TransferredBadge: React.FC<{ settled?: boolean }> = ({ settled }) => (
 );
 
 export const LedgerView: React.FC = () => {
-  const { state, error } = useLedgerState();
+  const { state, error, retry } = useLedgerState();
   const [firstSeen, setFirstSeen] = useState<Record<string, number>>({});
 
   // Track when elements are first seen in ledger state to trigger flash highlight animation
@@ -118,7 +118,7 @@ export const LedgerView: React.FC = () => {
   return (
     <div className="sl-panel">
       <h2>Public ledger</h2>
-      {error && <ErrorBanner error={describeError('ledgerStream', error)} />}
+      {error && <ErrorBanner error={describeError('ledgerStream', error)} onRetry={retry} />}
       {!state && !error && <p className="sl-empty">Waiting for ledger state…</p>}
       {state && (
         <>

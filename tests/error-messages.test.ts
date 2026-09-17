@@ -23,6 +23,8 @@ import {
   NETWORK_REJECTED_TRANSACTION_MESSAGE,
   NO_WALLET_MESSAGE,
   GENERIC_TRANSACTION_FAILURE_MESSAGE,
+  LEDGER_STREAM_STALL_MARKER,
+  LEDGER_STREAM_STALL_MESSAGE,
 } from '../frontend/src/lib/errorMessages.js';
 
 describe('userFacingFailureMessage — network submission rejections', () => {
@@ -163,6 +165,35 @@ describe('userFacingFailureMessage — infrastructure failures stay friendly', (
     const message = userFacingFailureMessage('settleInvoice', err);
     expect(message).toContain('amount exceeds winning bid');
     expect(message).not.toContain('failed assert:');
+  });
+});
+
+describe('describeError — stalled live ledger stream', () => {
+  it('maps the stall marker to the friendly message with a retry action', () => {
+    const err = new Error(
+      `${LEDGER_STREAM_STALL_MARKER} The live ledger stream stopped updating: no ledger state arrived in time`,
+    );
+    const mapped = describeError('ledgerStream', err);
+    expect(mapped.message).toBe(LEDGER_STREAM_STALL_MESSAGE);
+    expect(mapped.action).toEqual({ kind: 'retry' });
+    expect(mapped.technical).toContain(LEDGER_STREAM_STALL_MARKER);
+  });
+
+  it('accepts the stall marker as a plain string too', () => {
+    expect(userFacingFailureMessage('ledgerStream', `${LEDGER_STREAM_STALL_MARKER} stalled`)).toBe(
+      LEDGER_STREAM_STALL_MESSAGE,
+    );
+  });
+
+  it('keeps other ledger labels from being shadowed by real assert/infrastructure errors', () => {
+    const proofServer = new Error('Failed Proof Server response: url="http://localhost:6300/check", code="400", status="Bad Request"');
+    expect(userFacingFailureMessage('ledgerStream', proofServer)).toBe(
+      PROOF_SERVER_UNREACHABLE_MESSAGE,
+    );
+    const assert = new Error('failed assert: amount exceeds winning bid');
+    expect(userFacingFailureMessage('ledgerStream', assert)).toContain(
+      'amount exceeds winning bid',
+    );
   });
 });
 

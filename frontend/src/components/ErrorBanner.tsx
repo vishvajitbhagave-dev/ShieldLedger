@@ -5,14 +5,15 @@ interface ErrorBannerProps {
   error: UserFacingError | null;
   onDismiss?: () => void;
   onReconnect?: () => void;
+  onRetry?: () => void;
 }
 
 /**
  * Renders a mapped user-facing error: the friendly message, an optional
- * action (faucet link / reconnect button), and the raw technical error tucked
- * behind a collapsed "Show technical details" expander.
+ * action (faucet link / reconnect button / retry button), and the raw
+ * technical error tucked behind a collapsed "Show technical details" expander.
  */
-export const ErrorBanner: React.FC<ErrorBannerProps> = ({ error, onDismiss, onReconnect }) => {
+export const ErrorBanner: React.FC<ErrorBannerProps> = ({ error, onDismiss, onReconnect, onRetry }) => {
   if (!error) return null;
 
   return (
@@ -39,6 +40,11 @@ export const ErrorBanner: React.FC<ErrorBannerProps> = ({ error, onDismiss, onRe
             {error.action?.kind === 'reconnect' && onReconnect && (
               <button type="button" className="sl-error-action" onClick={onReconnect}>
                 Reconnect wallet
+              </button>
+            )}
+            {error.action?.kind === 'retry' && onRetry && (
+              <button type="button" className="sl-error-action" onClick={onRetry}>
+                {error.action.label ?? 'Retry'}
               </button>
             )}
           </div>

@@ -39,7 +39,7 @@ const PoolShare: React.FC<{ position: LenderPosition }> = ({ position }) => {
 
 export const LenderPortfolio: React.FC = () => {
   const { deployment } = useShieldLedger();
-  const { state, error } = useLedgerState();
+  const { state, error, retry } = useLedgerState();
   const api = deployment.status === 'deployed' ? deployment.api : null;
   const [myPseudonym, setMyPseudonym] = useState<string | null | undefined>(undefined);
 
@@ -83,7 +83,7 @@ export const LenderPortfolio: React.FC = () => {
     return (
       <div className="sl-panel">
         <h2>My Lender Portfolio</h2>
-        <ErrorBanner error={describeError('ledgerStream', error)} />
+        <ErrorBanner error={describeError('ledgerStream', error)} onRetry={retry} />
       </div>
     );
   }

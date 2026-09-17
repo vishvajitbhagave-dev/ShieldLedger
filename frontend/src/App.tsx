@@ -132,7 +132,7 @@ const HomeDashboard: React.FC<{
   ledgerError: string | null;
   invoiceCount: bigint | null;
 }> = ({ role, clearRole, onNavigate, walletInfo, deploymentAddress, deployed, streamStatus, ledgerError, invoiceCount }) => {
-  const { state, error } = useLedgerState();
+  const { state, error, retry } = useLedgerState();
   const heldRole = role;
 
   const switchRole = () => {
@@ -186,7 +186,7 @@ const HomeDashboard: React.FC<{
       </div>
 
       {error && (
-        <ErrorBanner error={describeError('ledgerStream', error)} />
+        <ErrorBanner error={describeError('ledgerStream', error)} onRetry={retry} />
       )}
 
       {cb && <HealthBanner status={cb} />}

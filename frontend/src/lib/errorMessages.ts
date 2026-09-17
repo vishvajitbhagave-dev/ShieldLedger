@@ -71,6 +71,15 @@ export const GENERIC_TRANSACTION_FAILURE_MESSAGE =
   'Something went wrong submitting this transaction. Please try again, and check your wallet connection and proof server status if it keeps failing.';
 
 /**
+ * Marker the ledger-state hook prefixes onto stall errors so `describeError`
+ * can route them to the friendly message + retry action below.
+ */
+export const LEDGER_STREAM_STALL_MARKER = '[ledger-stream-stalled]';
+
+export const LEDGER_STREAM_STALL_MESSAGE =
+  'Having trouble loading live data. This usually means the connection to the network briefly dropped — it will keep retrying automatically. Retry now, or reconnect your wallet if it persists.';
+
+/**
  * Thrown by the wallet provider when balancing (funding) a transaction fails.
  * Carries the original error so the mapper can show the fee/balance guidance
  * while the technical cause stays available behind "Show technical details".
@@ -88,7 +97,8 @@ export class WalletBalanceError extends Error {
 /** Extra action offered inside the error banner. */
 export type UserFacingErrorAction =
   | { readonly kind: 'reconnect' }
-  | { readonly kind: 'link'; readonly label: string; readonly href: string };
+  | { readonly kind: 'link'; readonly label: string; readonly href: string }
+  | { readonly kind: 'retry'; readonly label?: string };
 
 /** A mapped, display-ready error: friendly message + hidden technical text. */
 export interface UserFacingError {
@@ -226,6 +236,12 @@ export function describeError(label: string, error: unknown): UserFacingError {
   }
   if (NETWORK_MISMATCH_PATTERN.test(raw)) {
     return { message: raw, technical: raw };
+  }
+
+  // The ledger-state hook flags a stalled live stream; give it a retry action
+  // so the user never faces a dead "Waiting for ledger state…" shell.
+  if (raw.includes(LEDGER_STREAM_STALL_MARKER)) {
+    return { message: LEDGER_STREAM_STALL_MESSAGE, technical: raw, action: { kind: 'retry' } };
   }
 
   if (matchesAny(raw, DUST_PATTERNS)) {

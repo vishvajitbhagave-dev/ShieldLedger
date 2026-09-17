@@ -18,7 +18,7 @@ const formatPct = (value: number | null): string =>
 const formatBigInt = (value: bigint): string => value.toLocaleString();
 
 export const Dashboard: React.FC = () => {
-  const { state, error } = useLedgerState();
+  const { state, error, retry } = useLedgerState();
 
   if (!state && !error) {
     return (
@@ -33,7 +33,7 @@ export const Dashboard: React.FC = () => {
     return (
       <div className="sl-panel">
         <h2>Analytics Dashboard</h2>
-        <ErrorBanner error={describeError('ledgerStream', error)} />
+        <ErrorBanner error={describeError('ledgerStream', error)} onRetry={retry} />
       </div>
     );
   }
