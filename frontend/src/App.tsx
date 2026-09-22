@@ -76,6 +76,12 @@ const SECTION_DEFS: Array<{
   { key: 'rate-trend', label: 'Rate Trend', Icon: TrendIcon, Component: RateTrendChart },
 ];
 
+const ROLE_DEFS: Array<{ value: Role; label: string }> = [
+  { value: 'sme', label: 'SME' },
+  { value: 'buyer', label: 'Buyer' },
+  { value: 'lender', label: 'Lender' },
+];
+
 const formatPct = (value: number | null): string =>
   value === null ? '—' : `${value.toFixed(1)}%`;
 
@@ -376,6 +382,22 @@ const Body: React.FC = () => {
               </div>
             </div>
             <div className="sl-header-actions">
+              {deployed && role != null && (
+                <div className="sl-role-switch" role="group" aria-label="Your role">
+                  {ROLE_DEFS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={role === option.value ? 'sl-role-option sl-role-option-active' : 'sl-role-option'}
+                      aria-pressed={role === option.value}
+                      onClick={() => changeRole(option.value)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {deployed && <NetworkSelector />}
               <div className="sl-wallet-group">
                 <span className="sl-verified">
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -390,33 +412,34 @@ const Body: React.FC = () => {
               </div>
             </div>
           </div>
-        </header>
-      )}
 
-      {deployed && (
-        <nav className="sl-nav" aria-label="Section">
-          <button
-            type="button"
-            className={activeSection === 'home' ? 'sl-nav-item sl-nav-active' : 'sl-nav-item'}
-            onClick={() => setActiveSection('home')}
-          >
-            <HomeIcon />
-            <span>Home</span>
-          </button>
-          {SECTION_DEFS.filter((s) => !s.roleOnly || s.roleOnly === role).map((section) => {            const Icon = section.Icon;
-            return (
+          {deployed && (
+            <nav className="sl-nav" aria-label="Section">
               <button
-                key={section.key}
                 type="button"
-                className={activeSection === section.key ? 'sl-nav-item sl-nav-active' : 'sl-nav-item'}
-                onClick={() => setActiveSection(section.key)}
+                className={activeSection === 'home' ? 'sl-nav-item sl-nav-active' : 'sl-nav-item'}
+                onClick={() => setActiveSection('home')}
               >
-                <Icon />
-                <span>{section.label}</span>
+                <HomeIcon />
+                <span>Home</span>
               </button>
-            );
-          })}
-        </nav>
+              {SECTION_DEFS.filter((s) => !s.roleOnly || s.roleOnly === role).map((section) => {
+                const Icon = section.Icon;
+                return (
+                  <button
+                    key={section.key}
+                    type="button"
+                    className={activeSection === section.key ? 'sl-nav-item sl-nav-active' : 'sl-nav-item'}
+                    onClick={() => setActiveSection(section.key)}
+                  >
+                    <Icon />
+                    <span>{section.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          )}
+        </header>
       )}
 
       <ErrorBanner error={error} onDismiss={clearError} onReconnect={reconnectWallet} />

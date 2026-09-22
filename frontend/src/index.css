@@ -164,10 +164,41 @@ body {
   align-items: stretch;
   gap: var(--sp-4);
   padding: var(--sp-5) var(--sp-6);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--hero-gradient);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
+}
+
+.sl-header .sl-logo {
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.sl-header .sl-title {
+  color: #fff;
+}
+
+.sl-header .sl-subtitle {
+  color: #a9bcd4;
+}
+
+.sl-header .sl-verified {
+  color: #6fdcae;
+  background: rgba(15, 157, 107, 0.16);
+  border: 1px solid rgba(15, 157, 107, 0.35);
+}
+
+.sl-header .sl-header-action {
+  background: transparent;
+  color: #dbe6f3;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.sl-header .sl-header-action:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #fff;
 }
 
 .sl-header-top {
@@ -385,16 +416,78 @@ body {
   margin-top: 4px;
 }
 
-/* ════════════════ Icon navigation ════════════════ */
+/* ─── Role + network segmented switches (header, on navy) ─────────────────── */
+.sl-role-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.sl-role-option {
+  font-size: var(--text-caption);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.04em;
+  padding: 5px 14px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #a9bcd4;
+  cursor: pointer;
+  white-space: nowrap;
+  text-transform: uppercase;
+  transition: background 120ms ease, color 120ms ease, box-shadow 120ms ease;
+}
+
+.sl-role-option:hover:not(.sl-role-option-active) {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sl-role-option:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.25);
+}
+
+.sl-role-option-active {
+  background: var(--emerald);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(15, 157, 107, 0.4);
+}
+
+.sl-header .sl-network-selector {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.sl-header .sl-network-option {
+  color: #a9bcd4;
+}
+
+.sl-header .sl-network-option:hover:not(.sl-network-option-active) {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sl-header .sl-network-option-active {
+  background: #fff;
+  color: var(--navy);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+/* ════════════════ Icon navigation (section shell, on navy) ════════════════ */
 
 .sl-nav {
   display: flex;
   gap: var(--sp-2);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius);
   padding: var(--sp-2);
-  box-shadow: var(--shadow-sm);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   overflow-x: auto;
 }
 
@@ -408,7 +501,7 @@ body {
   border: none;
   background: transparent;
   border-radius: 10px;
-  color: var(--text-muted);
+  color: #b9cadf;
   font-family: inherit;
   font-size: var(--text-sm);
   font-weight: var(--fw-semibold);
@@ -419,14 +512,14 @@ body {
 }
 
 .sl-nav-item:hover {
-  color: var(--text);
-  background: var(--surface-2);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .sl-nav-item.sl-nav-active {
-  color: var(--navy);
-  background: var(--navy-soft);
-  border-bottom-color: var(--navy);
+  color: var(--emerald);
+  background: rgba(15, 157, 107, 0.14);
+  border-bottom-color: var(--emerald);
 }
 
 .sl-nav-icon {
