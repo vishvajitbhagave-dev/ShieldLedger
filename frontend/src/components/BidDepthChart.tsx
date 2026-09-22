@@ -22,9 +22,9 @@ interface Props {
   readonly depth: MarketDepth;
 }
 
-const WHOLE_FILL = 'var(--accent, #5851ea)';
+const WHOLE_FILL = 'var(--navy, #10233f)';
 const SPLIT_FILL = 'var(--chip, #c2c6cc)';
-const BEST_FILL = '#2bb673';
+const BEST_FILL = 'var(--success, #0f9d6b)';
 const GRID = 'var(--border, #e5e7eb)';
 const TEXT = 'var(--text, #1a1d24)';
 
@@ -167,7 +167,7 @@ export const BidDepthChart: React.FC<Props> = ({ depth }) => {
 
       <p className="sl-note u-mt-2">
         {disclosedCount} winning bid(s) disclosed across {levels.length} rate level(s).
-        Green = best (lowest) rate offer · blue = whole-invoice · grey cap = split winner.
+        Green = best (lowest) rate offer · navy = whole-invoice · grey cap = split winner.
         Dotted line = cumulative disclosed amount. Every bar is a real disclosed
         winning bid — non-winning bids' terms are never published on-chain.
       </p>

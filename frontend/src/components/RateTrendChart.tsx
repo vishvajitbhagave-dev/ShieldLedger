@@ -13,8 +13,8 @@ import { ErrorBanner } from './ErrorBanner.js';
 
 const GRID = 'var(--border, #e5e7eb)';
 const TEXT = 'var(--text, #1a1d24)';
-const ACCENT = 'var(--accent, #5851ea)';
-const DOT = '#2bb673';
+const ACCENT = 'var(--navy, #10233f)';
+const DOT = 'var(--success, #0f9d6b)';
 
 const W = 560;
 const H = 220;
