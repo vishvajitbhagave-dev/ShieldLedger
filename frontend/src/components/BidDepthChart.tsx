@@ -22,11 +22,11 @@ interface Props {
   readonly depth: MarketDepth;
 }
 
-const WHOLE_FILL = 'var(--accent, #4f8cff)';
-const SPLIT_FILL = 'var(--chip, #99a2b8)';
+const WHOLE_FILL = 'var(--accent, #5851ea)';
+const SPLIT_FILL = 'var(--chip, #c2c6cc)';
 const BEST_FILL = '#2bb673';
-const GRID = 'var(--border, #e3e6ee)';
-const TEXT = 'var(--text, #1c2333)';
+const GRID = 'var(--border, #e5e7eb)';
+const TEXT = 'var(--text, #1a1d24)';
 
 const W = 560;
 const H = 200;

@@ -11,9 +11,9 @@ import {
 import { describeError } from '../lib/errorMessages.js';
 import { ErrorBanner } from './ErrorBanner.js';
 
-const GRID = 'var(--border, #e3e6ee)';
-const TEXT = 'var(--text, #1c2333)';
-const ACCENT = 'var(--accent, #4f8cff)';
+const GRID = 'var(--border, #e5e7eb)';
+const TEXT = 'var(--text, #1a1d24)';
+const ACCENT = 'var(--accent, #5851ea)';
 const DOT = '#2bb673';
 
 const W = 560;
