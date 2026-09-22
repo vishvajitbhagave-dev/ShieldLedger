@@ -14,6 +14,7 @@ const makeSource = (): {
   error: (err: unknown) => void;
   complete: () => void;
   count: () => number;
+  activeCount: () => number;
 } => {
   const inners: Subject<number>[] = [];
   const source = new Observable<number>((subscriber) => {
@@ -28,6 +29,7 @@ const makeSource = (): {
     error: (err) => inners[inners.length - 1].error(err),
     complete: () => inners[inners.length - 1].complete(),
     count: () => inners.length,
+    activeCount: () => inners.filter((inner) => inner.observed > 0).length,
   };
 };
 
@@ -215,5 +217,58 @@ describe('subscribeLedgerState — timeout + retry resilience for the live ledge
     controller.stop();
     vi.advanceTimersByTime(100);
     expect(count()).toBe(1);
+  });
+
+  it('a value delivered after a stall is forwarded to onValue, which is what clears the stall error', () => {
+    vi.useFakeTimers();
+    const { source, next, count } = makeSource();
+    const values: number[] = [];
+    const stalls: string[] = [];
+    const controller = subscribeLedgerState(source, {
+      onValue: (v) => values.push(v),
+      onStall: (d) => stalls.push(d),
+    }, OPTIONS);
+
+    next(1);
+    vi.advanceTimersByTime(1000); // stream goes silent → stall surfaces
+    expect(stalls).toHaveLength(1);
+    vi.advanceTimersByTime(100); // auto-resubscribe
+    expect(count()).toBe(2);
+
+    // Fresh data arrives on the resubscribed stream: the consumer (the hook)
+    // treats this as `onValue` → setError(null) + setState(s), so the banner
+    // must clear even though a stall was previously reported.
+    next(2);
+    expect(values).toEqual([1, 2]);
+    controller.stop();
+  });
+
+  it('tears down the previous subscription before opening a new one on auto-resubscribe and manual retry', () => {
+    vi.useFakeTimers();
+    const { source, activeCount } = makeSource();
+    const controller = subscribeLedgerState(source, {
+      onValue: () => undefined,
+      onStall: () => undefined,
+    }, OPTIONS);
+
+    expect(activeCount()).toBe(1);
+
+    // Silent start → stall → auto-resubscribe after backoff.
+    vi.advanceTimersByTime(1000);
+    vi.advanceTimersByTime(100);
+    // The stale subscription must be gone before (or exactly when) the new one
+    // is created — never two live subscriptions to the same source.
+    expect(activeCount()).toBe(1);
+
+    vi.advanceTimersByTime(1000);
+    vi.advanceTimersByTime(300);
+    expect(activeCount()).toBe(1);
+
+    // Manual retry() also replaces (not stacks) the subscription.
+    controller.retry();
+    expect(activeCount()).toBe(1);
+
+    controller.stop();
+    expect(activeCount()).toBe(0);
   });
 });
