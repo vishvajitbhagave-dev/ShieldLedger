@@ -4,6 +4,7 @@ import { describeError } from '../lib/errorMessages.js';
 import { HexBadge } from './HexBadge.js';
 import { ErrorBanner } from './ErrorBanner.js';
 import { BidDepthChart } from './BidDepthChart.js';
+import { PageHeader } from './PageHeader.js';
 import { buildMarketDepth } from '../bid-depth.js';
 import * as ShieldLedger from '../../../contracts/managed/shield-ledger/contract/index.js';
 
@@ -116,8 +117,11 @@ export const LedgerView: React.FC = () => {
   };
 
   return (
-    <div className="sl-panel">
-      <h2>Public ledger</h2>
+    <div className="sl-panel sl-panel-elevated">
+      <PageHeader
+        title="Public ledger"
+        subtitle="Read-only view of every disclosed value on-chain — ZK-proof bounds, sealed and leading bids, and the insurance pool."
+      />
       {error && <ErrorBanner error={describeError('ledgerStream', error)} onRetry={retry} />}
       {!state && !error && <p className="sl-empty">Waiting for ledger state…</p>}
       {state && (

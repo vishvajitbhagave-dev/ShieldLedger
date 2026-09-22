@@ -10,7 +10,11 @@ import {
 import { describeError } from '../lib/errorMessages.js';
 import { ErrorBanner } from './ErrorBanner.js';
 import { HealthBanner } from './HealthBanner.js';
+import { PageHeader } from './PageHeader.js';
 import { track } from '../lib/analytics.js';
+
+const DASHBOARD_SUBTITLE =
+  'Real-time platform health metrics computed from public on-chain ledger data. No private state is used.';
 
 const formatPct = (value: number | null): string =>
   value === null ? '—' : `${value.toFixed(1)}%`;
@@ -22,8 +26,8 @@ export const Dashboard: React.FC = () => {
 
   if (!state && !error) {
     return (
-      <div className="sl-panel">
-        <h2>Analytics Dashboard</h2>
+      <div className="sl-panel sl-panel-elevated">
+        <PageHeader title="Analytics Dashboard" subtitle={DASHBOARD_SUBTITLE} />
         <p className="sl-empty">Waiting for ledger state…</p>
       </div>
     );
@@ -31,8 +35,8 @@ export const Dashboard: React.FC = () => {
 
   if (error) {
     return (
-      <div className="sl-panel">
-        <h2>Analytics Dashboard</h2>
+      <div className="sl-panel sl-panel-elevated">
+        <PageHeader title="Analytics Dashboard" subtitle={DASHBOARD_SUBTITLE} />
         <ErrorBanner error={describeError('ledgerStream', error)} onRetry={retry} />
       </div>
     );
@@ -67,24 +71,22 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="sl-panel">
-      <h2>Analytics Dashboard</h2>
-      <p className="sl-note">
-        Real-time platform health metrics computed from public on-chain ledger data. No private
-        state is used.
-      </p>
-
-      <div className="sl-stage sl-stage-tight u-mb-4">
-        <div className="u-flex-between">
-          <span className="sl-meta">
-            Export a compliance/audit trail built entirely from public on-chain state — no
-            private data is included.
-          </span>
-          <button type="button" className="sl-button" onClick={exportAuditTrail} disabled={noData}>
+    <div className="sl-panel sl-panel-elevated">
+      <PageHeader
+        title="Analytics Dashboard"
+        subtitle={DASHBOARD_SUBTITLE}
+        actions={
+          <button
+            type="button"
+            className="sl-button"
+            onClick={exportAuditTrail}
+            disabled={noData}
+            title="Builds a compliance/audit trail from public on-chain state only — no private data is included."
+          >
             Export Audit Trail (JSON)
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {noData && (
         <p className="sl-empty">No invoices registered yet — metrics will appear once data is on-chain.</p>

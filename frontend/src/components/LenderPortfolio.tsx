@@ -6,6 +6,11 @@ import { loadPoolPayouts } from '../pool-payouts.js';
 import { HexBadge } from './HexBadge.js';
 import { describeError } from '../lib/errorMessages.js';
 import { ErrorBanner } from './ErrorBanner.js';
+import { PageHeader } from './PageHeader.js';
+
+const PAGE_TITLE = 'My Lender Portfolio';
+const PAGE_SUBTITLE =
+  'Your wallet\u2019s positions over time, derived from public ledger state — remaining comparisons are pseudonymous.';
 
 const formatBigInt = (value: bigint): string => value.toLocaleString();
 
@@ -72,8 +77,8 @@ export const LenderPortfolio: React.FC = () => {
 
   if (!state && !error) {
     return (
-      <div className="sl-panel">
-        <h2>My Lender Portfolio</h2>
+      <div className="sl-panel sl-panel-elevated">
+        <PageHeader title={PAGE_TITLE} subtitle={PAGE_SUBTITLE} />
         <p className="sl-empty">Waiting for ledger state…</p>
       </div>
     );
@@ -81,8 +86,8 @@ export const LenderPortfolio: React.FC = () => {
 
   if (error) {
     return (
-      <div className="sl-panel">
-        <h2>My Lender Portfolio</h2>
+      <div className="sl-panel sl-panel-elevated">
+        <PageHeader title={PAGE_TITLE} subtitle={PAGE_SUBTITLE} />
         <ErrorBanner error={describeError('ledgerStream', error)} onRetry={retry} />
       </div>
     );
@@ -90,8 +95,8 @@ export const LenderPortfolio: React.FC = () => {
 
   if (myPseudonym === undefined) {
     return (
-      <div className="sl-panel">
-        <h2>My Lender Portfolio</h2>
+      <div className="sl-panel sl-panel-elevated">
+        <PageHeader title={PAGE_TITLE} subtitle={PAGE_SUBTITLE} />
         <p className="sl-empty">Resolving your lender pseudonym…</p>
       </div>
     );
@@ -99,8 +104,8 @@ export const LenderPortfolio: React.FC = () => {
 
   if (myPseudonym === null) {
     return (
-      <div className="sl-panel">
-        <h2>My Lender Portfolio</h2>
+      <div className="sl-panel sl-panel-elevated">
+        <PageHeader title={PAGE_TITLE} subtitle={PAGE_SUBTITLE} />
         <p className="sl-empty">
           No lender secret in this wallet's private state — submit a bid once to create one.
         </p>
@@ -113,8 +118,8 @@ export const LenderPortfolio: React.FC = () => {
   const pools = portfolio.positions.filter((p) => p.kind === 'pool');
 
   return (
-    <div className="sl-panel">
-      <h2>My Lender Portfolio</h2>
+    <div className="sl-panel sl-panel-elevated">
+      <PageHeader title={PAGE_TITLE} subtitle={PAGE_SUBTITLE} />
       <div className="u-flex u-mb-1">
         <span className="sl-meta">Pseudonym</span>
         <HexBadge hex={myPseudonym} />

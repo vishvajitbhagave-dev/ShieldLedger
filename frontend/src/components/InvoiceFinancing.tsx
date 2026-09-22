@@ -16,6 +16,7 @@ import { captureError } from '../lib/monitoring.js';
 import { getSuggestedRate, type SuggestedRate } from '../pricing.js';
 import { HexBadge } from './HexBadge.js';
 import { ErrorBanner } from './ErrorBanner.js';
+import { PageHeader } from './PageHeader.js';
 
 type FormState = {
   registerReference: string;
@@ -813,17 +814,15 @@ export const InvoiceFinancing: React.FC = () => {
       )}
       {role !== null && (
         <>
-          <div className="sl-row">
-            <button className="sl-button sl-button-secondary" type="button" onClick={switchRole} disabled={busy || working !== null}>
-              ← Back / Switch Role
-            </button>
-          </div>
-          <div className="u-flex-1">
-            <h2>Invoice financing</h2>
-            <p className="sl-meta">
-              Lowest revealed rate wins — bids stay sealed until reveal.
-            </p>
-          </div>
+          <PageHeader
+            title="Invoice financing"
+            subtitle="Lowest revealed rate wins — bids stay sealed until reveal."
+            actions={
+              <button className="sl-button sl-button-secondary" type="button" onClick={switchRole} disabled={busy || working !== null}>
+                ← Back / Switch Role
+              </button>
+            }
+          />
       <div className="sl-row u-mb-5">
         <button className="sl-button sl-button-secondary" type="button" onClick={() => setForm(sampleForm)} disabled={busy || working !== null}>
           Use sample values

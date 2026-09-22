@@ -546,6 +546,46 @@ body {
   box-shadow: var(--shadow-md);
 }
 
+/* Page-level header: title + subtitle on the left, actions on the right */
+
+.sl-page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.sl-page-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.sl-page-head-title {
+  font-size: var(--text-2xl);
+  font-weight: var(--fw-bold);
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin: 0;
+}
+
+.sl-page-head-subtitle {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.5;
+  max-width: 60ch;
+}
+
+.sl-page-head-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
 .sl-grid {
   display: grid;
   grid-template-columns: 1fr 1.1fr;

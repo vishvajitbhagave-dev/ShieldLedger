@@ -10,6 +10,7 @@ import {
 } from '../rate-trend.js';
 import { describeError } from '../lib/errorMessages.js';
 import { ErrorBanner } from './ErrorBanner.js';
+import { PageHeader } from './PageHeader.js';
 
 const GRID = 'var(--border, #e5e7eb)';
 const TEXT = 'var(--text, #1a1d24)';
@@ -139,13 +140,21 @@ export const RateTrendChart: React.FC = () => {
   };
 
   return (
-    <div className="sl-panel">
-      <div className="u-flex-between">
-        <h2>Rate Trend (observed)</h2>
-        <button type="button" className="sl-button sl-button-secondary" onClick={handleReset} disabled={records.length === 0}>
-          Clear this browser's trend
-        </button>
-      </div>
+    <div className="sl-panel sl-panel-elevated">
+      <PageHeader
+        title="Rate Trend (observed)"
+        subtitle="Average financing rate over time, as observed by this browser."
+        actions={
+          <button
+            type="button"
+            className="sl-button sl-button-secondary"
+            onClick={handleReset}
+            disabled={records.length === 0}
+          >
+            Clear this browser's trend
+          </button>
+        }
+      />
 
       <p className="sl-note">
         Forward-only, browser-local record. A point is appended when THIS browser observes, live
