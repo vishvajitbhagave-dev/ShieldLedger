@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useShieldLedger } from '../context.js';
 import { listWalletOptions, type WalletOption } from '../manager.js';
 import { HexBadge } from './HexBadge.js';
+import { NetworkSelector } from './NetworkSelector.js';
 
 const SparklesIcon: React.FC = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -189,10 +190,13 @@ export const WalletConnect: React.FC = () => {
             </div>
           </div>
 
-          <span className="sl-status-pill">
-            <span className="sl-live-dot" aria-hidden="true" />
-            {networkId}
-          </span>
+          <div className="sl-network-bar">
+            <span className="sl-status-pill">
+              <span className="sl-live-dot" aria-hidden="true" />
+              {networkId}
+            </span>
+            <NetworkSelector />
+          </div>
 
           <button className="sl-button sl-connect-cta" onClick={openWalletModal} disabled={connecting}>
             <WalletIcon />
@@ -204,7 +208,8 @@ export const WalletConnect: React.FC = () => {
           </button>
 
           <p className="sl-meta">
-            Your wallet signs every transaction in the browser — private state never leaves your wallet.
+            Switching networks will require reconnecting your wallet. Your wallet signs every transaction in the
+            browser — private state never leaves your wallet.
           </p>
 
           {walletLocked && (

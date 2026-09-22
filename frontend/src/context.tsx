@@ -1,5 +1,6 @@
-import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { ConnectedAPI } from '@midnight-ntwrk/dapp-connector-api';
+import { setNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
 import { ShieldLedgerAPI } from './shield-ledger-api.js';
 import {
   connectToWallet,
@@ -15,6 +16,12 @@ import type { ShieldLedgerProviders } from './shield-ledger-types.js';
 import { describeError, type UserFacingError } from './lib/errorMessages.js';
 import { track } from './lib/analytics.js';
 import { captureError } from './lib/monitoring.js';
+import {
+  loadStoredNetworkId,
+  NETWORK_LABELS,
+  storeNetworkId,
+  type RuntimeNetworkId,
+} from './network.js';
 
 /** User role in the invoice-financing workflow. */
 export type Role = 'sme' | 'lender' | 'buyer';
@@ -29,6 +36,7 @@ const loadRole = (): Role | null => {
 
 export interface ShieldLedgerContextValue {
   readonly networkId: string;
+  readonly setNetwork: (network: RuntimeNetworkId) => void;
   readonly connecting: boolean;
   readonly walletLocked: boolean;
   readonly connected: boolean;
@@ -54,9 +62,10 @@ export const useShieldLedger = (): ShieldLedgerContextValue => {
 };
 
 export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React.ReactNode }> = ({
-  networkId,
+  networkId: buildTimeNetwork,
   children,
 }) => {
+  const [networkId, setNetworkIdState] = useState<string>(() => loadStoredNetworkId(buildTimeNetwork));
   const [connecting, setConnecting] = useState(false);
   const [walletLocked, setWalletLocked] = useState(false);
   const [walletInfo, setWalletInfo] = useState<WalletInfo | null>(null);
@@ -67,6 +76,12 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
   const connectedAPI = useRef<ConnectedAPI | null>(null);
   const connectGeneration = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Keep the midnight-js global network id in lockstep with the runtime
+  // selection so any downstream stack that reads it stays consistent.
+  useEffect(() => {
+    setNetworkId(networkId);
+  }, [networkId]);
 
   const clearError = useCallback(() => setError(null), []);
 
@@ -145,6 +160,33 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
     setError(null);
   }, []);
 
+  /**
+   * Switches the target Midnight network at runtime. The selection is
+   * persisted so it survives reloads. Because the indexer/proof-server
+   * endpoints are wallet-reported per network, an active session must be
+   * dropped: switching requires reconnecting the wallet on the new network.
+   */
+  const setNetwork = useCallback(
+    (next: RuntimeNetworkId) => {
+      if (next === networkId) return;
+      setNetworkIdState(next);
+      storeNetworkId(next);
+      track('network_switch', { network: next });
+      if (walletInfo !== null) {
+        connectedAPI.current = null;
+        setWalletInfo(null);
+        setProviders(null);
+        setDeployment({ status: 'idle' });
+        setWalletLocked(false);
+        setError({
+          message: `Switched to the ${NETWORK_LABELS[next]} network. Reconnect your wallet to continue on ${NETWORK_LABELS[next]}.`,
+          technical: '',
+        });
+      }
+    },
+    [networkId, walletInfo],
+  );
+
   const deploy = useCallback(async () => {
     if (!providers) return;
     setError(null);
@@ -178,6 +220,7 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
   const value = useMemo<ShieldLedgerContextValue>(
     () => ({
       networkId,
+      setNetwork,
       connecting,
       walletLocked,
       connected: walletInfo !== null,
@@ -193,7 +236,7 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
       error,
       clearError,
     }),
-    [networkId, connecting, walletLocked, walletInfo, deployment, role, setRole, clearRole, connect, disconnect, deploy, join, error, clearError],
+    [networkId, setNetwork, connecting, walletLocked, walletInfo, deployment, role, setRole, clearRole, connect, disconnect, deploy, join, error, clearError],
   );
 
   return <ShieldLedgerContext.Provider value={value}>{children}</ShieldLedgerContext.Provider>;

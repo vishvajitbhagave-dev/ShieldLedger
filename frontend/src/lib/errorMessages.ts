@@ -14,6 +14,15 @@
 // `registerInvoice`, `submitBid` and `confirmInvoice` keep their dedicated
 // wording below.
 
+import { faucetForNetwork, loadStoredNetworkId } from '../network.js';
+
+/**
+ * Faucet link used by the DUST/balance banners. Follows the runtime network
+ * selection (persisted in localStorage); falls back to the Preview faucet when
+ * no explicit selection exists, mirroring the historical default.
+ */
+export const currentFaucetUrl = (): string => faucetForNetwork(loadStoredNetworkId('preview'));
+
 /** Preview-network faucet, linked from the insufficient-balance banner. */
 export const FAUCET_URL = 'https://faucet.preview.midnight.network/';
 
@@ -248,7 +257,7 @@ export function describeError(label: string, error: unknown): UserFacingError {
     return {
       message: INSUFFICIENT_DUST_MESSAGE,
       technical: raw,
-      action: { kind: 'link', label: 'Get free test tokens', href: FAUCET_URL },
+      action: { kind: 'link', label: 'Get free test tokens', href: currentFaucetUrl() },
     };
   }
 
@@ -256,7 +265,7 @@ export function describeError(label: string, error: unknown): UserFacingError {
     return {
       message: INSUFFICIENT_BALANCE_MESSAGE,
       technical: raw,
-      action: { kind: 'link', label: 'Get free test tokens', href: FAUCET_URL },
+      action: { kind: 'link', label: 'Get free test tokens', href: currentFaucetUrl() },
     };
   }
 

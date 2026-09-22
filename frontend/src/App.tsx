@@ -15,6 +15,7 @@ import { track } from './lib/analytics.js';
 import { computeDashboardMetrics } from './dashboard-metrics.js';
 import { computeCircuitBreakerStatus, type CircuitBreakerStatus } from './circuit-breaker.js';
 import { HealthBanner } from './components/HealthBanner.js';
+import { NetworkSelector } from './components/NetworkSelector.js';
 import type { ShieldLedgerDerivedState } from './shield-ledger-types.js';
 
 const HomeIcon: React.FC = () => (
@@ -452,9 +453,12 @@ const Body: React.FC = () => {
                 Choose your role
               </button>
               <div className="u-flex-between u-mt-2">
-                <span className="sl-status-pill">
-                  <span className="sl-live-dot" aria-hidden="true" />
-                  {networkId}
+                <span className="u-flex">
+                  <span className="sl-status-pill">
+                    <span className="sl-live-dot" aria-hidden="true" />
+                    {networkId}
+                  </span>
+                  <NetworkSelector />
                 </span>
                 <button type="button" className="sl-button-ghost" onClick={() => setActiveSection('ledger')}>
                   Verify on-chain →
