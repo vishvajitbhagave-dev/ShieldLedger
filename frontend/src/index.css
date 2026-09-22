@@ -2598,6 +2598,31 @@ select.sl-input {
   .sl-grid {
     grid-template-columns: 1fr;
   }
+
+  /* Tablet shell: brand gets a full row instead of being squeezed into a tall
+     narrow column beside the role/network/wallet controls. */
+  .sl-header-top {
+    flex-wrap: wrap;
+  }
+
+  .sl-brand,
+  .sl-header-actions {
+    width: 100%;
+  }
+
+  .sl-header-actions {
+    justify-content: flex-start;
+  }
+
+  /* Tighten the section nav so all items fit a tablet row with room to spare
+     (overflow-x stays as a safety net for the narrowest screens). */
+  .sl-nav {
+    gap: var(--sp-1);
+  }
+
+  .sl-nav-item {
+    padding: 10px 12px;
+  }
 }
 
 @media (max-width: 720px) {
