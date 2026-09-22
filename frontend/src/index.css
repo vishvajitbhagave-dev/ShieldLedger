@@ -509,6 +509,7 @@ body {
   border-bottom: 2px solid transparent;
   transition: color 0.15s ease, background 0.15s ease;
   white-space: nowrap;
+  text-decoration: none;
 }
 
 .sl-nav-item:hover {
@@ -1763,6 +1764,33 @@ select.sl-input {
   border-radius: var(--radius-sm);
   padding: var(--sp-4);
   margin: 0;
+}
+
+.sl-role-gate {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+.sl-role-gate p {
+  margin: 0;
+  flex: 1;
+}
+
+.sl-role-gate-close {
+  flex: none;
+  border: none;
+  background: transparent;
+  color: var(--navy);
+  font-size: var(--text-md);
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+}
+
+.sl-role-gate-close:hover {
+  background: var(--navy-soft-strong);
 }
 
 .sl-empty {

@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { HashRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { ShieldLedgerProvider, useShieldLedger, type Role } from './context.js';
 import { WalletConnect } from './components/WalletConnect.js';
 import { InvoiceFinancing } from './components/InvoiceFinancing.js';
@@ -64,16 +65,17 @@ const TrendIcon: React.FC = () => (
 
 const SECTION_DEFS: Array<{
   key: string;
+  path: string;
   label: string;
   Icon: React.FC;
   Component: React.FC;
   roleOnly?: Role;
 }> = [
-  { key: 'financing', label: 'Invoice Financing', Icon: InvoiceIcon, Component: InvoiceFinancing },
-  { key: 'ledger', label: 'Public Ledger', Icon: BookIcon, Component: LedgerView },
-  { key: 'dashboard', label: 'Analytics Dashboard', Icon: ChartIcon, Component: Dashboard },
-  { key: 'portfolio', label: 'Lender Portfolio', Icon: BriefcaseIcon, Component: LenderPortfolio, roleOnly: 'lender' },
-  { key: 'rate-trend', label: 'Rate Trend', Icon: TrendIcon, Component: RateTrendChart },
+  { key: 'financing', path: '/finance', label: 'Invoice Financing', Icon: InvoiceIcon, Component: InvoiceFinancing },
+  { key: 'ledger', path: '/ledger', label: 'Public Ledger', Icon: BookIcon, Component: LedgerView },
+  { key: 'dashboard', path: '/dashboard', label: 'Analytics Dashboard', Icon: ChartIcon, Component: Dashboard },
+  { key: 'portfolio', path: '/portfolio', label: 'Lender Portfolio', Icon: BriefcaseIcon, Component: LenderPortfolio, roleOnly: 'lender' },
+  { key: 'rate-trend', path: '/rate-trend', label: 'Rate Trend', Icon: TrendIcon, Component: RateTrendChart },
 ];
 
 const ROLE_DEFS: Array<{ value: Role; label: string }> = [
@@ -128,18 +130,26 @@ const buildPlatformFeed = (state: ShieldLedgerDerivedState) => {
   return { payouts, financings };
 };
 
+/** Redirects a non-lender off /portfolio and flags the shell to show the reason. */
+const RoleGateNotice: React.FC<{ notify: () => void }> = ({ notify }) => {
+  useEffect(() => {
+    notify();
+  }, [notify]);
+  return <Navigate to="/" replace />;
+};
+
 const HomeDashboard: React.FC<{
   role: Role;
   clearRole: () => void;
-  onNavigate: (section: string) => void;
   walletInfo: { unshieldedAddress: string; shieldedAddress: string } | null;
   deploymentAddress: string;
   deployed: boolean;
   streamStatus: string;
   ledgerError: string | null;
   invoiceCount: bigint | null;
-}> = ({ role, clearRole, onNavigate, walletInfo, deploymentAddress, deployed, streamStatus, ledgerError, invoiceCount }) => {
+}> = ({ role, clearRole, walletInfo, deploymentAddress, deployed, streamStatus, ledgerError, invoiceCount }) => {
   const { state, error, retry } = useLedgerState();
+  const navigate = useNavigate();
   const heldRole = role;
 
   const switchRole = () => {
@@ -150,8 +160,8 @@ const HomeDashboard: React.FC<{
 
   const primaryAction =
     heldRole === 'lender'
-      ? { label: 'View my portfolio', section: 'portfolio' }
-      : { label: 'Continue to invoice financing', section: 'financing' };
+      ? { label: 'View my portfolio', path: '/portfolio' }
+      : { label: 'Continue to invoice financing', path: '/finance' };
 
   const roleTitle =
     heldRole === 'sme'
@@ -186,7 +196,7 @@ const HomeDashboard: React.FC<{
       <div className="sl-stage sl-stage-tight u-mb-4">
         <div className="u-flex-between">
           <span className="sl-meta">{primaryAction.label} to pick up where you left off.</span>
-          <button type="button" className="sl-button" onClick={() => onNavigate(primaryAction.section)}>
+          <button type="button" className="sl-button" onClick={() => navigate(primaryAction.path)}>
             {primaryAction.label}
           </button>
         </div>
@@ -225,7 +235,7 @@ const HomeDashboard: React.FC<{
 
       <div className="u-flex-between">
         <h3 className="sl-section-title">Recent platform activity</h3>
-        <button type="button" className="sl-button sl-button-secondary" onClick={() => onNavigate('dashboard')}>
+        <button type="button" className="sl-button sl-button-secondary" onClick={() => navigate('/dashboard')}>
           Full analytics →
         </button>
       </div>
@@ -324,14 +334,18 @@ const Body: React.FC = () => {
   const { networkId, connected, disconnect, connect, deployment, role, setRole, clearRole, walletInfo, error, clearError } =
     useShieldLedger();
   const { state: ledgerState, error: ledgerError } = useLedgerState();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [lastUpdate, setLastUpdate] = useState<number | null>(null);
-  const [activeSection, setActiveSection] = useState<string>('home');
+  const [roleGate, setRoleGate] = useState(false);
 
   // Re-establish a dropped wallet session straight from the error banner.
   const reconnectWallet = () => {
     disconnect();
     void connect();
   };
+
+  const dismissRoleGate = useCallback(() => setRoleGate(false), []);
 
   useEffect(() => {
     if (ledgerState) setLastUpdate(Date.now());
@@ -349,20 +363,11 @@ const Body: React.FC = () => {
   const changeRole = (next: Role) => {
     if (next === role) return;
     setRole(next);
-    if (next !== 'lender' && activeSection === 'portfolio') {
-      setActiveSection('home');
+    if (next !== 'lender' && location.pathname === '/portfolio') {
+      navigate('/', { replace: true });
     }
     track('role_switch', { role: next });
   };
-
-  const activeDef =
-    activeSection !== 'home'
-      ? SECTION_DEFS.find((s) => s.key === activeSection)
-      : undefined;
-  const ActiveComponent =
-    activeDef && (!activeDef.roleOnly || activeDef.roleOnly === role)
-      ? activeDef.Component
-      : undefined;
 
   return (
     <div className="sl-app">
@@ -415,26 +420,26 @@ const Body: React.FC = () => {
 
           {deployed && (
             <nav className="sl-nav" aria-label="Section">
-              <button
-                type="button"
-                className={activeSection === 'home' ? 'sl-nav-item sl-nav-active' : 'sl-nav-item'}
-                onClick={() => setActiveSection('home')}
+              <Link
+                className={location.pathname === '/' ? 'sl-nav-item sl-nav-active' : 'sl-nav-item'}
+                to="/"
+                aria-current={location.pathname === '/' ? 'page' : undefined}
               >
                 <HomeIcon />
                 <span>Home</span>
-              </button>
+              </Link>
               {SECTION_DEFS.filter((s) => !s.roleOnly || s.roleOnly === role).map((section) => {
                 const Icon = section.Icon;
                 return (
-                  <button
+                  <Link
                     key={section.key}
-                    type="button"
-                    className={activeSection === section.key ? 'sl-nav-item sl-nav-active' : 'sl-nav-item'}
-                    onClick={() => setActiveSection(section.key)}
+                    className={location.pathname === section.path ? 'sl-nav-item sl-nav-active' : 'sl-nav-item'}
+                    to={section.path}
+                    aria-current={location.pathname === section.path ? 'page' : undefined}
                   >
                     <Icon />
                     <span>{section.label}</span>
-                  </button>
+                  </Link>
                 );
               })}
             </nav>
@@ -443,6 +448,18 @@ const Body: React.FC = () => {
       )}
 
       <ErrorBanner error={error} onDismiss={clearError} onReconnect={reconnectWallet} />
+
+      {roleGate && (
+        <div className="sl-info sl-role-gate">
+          <p>
+            The Lender Portfolio is only available to Lender accounts. Use the role switcher above to
+            continue as a Lender.
+          </p>
+          <button type="button" className="sl-role-gate-close" onClick={dismissRoleGate} aria-label="Dismiss">
+            ✕
+          </button>
+        </div>
+      )}
 
       {deployment.status === 'in-progress' && (
         <div className="sl-panel">
@@ -456,55 +473,74 @@ const Body: React.FC = () => {
 
       <WalletConnect />
 
-      {deployed && activeSection === 'home' && (
-        <div className="sl-home">
-          {role === null ? (
-            <div className="sl-panel">
-              <NetworkDetails
-                walletInfo={walletInfo}
-                deploymentAddress={deployment.address}
-                deployed={deployed}
-                streamStatus={streamStatus}
-                ledgerError={ledgerError}
-                invoiceCount={ledgerState ? ledgerState.invoiceCount : null}
-              />
-              <h2>Get invoices financed in hours, not weeks</h2>
-              <p className="sl-meta">
-                Without exposing your books — bids stay sealed and only the winning rate is ever revealed.
-              </p>
-              <button type="button" className="sl-button" onClick={() => setActiveSection('financing')}>
-                Choose your role
-              </button>
-              <div className="u-flex-between u-mt-2">
-                <span className="u-flex">
-                  <span className="sl-status-pill">
-                    <span className="sl-live-dot" aria-hidden="true" />
-                    {networkId}
-                  </span>
-                  <NetworkSelector />
-                </span>
-                <button type="button" className="sl-button-ghost" onClick={() => setActiveSection('ledger')}>
-                  Verify on-chain →
-                </button>
+      {deployed && (
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <div className="sl-home">
+                {role === null ? (
+                  <div className="sl-panel">
+                    <NetworkDetails
+                      walletInfo={walletInfo}
+                      deploymentAddress={deployment.address}
+                      deployed={deployed}
+                      streamStatus={streamStatus}
+                      ledgerError={ledgerError}
+                      invoiceCount={ledgerState ? ledgerState.invoiceCount : null}
+                    />
+                    <h2>Get invoices financed in hours, not weeks</h2>
+                    <p className="sl-meta">
+                      Without exposing your books — bids stay sealed and only the winning rate is ever revealed.
+                    </p>
+                    <button type="button" className="sl-button" onClick={() => navigate('/finance')}>
+                      Choose your role
+                    </button>
+                    <div className="u-flex-between u-mt-2">
+                      <span className="u-flex">
+                        <span className="sl-status-pill">
+                          <span className="sl-live-dot" aria-hidden="true" />
+                          {networkId}
+                        </span>
+                        <NetworkSelector />
+                      </span>
+                      <button type="button" className="sl-button-ghost" onClick={() => navigate('/ledger')}>
+                        Verify on-chain →
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <HomeDashboard
+                    role={role}
+                    clearRole={clearRole}
+                    walletInfo={walletInfo}
+                    deploymentAddress={deployment.address}
+                    deployed={deployed}
+                    streamStatus={streamStatus}
+                    ledgerError={ledgerError}
+                    invoiceCount={ledgerState ? ledgerState.invoiceCount : null}
+                  />
+                )}
               </div>
-            </div>
-          ) : (
-            <HomeDashboard
-              role={role}
-              clearRole={clearRole}
-              onNavigate={setActiveSection}
-              walletInfo={walletInfo}
-              deploymentAddress={deployment.address}
-              deployed={deployed}
-              streamStatus={streamStatus}
-              ledgerError={ledgerError}
-              invoiceCount={ledgerState ? ledgerState.invoiceCount : null}
-            />
-          )}
-        </div>
+            }
+          />
+          <Route path="/finance" element={<InvoiceFinancing />} />
+          <Route path="/ledger" element={<LedgerView />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route
+            path="/portfolio"
+            element={
+              role === 'lender' ? (
+                <LenderPortfolio />
+              ) : (
+                <RoleGateNotice notify={() => setRoleGate(true)} />
+              )
+            }
+          />
+          <Route path="/rate-trend" element={<RateTrendChart />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       )}
-
-      {deployed && ActiveComponent && <ActiveComponent />}
     </div>
   );
 };
@@ -512,7 +548,9 @@ const Body: React.FC = () => {
 const App: React.FC<{ networkId: string }> = ({ networkId }) => (
   <ErrorBoundary>
     <ShieldLedgerProvider networkId={networkId}>
-      <Body />
+      <HashRouter>
+        <Body />
+      </HashRouter>
     </ShieldLedgerProvider>
   </ErrorBoundary>
 );
