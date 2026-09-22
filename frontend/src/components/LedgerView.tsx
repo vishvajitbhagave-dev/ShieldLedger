@@ -5,6 +5,8 @@ import { HexBadge } from './HexBadge.js';
 import { ErrorBanner } from './ErrorBanner.js';
 import { BidDepthChart } from './BidDepthChart.js';
 import { PageHeader } from './PageHeader.js';
+import { LoadingState } from './LoadingState.js';
+import { EmptyState } from './EmptyState.js';
 import { buildMarketDepth } from '../bid-depth.js';
 import * as ShieldLedger from '../../../contracts/managed/shield-ledger/contract/index.js';
 
@@ -123,7 +125,7 @@ export const LedgerView: React.FC = () => {
         subtitle="Read-only view of every disclosed value on-chain — ZK-proof bounds, sealed and leading bids, and the insurance pool."
       />
       {error && <ErrorBanner error={describeError('ledgerStream', error)} onRetry={retry} />}
-      {!state && !error && <p className="sl-empty">Waiting for ledger state…</p>}
+      {!state && !error && <LoadingState label="Loading live ledger state…" hint="Fetching public on-chain records — this usually takes a moment." />}
       {state && (
         <>
           <p className="sl-meta">
@@ -149,7 +151,11 @@ export const LedgerView: React.FC = () => {
               </p>
             </details>
             {state.invoices.length === 0 ? (
-              <p className="sl-empty">No invoices registered yet.</p>
+              <EmptyState
+                compact
+                title="No invoices registered yet"
+                description="The first one appears as soon as an SME registers it from the Invoice financing page."
+              />
             ) : (
               <div className="u-scroll-x">
                 <table className="sl-table">
@@ -218,7 +224,11 @@ export const LedgerView: React.FC = () => {
           <section className="sl-stage">
             <h3 className="sl-section-title">Sealed bids</h3>
             {state.bids.length === 0 ? (
-              <p className="sl-empty">No bids submitted yet.</p>
+              <EmptyState
+                compact
+                title="No bids submitted yet"
+                description="Sealed lender bids appear here the moment they're committed — their terms stay hidden until reveal."
+              />
             ) : (
               <div className="u-scroll-x">
                 <table className="sl-table">
@@ -249,7 +259,11 @@ export const LedgerView: React.FC = () => {
           <section className="sl-stage">
             <h3 className="sl-section-title">Leading bids (revealed)</h3>
             {state.bestBids.length === 0 ? (
-              <p className="sl-empty">Nothing revealed yet — bids stay sealed until a lender reveals.</p>
+              <EmptyState
+                compact
+                title="Nothing revealed yet"
+                description="Bids stay sealed until a lender reveals — each auction's winning terms are the first thing published here."
+              />
             ) : (
               <div className="u-scroll-x">
                 <table className="sl-table">
@@ -321,7 +335,11 @@ export const LedgerView: React.FC = () => {
               </p>
             </details>
             {state.insurancePool === null ? (
-              <p className="sl-empty">Not seeded yet — it fills with the first invoice registration.</p>
+              <EmptyState
+                compact
+                title="Not seeded yet"
+                description="The pool starts empty — the first invoice registration pays in its 2% premium automatically."
+              />
             ) : (
               <>
                 <p
@@ -330,7 +348,11 @@ export const LedgerView: React.FC = () => {
                   Balance: {state.insurancePool.balance.toString()} tNight
                 </p>
                 {state.insuranceClaims.length === 0 ? (
-                  <p className="sl-empty">No default claims paid yet.</p>
+                  <EmptyState
+                    compact
+                    title="No default claims paid yet"
+                    description="A claim appears here only after a proven default pays out from the pool."
+                  />
                 ) : (
                   <div className="u-scroll-x">
                     <table className="sl-table">

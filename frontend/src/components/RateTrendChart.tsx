@@ -11,6 +11,7 @@ import {
 import { describeError } from '../lib/errorMessages.js';
 import { ErrorBanner } from './ErrorBanner.js';
 import { PageHeader } from './PageHeader.js';
+import { EmptyState } from './EmptyState.js';
 
 const GRID = 'var(--border, #e5e7eb)';
 const TEXT = 'var(--text, #1a1d24)';
@@ -168,11 +169,10 @@ export const RateTrendChart: React.FC = () => {
       {error && <ErrorBanner error={describeError('ledgerStream', error)} />}
 
       {records.length === 0 && (
-        <p className="sl-empty">
-          No financing decisions observed yet. This chart starts empty and fills in as invoices are
-          financed while this browser is connected — the first observed state is treated as the
-          baseline (already-financed invoices are never back-filled).
-        </p>
+        <EmptyState
+          title="No financing decisions observed in this browser yet"
+          description="This chart starts empty and fills in as invoices are financed while this browser is connected — the first observed state is treated as the baseline (already-financed invoices are never back-filled). Keep this screen open during an auction to start building the trend."
+        />
       )}
 
       {records.length > 0 && (
@@ -210,7 +210,11 @@ export const RateTrendChart: React.FC = () => {
           </div>
 
           {buckets.length === 0 ? (
-            <p className="sl-empty">No records in the {band} credit band yet.</p>
+            <EmptyState
+              compact
+              title={`No records in the ${band} credit band yet`}
+              description="Switch to a different band, or leave this screen open until a financing in this band is observed."
+            />
           ) : (
             <>
               <TrendChart buckets={buckets} bucketMs={bucketMs} />

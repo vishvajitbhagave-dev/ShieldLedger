@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useLedgerState } from '../use-ledger-state.js';
 import { computeDashboardMetrics } from '../dashboard-metrics.js';
 import { computeCircuitBreakerStatus } from '../circuit-breaker.js';
@@ -10,7 +11,9 @@ import {
 import { describeError } from '../lib/errorMessages.js';
 import { ErrorBanner } from './ErrorBanner.js';
 import { HealthBanner } from './HealthBanner.js';
+import { LoadingState } from './LoadingState.js';
 import { PageHeader } from './PageHeader.js';
+import { EmptyState } from './EmptyState.js';
 import { track } from '../lib/analytics.js';
 
 const DASHBOARD_SUBTITLE =
@@ -28,7 +31,7 @@ export const Dashboard: React.FC = () => {
     return (
       <div className="sl-panel sl-panel-elevated">
         <PageHeader title="Analytics Dashboard" subtitle={DASHBOARD_SUBTITLE} />
-        <p className="sl-empty">Waiting for ledger state…</p>
+        <LoadingState label="Loading live ledger state…" hint="Fetching on-chain metrics — this usually takes a moment." />
       </div>
     );
   }
@@ -89,7 +92,11 @@ export const Dashboard: React.FC = () => {
       />
 
       {noData && (
-        <p className="sl-empty">No invoices registered yet — metrics will appear once data is on-chain.</p>
+        <EmptyState
+          title="No invoices on-chain yet"
+          description="Health metrics and the summary table appear once the first invoice is registered — each registration also seeds the insurance pool."
+          children={<Link className="sl-button" to="/finance">Register an invoice</Link>}
+        />
       )}
 
       {!noData && (

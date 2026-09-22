@@ -17,6 +17,7 @@ import { getSuggestedRate, type SuggestedRate } from '../pricing.js';
 import { HexBadge } from './HexBadge.js';
 import { ErrorBanner } from './ErrorBanner.js';
 import { PageHeader } from './PageHeader.js';
+import { EmptyState } from './EmptyState.js';
 
 type FormState = {
   registerReference: string;
@@ -960,7 +961,11 @@ export const InvoiceFinancing: React.FC = () => {
                   +10 on-time, −20 late (clamped 0–100) — proven to lenders in zero knowledge.
                 </p>
                 {reputation === null ? (
-                  <p className="sl-empty">No private reputation available in this browser session.</p>
+                  <EmptyState
+                    compact
+                    title="No private reputation in this browser yet"
+                    description="Register and settle invoices on time to earn one — each on-time settlement adds +10 (late −20, clamped 0–100)."
+                  />
                 ) : (
                   <table className="sl-table">
                     <thead>
@@ -991,7 +996,11 @@ export const InvoiceFinancing: React.FC = () => {
             <section className="sl-stage">
               <h3 className={sectionHeading}>Your invoices</h3>
               {invoices.length === 0 ? (
-                <p className="sl-empty">No invoices registered in this browser yet.</p>
+                <EmptyState
+                  compact
+                  title="No invoices registered in this browser yet"
+                  description="Register one from the Register tab above — it will be tracked here through bidding, financing, and settlement."
+                />
               ) : (
                 <div className="u-scroll-x">
                   <table className="sl-table">
@@ -1223,7 +1232,11 @@ export const InvoiceFinancing: React.FC = () => {
                 </p>
               </details>
               {openInvoices.length === 0 ? (
-                <p className="sl-empty">No pending invoices on the ledger to confirm.</p>
+                <EmptyState
+                  compact
+                  title="No invoices awaiting your confirmation"
+                  description="Unverified invoices on the ledger appear here — confirm one above, or wait for a supplier to register a new one."
+                />
               ) : (
                 <div className="u-scroll-x">
                   <table className="sl-table">
@@ -1310,7 +1323,11 @@ export const InvoiceFinancing: React.FC = () => {
             <section className="sl-stage">
               <h3 className={sectionHeading}>Already buyer-verified</h3>
               {stateBuyerVerified.length === 0 ? (
-                <p className="sl-empty">No invoices confirmed yet.</p>
+                <EmptyState
+                  compact
+                  title="No confirmed invoices yet"
+                  description="Invoices you've verified in this browser appear here once a buyer confirmation has been submitted on-chain."
+                />
               ) : (
                 <div className="u-scroll-x">
                   <table className="sl-table">
@@ -1385,7 +1402,11 @@ export const InvoiceFinancing: React.FC = () => {
                 </p>
               </details>
               {openInvoices.length === 0 ? (
-                <p className="sl-empty">No invoices are currently open for bidding.</p>
+                <EmptyState
+                  compact
+                  title="No invoices open for bidding"
+                  description="Invoices registered with 2–4 split count open for sealed bidding — check back once an SME registers a new one."
+                />
               ) : (
                 <div className="u-scroll-x">
                   <table className="sl-table">
@@ -1697,7 +1718,11 @@ export const InvoiceFinancing: React.FC = () => {
               <section className="sl-stage">
                 <h3 className={sectionHeading}>Claims on the secondary market</h3>
                 {(ledgerState?.invoices ?? []).filter((inv) => inv.transferred).length === 0 ? (
-                  <p className="sl-empty">No claims have been resold yet.</p>
+                  <EmptyState
+                    compact
+                    title="No claims resold yet"
+                    description="Winning claims resold on the secondary market appear here — transfer one above once you hold a claim."
+                  />
                 ) : (
                   <div className="u-scroll-x">
                     <table className="sl-table">
@@ -1783,7 +1808,11 @@ export const InvoiceFinancing: React.FC = () => {
                     Balance: {ledgerState.insurancePool.balance.toString()} tNight
                   </p>
                 ) : (
-                  <p className="sl-empty">Not seeded yet — it fills with the first invoice registration.</p>
+                  <EmptyState
+                    compact
+                    title="Not seeded yet"
+                    description="The pool starts empty — the first invoice registration pays in its 2% premium automatically."
+                  />
                 )}
               </section>
 
@@ -1793,7 +1822,11 @@ export const InvoiceFinancing: React.FC = () => {
                   Financed, unsettled and past due — the current claim holder may collect now.
                 </p>
                 {defaultedInvoices.length === 0 ? (
-                  <p className="sl-empty">No defaulted invoices right now.</p>
+                  <EmptyState
+                    compact
+                    title="No defaulted invoices right now"
+                    description="When a financed invoice passes its due date unpaid, it becomes claimable here — the current claim holder can collect from the pool."
+                  />
                 ) : (
                   <div className="u-scroll-x">
                     <table className="sl-table">
@@ -1898,8 +1931,12 @@ export const InvoiceFinancing: React.FC = () => {
       )}
 
       {working !== null && (
-        <div className="sl-meta u-mb-0">
-          {working} in progress… (proof generation can take 30–60s) — when ready, approve in Lace.
+        <div className="sl-working">
+          <span className="sl-loading-spinner sl-loading-spinner-sm" aria-hidden="true" />
+          <span>
+            <strong>{working}</strong> in progress… (proof generation can take 30–60s) — when
+            ready, approve in Lace.
+          </span>
         </div>
       )}
 

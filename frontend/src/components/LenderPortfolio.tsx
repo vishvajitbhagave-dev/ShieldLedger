@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useShieldLedger } from '../context.js';
 import { useLedgerState } from '../use-ledger-state.js';
 import { buildLenderPortfolio, type LenderPosition, type PositionStatus } from '../lender-portfolio.js';
@@ -7,6 +8,8 @@ import { HexBadge } from './HexBadge.js';
 import { describeError } from '../lib/errorMessages.js';
 import { ErrorBanner } from './ErrorBanner.js';
 import { PageHeader } from './PageHeader.js';
+import { LoadingState } from './LoadingState.js';
+import { EmptyState } from './EmptyState.js';
 
 const PAGE_TITLE = 'My Lender Portfolio';
 const PAGE_SUBTITLE =
@@ -79,7 +82,7 @@ export const LenderPortfolio: React.FC = () => {
     return (
       <div className="sl-panel sl-panel-elevated">
         <PageHeader title={PAGE_TITLE} subtitle={PAGE_SUBTITLE} />
-        <p className="sl-empty">Waiting for ledger state…</p>
+        <LoadingState label="Loading live ledger state…" hint="Fetching public on-chain records — this usually takes a moment." />
       </div>
     );
   }
@@ -97,7 +100,7 @@ export const LenderPortfolio: React.FC = () => {
     return (
       <div className="sl-panel sl-panel-elevated">
         <PageHeader title={PAGE_TITLE} subtitle={PAGE_SUBTITLE} />
-        <p className="sl-empty">Resolving your lender pseudonym…</p>
+        <LoadingState label="Resolving your lender pseudonym…" hint="Reading this wallet's private pseudonym from its local state." />
       </div>
     );
   }
@@ -106,9 +109,15 @@ export const LenderPortfolio: React.FC = () => {
     return (
       <div className="sl-panel sl-panel-elevated">
         <PageHeader title={PAGE_TITLE} subtitle={PAGE_SUBTITLE} />
-        <p className="sl-empty">
-          No lender secret in this wallet's private state — submit a bid once to create one.
-        </p>
+        <EmptyState
+          title="No lender identity in this wallet yet"
+          description="Submit a sealed bid once and a lender pseudonym is created for this wallet — winning and pool positions then show up here."
+          children={
+            <Link className="sl-button" to="/finance">
+              Browse & bid
+            </Link>
+          }
+        />
       </div>
     );
   }
@@ -131,9 +140,15 @@ export const LenderPortfolio: React.FC = () => {
       </p>
 
       {portfolio.positions.length === 0 && (
-        <p className="sl-empty">
-          No positions yet. Win a single-lender auction or reveal a pool slot to appear here.
-        </p>
+        <EmptyState
+          title="No positions yet"
+          description="Win a single-lender auction or reveal a pool slot to build a portfolio here — positions are read from public ledger state and matched to your pseudonym."
+          children={
+            <Link className="sl-button" to="/finance">
+              Browse open invoices
+            </Link>
+          }
+        />
       )}
 
       {portfolio.positions.length > 0 && (

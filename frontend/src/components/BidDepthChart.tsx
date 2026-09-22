@@ -1,5 +1,6 @@
 import React from 'react';
 import type { MarketDepth } from '../bid-depth.js';
+import { EmptyState } from './EmptyState.js';
 
 /**
  * Order-book style bid-depth visualization (pure SVG, no charting dependency).
@@ -45,10 +46,11 @@ export const BidDepthChart: React.FC<Props> = ({ depth }) => {
   if (disclosedCount === 0) {
     return (
       <div className="sl-stage">
-        <p className="sl-empty">
-          No revealed bids yet — bids stay sealed until a lender reveals. This depth chart fills
-          in as winning bids are disclosed (only the winning bid's terms are public by design).
-        </p>
+        <EmptyState
+          compact
+          title="No revealed bids yet"
+          description="Bids stay sealed until a lender reveals — this depth chart fills in as winning bids are disclosed (only the winning bid's terms are public by design)."
+        />
         {poolCommitCount > 0 && (
           <p className="sl-meta">
             {poolCommitCount} committed pool bid(s) exist — their rate/amount are committed and
