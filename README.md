@@ -165,7 +165,7 @@ Credit score ≥ threshold, reputation score ≥ threshold, lender credit score 
 
 | # | Name | Email | Wallet Address | Feedback | Improvement Commit |
 |---|------|-------|----------------|----------|--------------------|
-| 1 | *(add)* | *(add)* | *(add real preprod wallet address)* | *(verbatim feedback)* | *(CI run URL of the fix commit)* |
+| 1 | Rohini Bhagave | rohinibhagave7020@gmail.com | mn_addr_preprod1y3pdpucf7w9jdyesmg45w8t594td00vmkccjqax8vdaqawy3h55qdcn222 | "Noticed unused blank space on the right side of the 'I am an SME' page when scrolling — could be tightened up for a cleaner layout" | [CI run #35855217519](https://github.com/vishvajitbhagave-dev/ShieldLedger/actions/runs/35855217519) |
 | 2 | *(add)* | *(add)* | *(add real preprod wallet address)* | *(verbatim feedback)* | *(CI run URL of the fix commit)* |
 
 ### Improvements Implemented Based on Feedback
@@ -174,7 +174,7 @@ Credit score ≥ threshold, reputation score ≥ threshold, lender credit score 
 
 | Feedback | Improvement Made | Commit |
 |----------|-----------------|--------|
-| *(add)* | *(add)* | *(add)* |
+| SME page shows unused blank space on the right while scrolling (action-card band) | Changed `.sl-actions` grid to `repeat(auto-fit, minmax(96px, 1fr))` so action cards fill the row on all roles | `3dfccbb` |
 
 ---
 
