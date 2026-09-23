@@ -166,7 +166,8 @@ Credit score ≥ threshold, reputation score ≥ threshold, lender credit score 
 | # | Name | Email | Wallet Address | Feedback | Improvement Commit |
 |---|------|-------|----------------|----------|--------------------|
 | 1 | Rohini Bhagave | rohinibhagave7020@gmail.com | mn_addr_preprod1y3pdpucf7w9jdyesmg45w8t594td00vmkccjqax8vdaqawy3h55qdcn222 | "Noticed unused blank space on the right side of the 'I am an SME' page when scrolling — could be tightened up for a cleaner layout" | [CI run #35855217519](https://github.com/vishvajitbhagave-dev/ShieldLedger/actions/runs/35855217519) |
-| 2 | *(add)* | *(add)* | *(add real preprod wallet address)* | *(verbatim feedback)* | *(CI run URL of the fix commit)* |
+| 2 | Bhavesh Patil | bp424512@gmail.com | mn_addr_preprod1pzqehhys0tm2u2d5ezmwp8man8pnr2j64gftkv47wg5swnarl8kqj9evld | "In the 'I am a Lender' section, under 'Submit Bid' it would help to have a small built-in calculator that shows the actual amount for a given rate. For example, if I enter 4% on a 1000Rs. invoice, it should automatically show me what 4% of ₹1000 actually comes out to, instead of me calculating it myself."<br>"In the 'I am a Lender' section, under 'Submit Bid', the Due Date field shows a raw number like '4102444800' instead of a readable date. It would be much clearer if this was displayed in the standard dd-mm-yyyy format, since the current format is confusing and hard to understand at a glance" | [CI run #35860664156](https://github.com/vishvajitbhagave-dev/ShieldLedger/actions/runs/35860664156) |
+| 3 | *(add)* | *(add)* | *(add real preprod wallet address)* | *(verbatim feedback)* | *(CI run URL of the fix commit)* |
 
 ### Improvements Implemented Based on Feedback
 
@@ -175,6 +176,7 @@ Credit score ≥ threshold, reputation score ≥ threshold, lender credit score 
 | Feedback | Improvement Made | Commit |
 |----------|-----------------|--------|
 | SME page shows unused blank space on the right while scrolling (action-card band) | Changed `.sl-actions` grid to `repeat(auto-fit, minmax(96px, 1fr))` so action cards fill the row on all roles | `3dfccbb` |
+| Lender Submit Bid: due date shown as a raw timestamp (wanted dd-mm-yyyy); wanted a built-in rate→amount calculator | Shared `unixSecondsToDmy()` (dd-mm-yyyy) formatter used app-wide, replacing duplicated `formatDate`/`toLocaleDateString` logic; added a live, display-only bid-amount calculator under the Submit Bid rate input (amount × bps/10000, tNight) | `253bd53` |
 
 ---
 
