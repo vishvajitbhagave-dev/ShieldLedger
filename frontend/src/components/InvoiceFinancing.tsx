@@ -1486,7 +1486,7 @@ export const InvoiceFinancing: React.FC = () => {
               <Field
                 label="Rate (basis points)"
                 value={form.bidRate}
-                placeholder="e.g. 400 = 4%"
+                placeholder="e.g. 400 bps = 4%"
                 suffix="bps"
                 hint={
                   isDigits(form.bidRate)
@@ -1496,7 +1496,7 @@ export const InvoiceFinancing: React.FC = () => {
                           {bidInterestLine !== null && <span className="u-fine-sub">{bidInterestLine}</span>}
                         </>
                       )
-                    : undefined
+                    : 'Enter basis points — 100 bps = 1%, so 400 = 4% (the submitted bid uses the bps value you type).'
                 }
                 onChange={set('bidRate')}
                 disabled={busy || working !== null}
