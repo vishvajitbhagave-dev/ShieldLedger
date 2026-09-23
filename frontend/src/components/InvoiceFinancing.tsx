@@ -14,6 +14,7 @@ import { describeError, type UserFacingError } from '../lib/errorMessages.js';
 import { track } from '../lib/analytics.js';
 import { captureError } from '../lib/monitoring.js';
 import { getSuggestedRate, type SuggestedRate } from '../pricing.js';
+import { unixSecondsToDmy } from '../time.js';
 import { HexBadge } from './HexBadge.js';
 import { ErrorBanner } from './ErrorBanner.js';
 import { PageHeader } from './PageHeader.js';
@@ -206,11 +207,6 @@ const unixSecondsToDateInput = (unixSeconds: bigint | number): string => {
   const d = new Date(Number(unixSeconds) * 1000);
   const pad = (n: number): string => String(n).padStart(2, '0');
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
-};
-
-const formatDate = (unixSeconds: bigint): string => {
-  if (unixSeconds <= 0n) return '—';
-  return new Date(Number(unixSeconds) * 1000).toLocaleString();
 };
 
 const sectionHeading = 'sl-section-title';
@@ -778,6 +774,19 @@ export const InvoiceFinancing: React.FC = () => {
   else if (lenderTab === 'market') activeLenderStep = 'market';
   else if (lenderTab === 'insurance') activeLenderStep = 'insurance';
 
+  // Live "amount at this rate" preview for the Submit Bid section (display only —
+  // the submitted bid always uses the raw bps value the lender typed).
+  const bidRate = form.bidRate.trim();
+  const bidBaseAmount: bigint | null = selectedBidInvoice
+    ? selectedBidInvoice.invoiceAmount
+    : isDigits(form.bidAmount.trim())
+      ? BigInt(form.bidAmount.trim())
+      : null;
+  const bidInterestLine: string | null =
+    bidBaseAmount !== null && isDigits(bidRate)
+      ? `= ${((bidBaseAmount * BigInt(bidRate)) / 10000n).toLocaleString()} tNight interest on your ${bidBaseAmount.toLocaleString()} tNight invoice at ${(Number(bidRate) / 100).toFixed(2)}%`
+      : null;
+
   return (
     <div className="sl-panel">
       {role === null && (
@@ -1020,7 +1029,7 @@ export const InvoiceFinancing: React.FC = () => {
                           <td>{inv.reference || '—'}</td>
                           <td><HexBadge hex={inv.nullifier} /></td>
                           <td className="u-td-strong">{inv.amount} tNight</td>
-                          <td>{formatDate(BigInt(inv.dueDate))}</td>
+                          <td>{unixSecondsToDmy(BigInt(inv.dueDate))}</td>
                           <td>
                             <span className={`sl-badge ${statusOf(inv) === 'Financed' ? '' : 'sl-badge-warn'}`}>
                               {statusOf(inv)}
@@ -1481,7 +1490,12 @@ export const InvoiceFinancing: React.FC = () => {
                 suffix="bps"
                 hint={
                   isDigits(form.bidRate)
-                    ? `${form.bidRate.trim()} bps = ${(Number(form.bidRate.trim()) / 100).toFixed(2)}% per year — 100 bps = 1%`
+                    ? (
+                        <>
+                          {`${form.bidRate.trim()} bps = ${(Number(form.bidRate.trim()) / 100).toFixed(2)}% per year — 100 bps = 1%`}
+                          {bidInterestLine !== null && <span className="u-fine-sub">{bidInterestLine}</span>}
+                        </>
+                      )
                     : undefined
                 }
                 onChange={set('bidRate')}
@@ -1843,7 +1857,7 @@ export const InvoiceFinancing: React.FC = () => {
                           <tr key={inv.nullifier}>
                             <td><HexBadge hex={inv.nullifier} /></td>
                             <td className="u-td-strong">{inv.amount.toString()} tNight</td>
-                            <td>{formatDate(dueDateOf(inv.nullifier))}</td>
+                            <td>{unixSecondsToDmy(dueDateOf(inv.nullifier))}</td>
                             <td>
                               <button
                                 className="sl-button sl-button-secondary"

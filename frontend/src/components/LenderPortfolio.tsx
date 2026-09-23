@@ -10,6 +10,7 @@ import { ErrorBanner } from './ErrorBanner.js';
 import { PageHeader } from './PageHeader.js';
 import { LoadingState } from './LoadingState.js';
 import { EmptyState } from './EmptyState.js';
+import { unixSecondsToDmy } from '../time.js';
 
 const PAGE_TITLE = 'My Lender Portfolio';
 const PAGE_SUBTITLE =
@@ -224,7 +225,7 @@ export const LenderPortfolio: React.FC = () => {
                     <td>{formatBigInt(p.faceAmount)}</td>
                     <td>{formatBigInt(p.financedAmount)}</td>
                     <td>{p.rateBps.toString()} bps</td>
-                    <td className="sl-mono">{new Date(Number(p.dueDate) * 1000).toLocaleDateString()}</td>
+                    <td className="sl-mono">{unixSecondsToDmy(BigInt(p.dueDate))}</td>
                     <td>{p.status === 'defaulted' ? '—' : `${formatBigInt(p.expectedReturn)}`}</td>
                     <td>—</td>
                   </tr>
@@ -237,7 +238,7 @@ export const LenderPortfolio: React.FC = () => {
                     <td>{formatBigInt(p.faceAmount)}</td>
                     <td>—</td>
                     <td>—</td>
-                    <td className="sl-mono">{new Date(Number(p.dueDate) * 1000).toLocaleDateString()}</td>
+                    <td className="sl-mono">{unixSecondsToDmy(BigInt(p.dueDate))}</td>
                     <td>—</td>
                     <td><PoolShare position={p} /></td>
                   </tr>

@@ -18,6 +18,7 @@ import { computeCircuitBreakerStatus, type CircuitBreakerStatus } from './circui
 import { HealthBanner } from './components/HealthBanner.js';
 import { NetworkSelector } from './components/NetworkSelector.js';
 import type { ShieldLedgerDerivedState } from './shield-ledger-types.js';
+import { unixSecondsToDmy } from './time.js';
 
 const HomeIcon: React.FC = () => (
   <svg className="sl-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -253,7 +254,7 @@ const HomeDashboard: React.FC<{
             ) : (
               <li key={item.id} className="sl-activity-item">
                 <span className="sl-activity-text">
-                  <strong>Invoice financed</strong> {formatBigInt(item.amount)} tNight · due {new Date(item.dueAt).toLocaleDateString()}
+                  <strong>Invoice financed</strong> {formatBigInt(item.amount)} tNight · due {unixSecondsToDmy(item.dueAt / 1000)}
                 </span>
                 <span className="sl-activity-time">{shortNullifier(item.nullifier)}</span>
               </li>

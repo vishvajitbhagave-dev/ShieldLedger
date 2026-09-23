@@ -8,6 +8,7 @@ import { PageHeader } from './PageHeader.js';
 import { LoadingState } from './LoadingState.js';
 import { EmptyState } from './EmptyState.js';
 import { buildMarketDepth } from '../bid-depth.js';
+import { unixSecondsToDmy } from '../time.js';
 import * as ShieldLedger from '../../../contracts/managed/shield-ledger/contract/index.js';
 
 const toHex = (bytes: Uint8Array): string =>
@@ -15,11 +16,6 @@ const toHex = (bytes: Uint8Array): string =>
 
 // The opaque public payee the contract records when a transferred claim settles.
 const SECONDARY_PAYEE = toHex(ShieldLedger.pureCircuits.deriveSecondaryPayee());
-
-const formatDate = (unixSeconds: bigint): string => {
-  if (unixSeconds <= 0n) return '—';
-  return new Date(Number(unixSeconds) * 1000).toLocaleString();
-};
 
 const BuyerVerifiedBadge: React.FC = () => (
   <span className="sl-badge" title="The corporate buyer proved in zero knowledge that this invoice is genuine and that it owes the claimed amount.">
@@ -211,7 +207,7 @@ export const LedgerView: React.FC = () => {
                           </td>
                           <td className="u-td-strong">{inv.amount.toString()}</td>
                           <td>{inv.rateBps > 0n ? `${inv.rateBps.toString()} bps` : '—'}</td>
-                          <td>{formatDate(inv.dueDate)}</td>
+                          <td>{unixSecondsToDmy(inv.dueDate)}</td>
                         </tr>
                       );
                     })}
@@ -287,7 +283,7 @@ export const LedgerView: React.FC = () => {
                           <td><HexBadge hex={best.lender} /></td>
                           <td className="u-td-strong">{best.amount.toString()}</td>
                           <td className="u-td-accent">{best.rateBps.toString()} bps</td>
-                          <td>{formatDate(best.dueDate)}</td>
+                          <td>{unixSecondsToDmy(best.dueDate)}</td>
                           <td>{best.willingToSplit ? 'Split' : 'Whole'}</td>
                         </tr>
                       );
@@ -370,7 +366,7 @@ export const LedgerView: React.FC = () => {
                             <tr key={claim.nullifier} className={highlighted ? 'sl-row-highlight' : ''}>
                               <td><HexBadge hex={claim.nullifier} /></td>
                               <td className="u-td-strong">{claim.payout.toString()} tNight</td>
-                              <td>{formatDate(claim.claimedAt)}</td>
+                              <td>{unixSecondsToDmy(claim.claimedAt)}</td>
                             </tr>
                           );
                         })}
