@@ -183,14 +183,36 @@ describe('audit trail — NO PRIVATE FIELDS LEAK', () => {
       payoutCommitments: [],
     };
     const json = serializeAuditReport(generateAuditReport(source));
+    const parsed = JSON.parse(json) as unknown;
 
-    expect(json).not.toContain(String(PRIVATE_MARKERS.smeCreditScore));
-    expect(json).not.toContain(String(PRIVATE_MARKERS.lenderCreditScore));
-    expect(json).not.toContain(String(PRIVATE_MARKERS.smeReputationScore));
-    expect(json).not.toContain(String(PRIVATE_MARKERS.contribution));
-    expect(json).not.toContain(PRIVATE_MARKERS.buyerSecretHex);
-    expect(json).not.toContain(PRIVATE_MARKERS.lenderSecretHex);
-    expect(json).not.toContain(PRIVATE_MARKERS.claimSecretHex);
+    // Walk the parsed structure and collect every scalar VALUE. Assert the
+    // private marker values never occur as an exact value anywhere — rather than
+    // raw-substring matching on the JSON text, which falsely trips whenever an
+    // unrelated field (e.g. the generatedAt timestamp) merely contains the
+    // marker's digits as a substring.
+    const values = new Set<string>();
+    const visit = (node: unknown): void => {
+      if (Array.isArray(node)) {
+        node.forEach(visit);
+      } else if (node !== null && typeof node === 'object') {
+        for (const v of Object.values(node)) visit(v);
+      } else if (typeof node === 'string' || typeof node === 'number' || typeof node === 'boolean') {
+        values.add(String(node));
+      }
+    };
+    visit(parsed);
+
+    const markerValues = [
+      String(PRIVATE_MARKERS.smeCreditScore),
+      String(PRIVATE_MARKERS.lenderCreditScore),
+      String(PRIVATE_MARKERS.smeReputationScore),
+      String(PRIVATE_MARKERS.contribution),
+      PRIVATE_MARKERS.buyerSecretHex,
+      PRIVATE_MARKERS.lenderSecretHex,
+      PRIVATE_MARKERS.claimSecretHex,
+    ];
+    const present = markerValues.filter((m) => values.has(m));
+    expect(present).toEqual([]);
   });
 
   it('per-invoice ledger lines expose only public fields (no private keys in objects)', () => {
