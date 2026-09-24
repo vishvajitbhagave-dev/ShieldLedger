@@ -29,7 +29,7 @@ const makeSource = (): {
     error: (err) => inners[inners.length - 1].error(err),
     complete: () => inners[inners.length - 1].complete(),
     count: () => inners.length,
-    activeCount: () => inners.filter((inner) => inner.observed > 0).length,
+    activeCount: () => inners.filter((inner) => inner.observed).length,
   };
 };
 

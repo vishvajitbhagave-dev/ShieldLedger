@@ -8,7 +8,7 @@
 
 export const DEFAULT_LEDGER_ADDRESSES: Readonly<Record<string, string>> = {
   preview: '18737084144f6482d529fdb8fa357966c9c2eb2c3734d1753f4b42648a4dc4a6',
-  preprod: 'a503d5c086f8ab42f3a650fa0c4b67e31ac37c7eb997c8513c3dccf38de8c925',
+  preprod: 'c66f441b1f70de899670a1f37cd6d9edee24420e0cde121276d8d003a395c381',
 };
 
 const isHexAddress = (value: string): boolean => /^[0-9a-f]{64}$/i.test(value);

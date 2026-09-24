@@ -283,8 +283,11 @@ The core contract (`contracts/shield-ledger.compact`) is written in Compact. Eve
 | Item | Value |
 |------|-------|
 | **Preview Contract Address** | `18737084144f6482d529fdb8fa357966c9c2eb2c3734d1753f4b42648a4dc4a6` |
-| **Preprod Contract Address** | `a503d5c086f8ab42f3a650fa0c4b67e31ac37c7eb997c8513c3dccf38de8c925` |
-| **Networks** | [1AM Explorer — Preview](https://explorer.1am.xyz/contract/18737084144f6482d529fdb8fa357966c9c2eb2c3734d1753f4b42648a4dc4a6?network=preview) / [1AM Explorer — Preprod](https://explorer.1am.xyz/contract/a503d5c086f8ab42f3a650fa0c4b67e31ac37c7eb997c8513c3dccf38de8c925?network=preprod) |
+| **Preprod Contract Address** | `c66f441b1f70de899670a1f37cd6d9edee24420e0cde121276d8d003a395c381` |
+| **Preprod Contract (archived)** | `a503d5c086f8ab42f3a650fa0c4b67e31ac37c7eb997c8513c3dccf38de8c925` — pre-existing tester data, no longer the active default (see note below). |
+| **Networks** | [1AM Explorer — Preview](https://explorer.1am.xyz/contract/18737084144f6482d529fdb8fa357966c9c2eb2c3734d1753f4b42648a4dc4a6?network=preview) / [1AM Explorer — Preprod](https://explorer.1am.xyz/contract/c66f441b1f70de899670a1f37cd6d9edee24420e0cde121276d8d003a395c381?network=preprod) |
+
+> **Preprod re-deployment (2026-09-24).** The active Preprod default was re-deployed as `c66f441b…95c381` so the live ledger matches the current contract logic. The previous instance `a503d5c0…de8c925` is **archived**: the invoices and bids testers created on it are **not lost** (they remain on-chain and are still readable if you join that address manually via `#/?contract=a503d5c086f8ab42f3a650fa0c4b67e31ac37c7eb997c8513c3dccf38de8c925`), but they do **not** appear on the new default. Going forward all new users (including anyone re-testing) use the new default.
 
 | Environment | Status | Details |
 | --- | --- | --- |
