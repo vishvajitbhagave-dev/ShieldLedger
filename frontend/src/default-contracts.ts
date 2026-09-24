@@ -7,7 +7,7 @@
 // wins over these defaults (see storeStoredContractAddress).
 
 export const DEFAULT_LEDGER_ADDRESSES: Readonly<Record<string, string>> = {
-  preview: '18737084144f6482d529fdb8fa357966c9c2eb2c3734d1753f4b42648a4dc4a6',
+  preview: '2bce4c7dea4edcdf1465496efd2c0af97cc6986bbed016569fe5733813b94be3',
   preprod: 'c66f441b1f70de899670a1f37cd6d9edee24420e0cde121276d8d003a395c381',
 };
 
