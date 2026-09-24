@@ -535,7 +535,9 @@ async function main() {
               currentPool = lgBefore.insurancePools.lookup(insurancePoolKey()).balance;
             }
             console.log(`  🛡️  Default insurance: a ${contribution} tNight premium (2% of the claimed amount) goes to the shared pool (balance ${currentPool} → ${currentPool + contribution}).`);
-            await sendAndShow('registerInvoice', deployed.callTx.registerInvoice(parseHex(nullifier), creditThreshold, invoiceAmount, reputationThreshold, contribution, currentPool + contribution));
+            const splitCountRaw = await rl.question('  Split slots (0 = whole invoice, N = split across N lenders): ');
+            const splitCount = BigInt(splitCountRaw.trim() || '0');
+            await sendAndShow('registerInvoice', deployed.callTx.registerInvoice(parseHex(nullifier), creditThreshold, invoiceAmount, reputationThreshold, contribution, currentPool + contribution, splitCount));
             break;
           }
 
