@@ -26,6 +26,7 @@
     "@midnight-ntwrk/midnight-js-protocol": "4.1.1",
     "@midnight-ntwrk/midnight-js-types": "4.1.1",
     "@sentry/browser": "^10.70.0",
+    "@supabase/supabase-js": "^2.117.1",
     "buffer": "^6.0.3",
     "fp-ts": "^2.16.9",
     "react": "^19.2.4",

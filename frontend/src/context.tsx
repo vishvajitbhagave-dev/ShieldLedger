@@ -15,6 +15,7 @@ import {
 import type { ShieldLedgerProviders } from './shield-ledger-types.js';
 import { describeError, type UserFacingError } from './lib/errorMessages.js';
 import { track } from './lib/analytics.js';
+import { trackSessionStart } from './lib/usage-stats.js';
 import { captureError } from './lib/monitoring.js';
 import {
   loadStoredNetworkId,
@@ -143,6 +144,9 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
       setWalletInfo(info);
       setProviders(ps);
       track('wallet_connect', { outcome: 'success', network: networkId });
+      // Anonymous, aggregate-only usage stat (see lib/usage-stats.ts). Carries
+      // no role/outcome/invoice data — that stays in the Plausible sink above.
+      trackSessionStart(networkId);
 
       // Auto-attach to the network's shared ledger so the Deploy/Join choice
       // stays hidden for normal users: a stored user-chosen address wins over
