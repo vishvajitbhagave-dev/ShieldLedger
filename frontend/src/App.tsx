@@ -64,6 +64,52 @@ const TrendIcon: React.FC = () => (
   </svg>
 );
 
+/* Home quick-nav action-card icons (visual language matches the finance-page
+   `.sl-action-card` band; existing stroke/currentColor look, no new styles). */
+const FilePlusIcon: React.FC = () => (
+  <svg className="sl-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <line x1="12" y1="11" x2="12" y2="17" />
+    <line x1="9" y1="14" x2="15" y2="14" />
+  </svg>
+);
+
+const ShieldConfirmIcon: React.FC = () => (
+  <svg className="sl-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2 4 5v6c0 5.25 3.4 9.74 8 11 4.6-1.26 8-5.75 8-11V5l-8-3Z" />
+    <path d="m9 11.5 2 2 4-4" />
+  </svg>
+);
+
+const BookIconCard: React.FC = () => (
+  <svg className="sl-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+  </svg>
+);
+
+const ChartIconCard: React.FC = () => (
+  <svg className="sl-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="20" x2="18" y2="10" />
+    <line x1="12" y1="20" x2="12" y2="4" />
+    <line x1="6" y1="20" x2="6" y2="14" />
+  </svg>
+);
+
+const BriefcaseIconCard: React.FC = () => (
+  <svg className="sl-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+  </svg>
+);
+
+const TrendIconCard: React.FC = () => (
+  <svg className="sl-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+  </svg>
+);
+
 const SECTION_DEFS: Array<{
   key: string;
   path: string;
@@ -171,6 +217,41 @@ const HomeDashboard: React.FC<{
         ? 'continue as a Buyer'
         : 'continue as a Lender';
 
+  const heroLabel =
+    heldRole === 'sme'
+      ? 'For SMEs'
+      : heldRole === 'buyer'
+        ? 'For corporate buyers'
+        : 'For lenders';
+
+  const heroSub =
+    heldRole === 'sme'
+      ? 'Register invoices privately and let lenders compete on rate — bids stay sealed and only the winning rate is ever revealed.'
+      : heldRole === 'buyer'
+        ? 'Confirm invoices in zero knowledge — prove an invoice is genuine and priced correctly without exposing your identity or supply chain.'
+        : 'Bid privately in a sealed, lowest-rate-wins auction and earn from financing vetted SMEs, backed by built-in default insurance.';
+
+  type QuickAction = { key: string; label: string; path: string; Icon: React.FC };
+
+  const quickActions: QuickAction[] =
+    heldRole === 'sme'
+      ? [
+          { key: 'register', label: 'Register an invoice', path: '/finance', Icon: FilePlusIcon },
+          { key: 'analytics', label: 'Analytics', path: '/dashboard', Icon: ChartIconCard },
+          { key: 'trend', label: 'Rate trend', path: '/rate-trend', Icon: TrendIconCard },
+        ]
+      : heldRole === 'buyer'
+        ? [
+            { key: 'confirm', label: 'Confirm an invoice', path: '/finance', Icon: ShieldConfirmIcon },
+            { key: 'ledger', label: 'Public ledger', path: '/ledger', Icon: BookIconCard },
+            { key: 'analytics', label: 'Analytics', path: '/dashboard', Icon: ChartIconCard },
+          ]
+        : [
+            { key: 'bid', label: 'Submit a bid', path: '/finance', Icon: TrendIconCard },
+            { key: 'portfolio', label: 'My portfolio', path: '/portfolio', Icon: BriefcaseIconCard },
+            { key: 'trend', label: 'Rate trend', path: '/rate-trend', Icon: TrendIconCard },
+          ];
+
   const m = state
     ? computeDashboardMetrics(state.invoices, state.insuranceClaims, state.insurancePool)
     : null;
@@ -194,13 +275,31 @@ const HomeDashboard: React.FC<{
         </button>
       </div>
 
-      <div className="sl-stage sl-stage-tight u-mb-4">
-        <div className="u-flex-between">
-          <span className="sl-meta">{primaryAction.label} to pick up where you left off.</span>
-          <button type="button" className="sl-button" onClick={() => navigate(primaryAction.path)}>
-            {primaryAction.label}
-          </button>
+      <div className="sl-hero">
+        <div className="sl-hero-content">
+          <span className="sl-hero-label">{heroLabel}</span>
+          <div className="sl-hero-number-line">
+            <span className="sl-hero-number">{m ? m.totalInvoices.toLocaleString() : '—'}</span>
+            <span className="sl-hero-unit">live invoices</span>
+          </div>
+          <span className="sl-hero-sub">{heroSub}</span>
         </div>
+        <button type="button" className="sl-hero-action" onClick={() => navigate(primaryAction.path)}>
+          {primaryAction.label}
+        </button>
+      </div>
+
+      <h3 className="sl-section-title">Quick actions</h3>
+      <div className="sl-actions">
+        {quickActions.map((qa) => {
+          const Icon = qa.Icon;
+          return (
+            <button key={qa.key} type="button" className="sl-action-card" onClick={() => navigate(qa.path)}>
+              <Icon />
+              <span className="sl-action-label">{qa.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {error && (
@@ -210,28 +309,35 @@ const HomeDashboard: React.FC<{
       {cb && <HealthBanner status={cb} />}
 
       {m && (
-        <div className="u-grid-fit">
-          <div className="sl-stage sl-stage-compact">
-            <h3 className="sl-section-title">Live invoices</h3>
-            <div className="u-stat">{m.totalInvoices}</div>
-            <p className="sl-meta u-mt-2">{m.settledInvoices} settled on-chain</p>
-          </div>
-          <div className="sl-stage sl-stage-compact">
-            <h3 className="sl-section-title">Default rate</h3>
-            <div className="u-stat">{formatPct(m.defaultRate)}</div>
-            <p className="sl-meta u-mt-2">{m.defaultedInvoices} defaulted</p>
-          </div>
-          <div className="sl-stage sl-stage-compact">
-            <h3 className="sl-section-title">Pool balance</h3>
-            <div className="u-stat">
-              {formatBigInt(m.poolBalance)} <span className="u-stat-unit">tNight</span>
+        <>
+          <h3 className="sl-section-title">Platform highlights</h3>
+          <div className="u-grid-fit">
+            <div className="sl-stage sl-stage-compact">
+              <h3 className="sl-section-title">Default Rate</h3>
+              <div className="u-stat">{formatPct(m.defaultRate)}</div>
+              <p className="sl-meta u-mt-2">{m.defaultedInvoices} defaulted / {m.totalInvoices} total invoices</p>
+            </div>
+            <div className="sl-stage sl-stage-compact">
+              <h3 className="sl-section-title">Pool Utilization</h3>
+              <div className="u-stat">{formatPct(m.poolUtilization)}</div>
+              <p className="sl-meta u-mt-2">{formatBigInt(m.totalPayouts)} paid / {formatBigInt(m.totalPremiums)} collected (tNight)</p>
+            </div>
+            <div className="sl-stage sl-stage-compact">
+              <h3 className="sl-section-title">Pool Balance</h3>
+              <div className="u-stat">
+                {formatBigInt(m.poolBalance)} <span className="u-stat-unit">tNight</span>
+              </div>
+              <p className="sl-meta u-mt-2">Insurance pool reserves</p>
+            </div>
+            <div className="sl-stage sl-stage-compact">
+              <h3 className="sl-section-title">Coverage Ratio</h3>
+              <div className="u-stat">
+                {m.coverageRatio !== null ? formatPct(m.coverageRatio) : '—'}
+              </div>
+              <p className="sl-meta u-mt-2">Pool balance / total financed exposure</p>
             </div>
           </div>
-          <div className="sl-stage sl-stage-compact">
-            <h3 className="sl-section-title">Coverage</h3>
-            <div className="u-stat">{formatPct(m.coverageRatio)}</div>
-          </div>
-        </div>
+        </>
       )}
 
       <div className="u-flex-between">
