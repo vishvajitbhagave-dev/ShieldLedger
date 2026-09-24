@@ -22,6 +22,13 @@ import {
   storeNetworkId,
   type RuntimeNetworkId,
 } from './network.js';
+import {
+  contractOverrideFromUrl,
+  DEFAULT_LEDGER_ADDRESSES,
+  isAdvancedMode,
+  loadStoredContractAddress,
+  storeStoredContractAddress,
+} from './default-contracts.js';
 
 /** User role in the invoice-financing workflow. */
 export type Role = 'sme' | 'lender' | 'buyer';
@@ -136,6 +143,32 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
       setWalletInfo(info);
       setProviders(ps);
       track('wallet_connect', { outcome: 'success', network: networkId });
+
+      // Auto-attach to the network's shared ledger so the Deploy/Join choice
+      // stays hidden for normal users: a stored user-chosen address wins over
+      // the configured default, and ?contract=<hex> targets a specific
+      // instance one-off. ?advanced=1 skips auto-join (manual screen). Failures
+      // surface via the existing error banner.
+      if (!isAdvancedMode() && gen === connectGeneration.current) {
+        const target =
+          contractOverrideFromUrl() ??
+          loadStoredContractAddress(networkId) ??
+          DEFAULT_LEDGER_ADDRESSES[networkId];
+        if (target) {
+          setDeployment({ status: 'in-progress', kind: 'join' });
+          try {
+            const joined = await joinShieldLedger(ps, target);
+            if (gen !== connectGeneration.current) return;
+            setDeployment({ status: 'deployed', api: joined, address: joined.deployedContractAddress });
+            track('contract_join', { outcome: 'success' });
+          } catch (e) {
+            if (gen !== connectGeneration.current) return;
+            setDeployment({ status: 'failed', error: e instanceof Error ? e.message : String(e) });
+            captureError(e, { step: 'auto-join' });
+            track('contract_join', { outcome: 'error' });
+          }
+        }
+      }
     } catch (e) {
       // Stale: discard the error from a superseded attempt.
       if (gen !== connectGeneration.current) return;
@@ -194,6 +227,7 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
     try {
       const api = await deployShieldLedger(providers);
       setDeployment({ status: 'deployed', api, address: api.deployedContractAddress });
+      storeStoredContractAddress(networkId, api.deployedContractAddress);
       track('contract_deploy', { outcome: 'success' });
     } catch (e) {
       setDeployment({ status: 'failed', error: e instanceof Error ? e.message : String(e) });
@@ -209,6 +243,9 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
     try {
       const api = await joinShieldLedger(providers, contractAddress.trim());
       setDeployment({ status: 'deployed', api, address: api.deployedContractAddress });
+      if (api.deployedContractAddress !== DEFAULT_LEDGER_ADDRESSES[networkId]) {
+        storeStoredContractAddress(networkId, api.deployedContractAddress);
+      }
       track('contract_join', { outcome: 'success' });
     } catch (e) {
       setDeployment({ status: 'failed', error: e instanceof Error ? e.message : String(e) });

@@ -3,6 +3,7 @@ import { useShieldLedger } from '../context.js';
 import { listWalletOptions, type WalletOption } from '../manager.js';
 import { HexBadge } from './HexBadge.js';
 import { NetworkSelector } from './NetworkSelector.js';
+import { DEFAULT_LEDGER_ADDRESSES, isAdvancedMode } from '../default-contracts.js';
 
 const SparklesIcon: React.FC = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -273,8 +274,15 @@ export const WalletConnect: React.FC = () => {
     );
   }
 
-  // If connected but contract not deployed/joined, show the Deploy/Join choice
-  if (deployment.status !== 'deployed') {
+  // Connected users normally auto-join the network's shared ledger after
+  // connect, so the manual Deploy/Join choice only appears in advanced mode
+  // (?advanced=1) or on networks without a configured default (e.g. the local
+  // devnet). In-progress/failed deploy states are handled by App's global
+  // "Working…" panel and error banner.
+  const manualChoiceVisible =
+    deployment.status === 'idle' && (isAdvancedMode() || !DEFAULT_LEDGER_ADDRESSES[networkId]);
+
+  if (manualChoiceVisible) {
     return (
       <div className="sl-panel">
         <h2>Wallet connected</h2>
