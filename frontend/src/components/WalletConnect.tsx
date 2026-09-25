@@ -218,7 +218,7 @@ export const WalletConnect: React.FC = () => {
 
           <div className="sl-connect-demo">
             <button type="button" className="sl-button sl-button-secondary" onClick={enterDemo}>
-              Explore with demo data
+              Simulation Sandbox
             </button>
             <p className="sl-meta">
               No wallet or network needed — a simulated walkthrough of the whole workflow with fake data.

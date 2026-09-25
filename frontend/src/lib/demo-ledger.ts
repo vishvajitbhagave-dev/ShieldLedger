@@ -48,6 +48,13 @@ import {
 
 export const DEMO_MODE_STORAGE_KEY = 'shieldledger.demo';
 
+const DEMO_URL_REGEX = /[?&]demo=1/;
+
+/** True when ?demo=1 is present in the URL hash (mirrors ?advanced=1). */
+export function demoRequestedFromUrl(): boolean {
+  return typeof window !== 'undefined' && DEMO_URL_REGEX.test(window.location.hash);
+}
+
 export function readDemoModeActive(): boolean {
   if (typeof localStorage === 'undefined') return false;
   try {

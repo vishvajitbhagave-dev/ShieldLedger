@@ -276,7 +276,7 @@ const HomeDashboard: React.FC<{
         <div className="u-flex">
           {!demo && (
             <button type="button" className="sl-button sl-button-secondary" onClick={enterDemo}>
-              Explore demo
+              Simulation Sandbox
             </button>
           )}
           <button className="sl-button sl-button-secondary" type="button" onClick={switchRole}>

@@ -3,6 +3,7 @@ import {
   demoLoadPoolPayouts,
   demoLoadRegisteredInvoices,
   demoRegisterInvoiceLocally,
+  demoRequestedFromUrl,
   demoState$,
   getDemoApi,
   readDemoModeActive,
@@ -225,5 +226,9 @@ describe('demo ledger', () => {
     expect(readDemoModeActive()).toBe(false);
     expect(() => writeDemoModeActive(true)).not.toThrow();
     expect(() => writeDemoModeActive(false)).not.toThrow();
+  });
+
+  it('demoRequestedFromUrl() is safe in non-browser environments', () => {
+    expect(demoRequestedFromUrl()).toBe(false);
   });
 });

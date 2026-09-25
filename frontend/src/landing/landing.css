@@ -186,6 +186,13 @@ input:focus-visible {
   font-weight: 600;
 }
 
+/* Desktop entry to the Simulation Sandbox lives in .nav-cta (btn-ghost, hidden
+   <= 860px). This copy is only for the mobile hamburger menu, so it stays
+   hidden until that breakpoint's .nav-links dropdown takes over. */
+.nav-cta-sandbox {
+  display: none;
+}
+
 .nav-cta {
   display: flex;
   align-items: center;
@@ -1152,6 +1159,23 @@ input:focus-visible {
 
   .section {
     padding: 72px 24px;
+  }
+
+  .nav-links a.nav-cta-sandbox {
+    display: block;
+    margin-top: 14px;
+    padding: 10px 18px;
+    border: 1.5px solid var(--navy);
+    border-bottom: 1.5px solid var(--navy);
+    border-radius: 10px;
+    color: var(--navy);
+    font-weight: 600;
+    text-align: center;
+    background: transparent;
+  }
+
+  .nav-links a.nav-cta-sandbox:hover {
+    background: rgba(16, 35, 63, 0.06);
   }
 }
 

@@ -31,6 +31,7 @@ import {
   storeStoredContractAddress,
 } from './default-contracts.js';
 import {
+  demoRequestedFromUrl,
   readDemoModeActive,
   resetDemoLedger,
   writeDemoModeActive,
@@ -92,7 +93,11 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
   const [providers, setProviders] = useState<ShieldLedgerProviders | null>(null);
   const [deployment, setDeployment] = useState<DeploymentState>({ status: 'idle' });
   const [error, setError] = useState<UserFacingError | null>(null);
-  const [demo, setDemo] = useState<boolean>(() => readDemoModeActive());
+  // Demo Mode starts active when the flag is set, or when the page was opened
+  // via a ?demo=1 link (the landing page's "Simulation Sandbox" button). The
+  // in-memory ledger is already at its seed on a fresh load, so this needs no
+  // disconnect/reset — the same end state enterDemo() produces, with no flash.
+  const [demo, setDemo] = useState<boolean>(() => readDemoModeActive() || demoRequestedFromUrl());
   const demoModeRef = useRef(demo);
   const connectedAPI = useRef<ConnectedAPI | null>(null);
   const connectGeneration = useRef(0);
@@ -103,6 +108,14 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
   useEffect(() => {
     setNetworkId(networkId);
   }, [networkId]);
+
+  // An entry via ?demo=1 persists the flag so a later refresh stays in the
+  // sandbox, matching enterDemo(); Exit demo clears it again.
+  useEffect(() => {
+    if (demo && !readDemoModeActive()) {
+      writeDemoModeActive(true);
+    }
+  }, [demo]);
 
   // Keep the demo flag in a ref so connect() can guard against being called
   // from a demo session without re-creating its useCallback.
