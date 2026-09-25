@@ -1,9 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useShieldLedger } from '../context.js';
 import { listWalletOptions, type WalletOption } from '../manager.js';
 import { HexBadge } from './HexBadge.js';
 import { NetworkSelector } from './NetworkSelector.js';
 import { DEFAULT_LEDGER_ADDRESSES, isAdvancedMode } from '../default-contracts.js';
+
+const CONNECT_QUERY_REGEX = /[?&]connect=1/;
+
+/** ?connect=1 in the URL hash auto-triggers the wallet connection on load. */
+const connectRequestedFromUrl = (): boolean =>
+  typeof window !== 'undefined' && CONNECT_QUERY_REGEX.test(window.location.hash);
 
 const SparklesIcon: React.FC = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -156,6 +162,22 @@ export const WalletConnect: React.FC = () => {
   const [joining, setJoining] = useState(false);
   const [walletModalOpen, setWalletModalOpen] = useState(false);
   const [walletOptions, setWalletOptions] = useState<WalletOption[]>([]);
+  const autoConnectFiredRef = useRef(false);
+
+  // The landing page's "Connect Wallet" CTA lands on #/?connect=1 to open the
+  // extension's approval popup immediately instead of requiring a second click
+  // on the card. Demo Mode owns the shell, so ?demo=1 wins. When zero or more
+  // than one compatible wallet is installed we don't auto-pick — the card's
+  // picker is shown so the user installs one or chooses deliberately.
+  useEffect(() => {
+    if (autoConnectFiredRef.current) return;
+    if (!connectRequestedFromUrl()) return;
+    if (demo || connected || connecting) return;
+    const installed = listWalletOptions().filter((option) => option.installed);
+    if (installed.length !== 1) return;
+    autoConnectFiredRef.current = true;
+    void connect(installed[0]);
+  }, [demo, connected, connecting, connect]);
 
   const busy = deployment.status === 'in-progress';
 
