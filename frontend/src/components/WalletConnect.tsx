@@ -1,15 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { useShieldLedger } from '../context.js';
 import { listWalletOptions, type WalletOption } from '../manager.js';
 import { HexBadge } from './HexBadge.js';
-import { NetworkSelector } from './NetworkSelector.js';
 import { DEFAULT_LEDGER_ADDRESSES, isAdvancedMode } from '../default-contracts.js';
-
-const CONNECT_QUERY_REGEX = /[?&]connect=1/;
-
-/** ?connect=1 in the URL hash auto-triggers the wallet connection on load. */
-const connectRequestedFromUrl = (): boolean =>
-  typeof window !== 'undefined' && CONNECT_QUERY_REGEX.test(window.location.hash);
 
 const SparklesIcon: React.FC = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -31,40 +24,6 @@ const ChevronRightIcon: React.FC = () => (
   </svg>
 );
 
-const WalletIcon: React.FC = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1" />
-    <path d="M3 5v14a2 2 0 0 0 2 2h15" />
-  </svg>
-);
-
-const StoreIcon: React.FC = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 7 6 4h12l2 3v3a2 2 0 0 1-2 2 2 2 0 0 1-4 0 2 2 0 0 1-4 0 2 2 0 0 1-4 0 2 2 0 0 1-2-2V7Z" />
-    <path d="M5 12v8h14v-8" />
-  </svg>
-);
-
-const ShieldCheckIcon: React.FC = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 2 4 5v6c0 5.25 3.4 9.74 8 11 4.6-1.26 8-5.75 8-11V5l-8-3Z" />
-    <path d="m9 11.5 2 2 4-4" />
-  </svg>
-);
-
-const TrendUpIcon: React.FC = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="m3 17 6-6 4 4 8-8" />
-    <path d="M14 7h7v7" />
-  </svg>
-);
-
-const CloseIcon: React.FC = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-    <path d="M6 6l12 12M18 6 6 18" />
-  </svg>
-);
-
 /** Placeholder glyph used when a wallet extension is not installed. */
 const WalletMonogram: React.FC<{ accent: string; monogram: string }> = ({ accent, monogram }) => (
   <span className="sl-wallet-monogram" style={{ backgroundColor: accent }} aria-hidden="true">
@@ -72,239 +31,88 @@ const WalletMonogram: React.FC<{ accent: string; monogram: string }> = ({ accent
   </span>
 );
 
-interface WalletPickerModalProps {
-  options: WalletOption[];
-  onSelect: (option: WalletOption) => void;
-  onClose: () => void;
-}
-
-/** Modal listing detected Midnight-compatible wallets plus install links for the rest. */
-const WalletPickerModal: React.FC<WalletPickerModalProps> = ({ options, onSelect, onClose }) => {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
-  const hasInstalled = options.some((o) => o.installed);
-
-  return (
-    <div className="sl-modal-backdrop" onClick={onClose}>
-      <div
-        className="sl-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Select a wallet"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="sl-modal-head">
-          <div>
-            <h3>Select a wallet</h3>
-            <p className="sl-meta">Choose which Midnight wallet to connect with.</p>
-          </div>
-          <button type="button" className="sl-modal-close" onClick={onClose} aria-label="Close">
-            <CloseIcon />
-          </button>
-        </div>
-
-        {!hasInstalled && (
-          <div className="sl-info">
-            No Midnight wallet detected. Install one below, then refresh the page.
-          </div>
-        )}
-
-        <div className="sl-wallet-list">
-          {options.map((option) =>
-            option.installed ? (
-              <button
-                key={option.definition.id}
-                type="button"
-                className="sl-wallet-option"
-                onClick={() => onSelect(option)}
-              >
-                {option.icon ? (
-                  <img className="sl-wallet-icon" src={option.icon} alt="" />
-                ) : (
-                  <WalletMonogram accent={option.definition.accent} monogram={option.definition.monogram} />
-                )}
-                <span className="sl-wallet-body">
-                  <span className="sl-wallet-name">{option.name}</span>
-                  <span className="sl-wallet-desc">{option.definition.description}</span>
-                </span>
-                <span className="sl-wallet-detected">Detected</span>
-              </button>
-            ) : (
-              <div key={option.definition.id} className="sl-wallet-option sl-wallet-option-unavailable" aria-disabled="true">
-                <WalletMonogram accent={option.definition.accent} monogram={option.definition.monogram} />
-                <span className="sl-wallet-body">
-                  <span className="sl-wallet-name">{option.definition.name}</span>
-                  <span className="sl-wallet-desc">{option.definition.description}</span>
-                </span>
-                <span className="sl-wallet-install">
-                  <a href={option.definition.installUrl} target="_blank" rel="noopener noreferrer">
-                    Install
-                  </a>
-                </span>
-              </div>
-            ),
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 export const WalletConnect: React.FC = () => {
-  const { networkId, connecting, connected, walletLocked, walletInfo, deployment, connect, deploy, join, demo, enterDemo } = useShieldLedger();
+  const { networkId, connecting, connected, walletInfo, deployment, connect, deploy, join, demo, enterDemo } = useShieldLedger();
   const [joinAddress, setJoinAddress] = useState('');
   const [joining, setJoining] = useState(false);
-  const [walletModalOpen, setWalletModalOpen] = useState(false);
-  const [walletOptions, setWalletOptions] = useState<WalletOption[]>([]);
-  const autoConnectFiredRef = useRef(false);
-
-  // The landing page's "Connect Wallet" CTA lands on #/?connect=1 to open the
-  // extension's approval popup immediately instead of requiring a second click
-  // on the card. Demo Mode owns the shell, so ?demo=1 wins. When zero or more
-  // than one compatible wallet is installed we don't auto-pick — the card's
-  // picker is shown so the user installs one or chooses deliberately.
-  useEffect(() => {
-    if (autoConnectFiredRef.current) return;
-    if (!connectRequestedFromUrl()) return;
-    if (demo || connected || connecting) return;
-    const installed = listWalletOptions().filter((option) => option.installed);
-    if (installed.length !== 1) return;
-    autoConnectFiredRef.current = true;
-    void connect(installed[0]);
-  }, [demo, connected, connecting, connect]);
 
   const busy = deployment.status === 'in-progress';
 
-  // Demo Mode takes over the whole shell — the wallet picker has nothing to do.
+  // Demo Mode takes over the whole shell — no wallet gate to render.
   if (demo) return null;
 
-  const openWalletModal = (): void => {
-    if (connecting) return;
-    setWalletOptions(listWalletOptions());
-    setWalletModalOpen(true);
-  };
-
-  const handleSelectWallet = (option: WalletOption): void => {
-    setWalletModalOpen(false);
-    if (connecting) return;
-    void connect(option);
-  };
-
-  // If not connected to wallet, show full connect view
+  // Not connected to a wallet: a minimal gate replaces the old full connect
+  // card. Every case requires an explicit click before any wallet extension
+  // popup opens — one wallet → a single picker row, several → the same picker
+  // with more rows, zero → install links. The Simulation Sandbox stays
+  // reachable so a wallet-less visitor never hits a dead end.
   if (!connected) {
+    const installed: WalletOption[] = listWalletOptions().filter((option) => option.installed);
+
     return (
-      <>
-        <div className="sl-panel sl-connect">
-          <div className="sl-connect-brand">
-            <span className="sl-connect-logo" aria-hidden="true">
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2 4 5v6c0 5.25 3.4 9.74 8 11 4.6-1.26 8-5.75 8-11V5l-8-3Z" />
-                <path d="m9 11.5 2 2 4-4" />
-              </svg>
-            </span>
-            <div className="sl-connect-brand-text">
-              <span className="sl-connect-brand-title">ShieldLedger</span>
-              <p className="sl-connect-brand-tagline">
-                Confidential invoice financing on the Midnight Network — commitments on-chain, invoice details private.
-              </p>
-            </div>
-          </div>
-
-          <div className="sl-network-bar">
-            <span className="sl-status-pill">
-              <span className="sl-live-dot" aria-hidden="true" />
-              {networkId}
-            </span>
-            <NetworkSelector />
-          </div>
-
-          <button className="sl-button sl-connect-cta" onClick={openWalletModal} disabled={connecting}>
-            <WalletIcon />
-            {walletLocked
-              ? 'Waiting for the wallet to be unlocked…'
-              : connecting
-                ? 'Connecting…'
-                : 'Connect wallet'}
-          </button>
-
-          <p className="sl-meta">
-            Switching networks will require reconnecting your wallet. Your wallet signs every transaction in the
-            browser — private state never leaves your wallet.
-          </p>
-
-          <div className="sl-connect-demo">
-            <button type="button" className="sl-button sl-button-secondary" onClick={enterDemo}>
-              Simulation Sandbox
-            </button>
-            <p className="sl-meta">
-              No wallet or network needed — a simulated walkthrough of the whole workflow with fake data.
+      <div className="sl-panel sl-gate">
+        {installed.length === 0 && (
+          <>
+            <p>
+              <strong>No Midnight wallet detected</strong>
             </p>
-          </div>
-
-          {walletLocked && (
-            <div className="sl-info">
-              Your wallet is locked — click the <strong>wallet icon</strong> to unlock; the connection resumes automatically.
+            <p className="sl-meta">
+              Install one of these extensions to sign on-chain, then refresh this page to connect.
+            </p>
+            <div className="sl-wallet-list">
+              {listWalletOptions().map((option) => (
+                <div key={option.definition.id} className="sl-wallet-option sl-wallet-option-unavailable" aria-disabled="true">
+                  <WalletMonogram accent={option.definition.accent} monogram={option.definition.monogram} />
+                  <span className="sl-wallet-body">
+                    <span className="sl-wallet-name">{option.name}</span>
+                    <span className="sl-wallet-desc">{option.definition.description}</span>
+                  </span>
+                  <span className="sl-wallet-install">
+                    <a href={option.definition.installUrl} target="_blank" rel="noopener noreferrer">
+                      Install
+                    </a>
+                  </span>
+                </div>
+              ))}
             </div>
-          )}
-
-          <div className="sl-connect-divider" role="separator">
-            <span>What happens next</span>
-          </div>
-
-          <ol className="sl-connect-steps">
-            <li>
-              <span className="sl-connect-step-num">1</span>
-              Connect wallet
-            </li>
-            <li>
-              <span className="sl-connect-step-num">2</span>
-              Choose your role
-            </li>
-            <li>
-              <span className="sl-connect-step-num">3</span>
-              Start financing · confirming · bidding
-            </li>
-          </ol>
-
-          <div className="sl-connect-roles">
-            <div className="sl-connect-role">
-              <span className="sl-connect-role-icon" aria-hidden="true">
-                <StoreIcon />
-              </span>
-              <span className="sl-connect-role-title">SME</span>
-              <span className="sl-connect-role-sub">sell invoices</span>
-            </div>
-            <div className="sl-connect-role">
-              <span className="sl-connect-role-icon" aria-hidden="true">
-                <ShieldCheckIcon />
-              </span>
-              <span className="sl-connect-role-title">Buyer</span>
-              <span className="sl-connect-role-sub">confirm invoices</span>
-            </div>
-            <div className="sl-connect-role">
-              <span className="sl-connect-role-icon" aria-hidden="true">
-                <TrendUpIcon />
-              </span>
-              <span className="sl-connect-role-title">Lender</span>
-              <span className="sl-connect-role-sub">bid on invoices</span>
-            </div>
-          </div>
-        </div>
-
-        {walletModalOpen && (
-          <WalletPickerModal
-            options={walletOptions}
-            onSelect={handleSelectWallet}
-            onClose={() => setWalletModalOpen(false)}
-          />
+          </>
         )}
-      </>
+
+        {installed.length > 0 && (
+          <>
+            <p>
+              <strong>Choose a wallet</strong>
+            </p>
+            <p className="sl-meta">Pick a Midnight wallet to connect with — the extension will ask you to approve.</p>
+            <div className="sl-wallet-list">
+              {installed.map((option) => (
+                <button
+                  key={option.definition.id}
+                  type="button"
+                  className="sl-wallet-option"
+                  onClick={() => void connect(option)}
+                  disabled={connecting}
+                >
+                  {option.icon ? (
+                    <img className="sl-wallet-icon" src={option.icon} alt="" />
+                  ) : (
+                    <WalletMonogram accent={option.definition.accent} monogram={option.definition.monogram} />
+                  )}
+                  <span className="sl-wallet-body">
+                    <span className="sl-wallet-name">{option.name}</span>
+                    <span className="sl-wallet-desc">{option.definition.description}</span>
+                  </span>
+                  <span className="sl-wallet-detected">Detected</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        <button type="button" className="sl-button sl-button-secondary" onClick={enterDemo}>
+          Try the Simulation Sandbox
+        </button>
+      </div>
     );
   }
 
@@ -321,7 +129,7 @@ export const WalletConnect: React.FC = () => {
       <div className="sl-panel">
         <h2>Wallet connected</h2>
         <div className="sl-row">
-            <div className="u-grow">
+          <div className="u-grow">
             <p className="sl-meta">
               Unshielded: <HexBadge hex={walletInfo?.unshieldedAddress ?? ''} />
             </p>
@@ -341,7 +149,9 @@ export const WalletConnect: React.FC = () => {
             </span>
             <span className="sl-row-body">
               <span className="sl-row-title">Deploy a new contract</span>
-              <span className="sl-row-sub">Create a fresh ShieldLedger auction on {deployment.status === 'idle' ? 'this network' : 'this network'}.</span>
+              <span className="sl-row-sub">
+                Create a fresh ShieldLedger auction on {deployment.status === 'idle' ? 'this network' : 'this network'}.
+              </span>
             </span>
             <ChevronRightIcon />
           </button>

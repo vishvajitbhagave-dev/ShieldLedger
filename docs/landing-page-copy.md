@@ -107,12 +107,24 @@ marketing / landing page. Copy is organized by the component it came from.
 
 ## `WalletConnect.tsx` — Wallet connection
 
-### Connect wallet
+### Connect gate
 
-> Connect the Midnight Lace wallet to deploy or join a ShieldLedger contract. The wallet
-> signs and balances every transaction in your browser — private state never leaves it.
+> The app connects to the Midnight wallet automatically on load when exactly one
+> compatible wallet (Lace or 1AM) is installed — the extension's approval popup opens,
+> no clicks needed. The two edge-case panels below appear instead of a connect screen.
+
+### No wallet detected
+
+> Install the Lace or 1AM extension, then refresh this page to connect. No wallet yet?
+> The **Simulation Sandbox** runs the whole workflow with simulated data and no wallet.
+> The wallet signs and balances every transaction in your browser — private state never
+> leaves it.
+
+### Multiple wallets detected
+
+> Several Midnight wallets are installed — choose which one to connect with.
 
 ### Wallet locked status
 
-> Lace is locked. Click the **Lace extension icon** in your browser toolbar to unlock it
-> — the connection continues automatically as soon as you do.
+> The wallet is locked. Click the **extension icon** in your browser toolbar to unlock
+> it — the connection continues automatically as soon as you do.
