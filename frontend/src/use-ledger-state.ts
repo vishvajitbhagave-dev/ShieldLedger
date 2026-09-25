@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useShieldLedger } from './context.js';
 import type { ShieldLedgerDerivedState } from './shield-ledger-types.js';
+import { demoState$ } from './lib/demo-ledger.js';
 import { LEDGER_STREAM_STALL_MARKER } from './lib/errorMessages.js';
 import {
   subscribeLedgerState,
@@ -32,13 +33,27 @@ export interface UseLedgerStateResult {
  * of them because they share this single hook.
  */
 export const useLedgerState = (): UseLedgerStateResult => {
-  const { deployment } = useShieldLedger();
+  const { deployment, demo } = useShieldLedger();
   const api = deployment.status === 'deployed' ? deployment.api : null;
   const [state, setState] = useState<ShieldLedgerDerivedState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const controllerRef = useRef<LedgerStreamController<ShieldLedgerDerivedState> | null>(null);
 
   useEffect(() => {
+    // Demo Mode: the simulated store is a BehaviorSubject — it emits the
+    // seeded state immediately and on every demo mutation, no stalls possible.
+    if (demo) {
+      setState(null);
+      setError(null);
+      const subscription = demoState$.subscribe({
+        next: (s) => {
+          setError(null);
+          setState(s);
+        },
+        error: (e) => setError(e instanceof Error ? e.message : String(e)),
+      });
+      return () => subscription.unsubscribe();
+    }
     if (!api) return;
     setState(null);
     setError(null);
@@ -66,7 +81,7 @@ export const useLedgerState = (): UseLedgerStateResult => {
       controller.stop();
       controllerRef.current = null;
     };
-  }, [api]);
+  }, [api, demo]);
 
   const retry = useCallback(() => {
     setError(null);

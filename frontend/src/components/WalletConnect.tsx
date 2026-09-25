@@ -151,13 +151,16 @@ const WalletPickerModal: React.FC<WalletPickerModalProps> = ({ options, onSelect
 };
 
 export const WalletConnect: React.FC = () => {
-  const { networkId, connecting, connected, walletLocked, walletInfo, deployment, connect, deploy, join } = useShieldLedger();
+  const { networkId, connecting, connected, walletLocked, walletInfo, deployment, connect, deploy, join, demo, enterDemo } = useShieldLedger();
   const [joinAddress, setJoinAddress] = useState('');
   const [joining, setJoining] = useState(false);
   const [walletModalOpen, setWalletModalOpen] = useState(false);
   const [walletOptions, setWalletOptions] = useState<WalletOption[]>([]);
 
   const busy = deployment.status === 'in-progress';
+
+  // Demo Mode takes over the whole shell — the wallet picker has nothing to do.
+  if (demo) return null;
 
   const openWalletModal = (): void => {
     if (connecting) return;
@@ -212,6 +215,15 @@ export const WalletConnect: React.FC = () => {
             Switching networks will require reconnecting your wallet. Your wallet signs every transaction in the
             browser — private state never leaves your wallet.
           </p>
+
+          <div className="sl-connect-demo">
+            <button type="button" className="sl-button sl-button-secondary" onClick={enterDemo}>
+              Explore with demo data
+            </button>
+            <p className="sl-meta">
+              No wallet or network needed — a simulated walkthrough of the whole workflow with fake data.
+            </p>
+          </div>
 
           {walletLocked && (
             <div className="sl-info">

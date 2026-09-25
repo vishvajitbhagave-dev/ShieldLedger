@@ -4,6 +4,7 @@ import { useShieldLedger } from '../context.js';
 import { useLedgerState } from '../use-ledger-state.js';
 import { buildLenderPortfolio, type LenderPosition, type PositionStatus } from '../lender-portfolio.js';
 import { loadPoolPayouts } from '../pool-payouts.js';
+import { demoLoadPoolPayouts, getDemoApi } from '../lib/demo-ledger.js';
 import { HexBadge } from './HexBadge.js';
 import { describeError } from '../lib/errorMessages.js';
 import { ErrorBanner } from './ErrorBanner.js';
@@ -47,9 +48,9 @@ const PoolShare: React.FC<{ position: LenderPosition }> = ({ position }) => {
 };
 
 export const LenderPortfolio: React.FC = () => {
-  const { deployment } = useShieldLedger();
+  const { deployment, demo } = useShieldLedger();
   const { state, error, retry } = useLedgerState();
-  const api = deployment.status === 'deployed' ? deployment.api : null;
+  const api = demo ? getDemoApi() : deployment.status === 'deployed' ? deployment.api : null;
   const [myPseudonym, setMyPseudonym] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
@@ -73,11 +74,12 @@ export const LenderPortfolio: React.FC = () => {
 
   const localPayouts = useMemo(() => {
     const m = new Map<string, bigint>();
-    for (const record of loadPoolPayouts()) {
+    const records = demo ? demoLoadPoolPayouts() : loadPoolPayouts();
+    for (const record of records) {
       m.set(record.slotKey, BigInt(record.payout));
     }
     return m;
-  }, [myPseudonym]);
+  }, [myPseudonym, demo]);
 
   if (!state && !error) {
     return (

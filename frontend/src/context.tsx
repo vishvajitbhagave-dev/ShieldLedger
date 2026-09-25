@@ -30,6 +30,11 @@ import {
   loadStoredContractAddress,
   storeStoredContractAddress,
 } from './default-contracts.js';
+import {
+  readDemoModeActive,
+  resetDemoLedger,
+  writeDemoModeActive,
+} from './lib/demo-ledger.js';
 
 /** User role in the invoice-financing workflow. */
 export type Role = 'sme' | 'lender' | 'buyer';
@@ -59,6 +64,12 @@ export interface ShieldLedgerContextValue {
   readonly join: (contractAddress: string) => Promise<void>;
   readonly error: UserFacingError | null;
   readonly clearError: () => void;
+  /** True while a client-side simulated-Demo session is active. */
+  readonly demo: boolean;
+  /** Enters Demo Mode: tears down the live session first, then starts the simulated ledger. */
+  readonly enterDemo: () => void;
+  /** Leaves Demo Mode and resets the simulated ledger to its seed. */
+  readonly exitDemo: () => void;
 }
 
 const ShieldLedgerContext = createContext<ShieldLedgerContextValue | null>(null);
@@ -81,6 +92,8 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
   const [providers, setProviders] = useState<ShieldLedgerProviders | null>(null);
   const [deployment, setDeployment] = useState<DeploymentState>({ status: 'idle' });
   const [error, setError] = useState<UserFacingError | null>(null);
+  const [demo, setDemo] = useState<boolean>(() => readDemoModeActive());
+  const demoModeRef = useRef(demo);
   const connectedAPI = useRef<ConnectedAPI | null>(null);
   const connectGeneration = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
@@ -90,6 +103,12 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
   useEffect(() => {
     setNetworkId(networkId);
   }, [networkId]);
+
+  // Keep the demo flag in a ref so connect() can guard against being called
+  // from a demo session without re-creating its useCallback.
+  useEffect(() => {
+    demoModeRef.current = demo;
+  }, [demo]);
 
   const clearError = useCallback(() => setError(null), []);
 
@@ -116,6 +135,9 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
   }, []);
 
   const connect = useCallback(async (selected?: WalletOption) => {
+    // Demo Mode owns the UI: never start (or keep) a live wallet connection
+    // from inside it — the live path is fully torn down on enterDemo().
+    if (demoModeRef.current) return;
     // Cancel any previous in-flight connect attempt.
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -198,6 +220,31 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
   }, []);
 
   /**
+   * Enters client-side Demo Mode (simulated data, no wallet). Because the
+   * demo replaces the ledger source, any live session MUST be fully torn down
+   * first: void in-flight connect/join results (generation bump + abort), drop
+   * providers and the wallet reference, and reset deployment to idle so
+   * `deployment.api === null` — demo hooks select the simulated store instead.
+   * Re-seeds the demo ledger so every entry starts from a clean walkthrough.
+   */
+  const enterDemo = useCallback(() => {
+    abortRef.current?.abort();
+    connectGeneration.current++;
+    disconnect();
+    resetDemoLedger();
+    writeDemoModeActive(true);
+    setDemo(true);
+  }, [disconnect]);
+
+  /** Leaves Demo Mode: resets the simulated ledger fully and clears the flag. */
+  const exitDemo = useCallback(() => {
+    resetDemoLedger();
+    writeDemoModeActive(false);
+    setDemo(false);
+    setError(null);
+  }, []);
+
+  /**
    * Switches the target Midnight network at runtime. The selection is
    * persisted so it survives reloads. Because the indexer/proof-server
    * endpoints are wallet-reported per network, an active session must be
@@ -276,8 +323,11 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
       join,
       error,
       clearError,
+      demo,
+      enterDemo,
+      exitDemo,
     }),
-    [networkId, setNetwork, connecting, walletLocked, walletInfo, deployment, role, setRole, clearRole, connect, disconnect, deploy, join, error, clearError],
+    [networkId, setNetwork, connecting, walletLocked, walletInfo, deployment, role, setRole, clearRole, connect, disconnect, deploy, join, error, clearError, demo, enterDemo, exitDemo],
   );
 
   return <ShieldLedgerContext.Provider value={value}>{children}</ShieldLedgerContext.Provider>;

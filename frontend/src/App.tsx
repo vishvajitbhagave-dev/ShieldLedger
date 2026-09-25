@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { HashRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { ShieldLedgerProvider, useShieldLedger, type Role } from './context.js';
 import { WalletConnect } from './components/WalletConnect.js';
+import { DemoBanner } from './components/DemoBanner.js';
 import { InvoiceFinancing } from './components/InvoiceFinancing.js';
 import { LedgerView } from './components/LedgerView.js';
 import { Dashboard } from './components/Dashboard.js';
@@ -194,7 +195,9 @@ const HomeDashboard: React.FC<{
   streamStatus: string;
   ledgerError: string | null;
   invoiceCount: bigint | null;
-}> = ({ role, clearRole, walletInfo, deploymentAddress, deployed, streamStatus, ledgerError, invoiceCount }) => {
+  demo: boolean;
+  enterDemo: () => void;
+}> = ({ role, clearRole, walletInfo, deploymentAddress, deployed, streamStatus, ledgerError, invoiceCount, demo, enterDemo }) => {
   const { state, error, retry } = useLedgerState();
   const navigate = useNavigate();
   const heldRole = role;
@@ -202,7 +205,7 @@ const HomeDashboard: React.FC<{
   const switchRole = () => {
     if (!window.confirm('Switch role? Your current role selection will be cleared.')) return;
     clearRole();
-    track('role_switch_clear', {});
+    if (!demo) track('role_switch_clear', {});
   };
 
   const primaryAction =
@@ -270,9 +273,16 @@ const HomeDashboard: React.FC<{
           <h2>Welcome back</h2>
           <p className="sl-meta">{roleTitle} — here's the current state of the platform.</p>
         </div>
-        <button className="sl-button sl-button-secondary" type="button" onClick={switchRole}>
-          ← Back / Switch Role
-        </button>
+        <div className="u-flex">
+          {!demo && (
+            <button type="button" className="sl-button sl-button-secondary" onClick={enterDemo}>
+              Explore demo
+            </button>
+          )}
+          <button className="sl-button sl-button-secondary" type="button" onClick={switchRole}>
+            ← Back / Switch Role
+          </button>
+        </div>
       </div>
 
       <div className="sl-hero">
@@ -376,7 +386,7 @@ const HomeDashboard: React.FC<{
 
       <NetworkDetails
         walletInfo={walletInfo}
-        deploymentAddress={deploymentAddress}
+deploymentAddress={deploymentAddress ?? ''}
         deployed={deployed}
         streamStatus={streamStatus}
         ledgerError={ledgerError}
@@ -393,7 +403,8 @@ const NetworkDetails: React.FC<{
   streamStatus: string;
   ledgerError: string | null;
   invoiceCount: bigint | null;
-}> = ({ walletInfo, deploymentAddress, deployed, streamStatus, ledgerError, invoiceCount }) => {
+  demo?: boolean;
+}> = ({ walletInfo, deploymentAddress, deployed, streamStatus, ledgerError, invoiceCount, demo = false }) => {
   return (
     <>
       <h3 className="sl-section-title sl-section-tag">Network &amp; Account</h3>
@@ -401,13 +412,13 @@ const NetworkDetails: React.FC<{
         <div className="sl-status-item">
           <span className="sl-status-label">Unshielded Address</span>
           <span className="sl-status-value">
-            <HexBadge hex={walletInfo?.unshieldedAddress ?? ''} />
+            {demo ? 'demo (simulated)' : <HexBadge hex={walletInfo?.unshieldedAddress ?? ''} />}
           </span>
         </div>
         <div className="sl-status-item">
           <span className="sl-status-label">Shielded Address</span>
           <span className="sl-status-value">
-            <HexBadge hex={walletInfo?.shieldedAddress ?? ''} />
+            {demo ? 'demo (simulated)' : <HexBadge hex={walletInfo?.shieldedAddress ?? ''} />}
           </span>
         </div>
         {deployed && (
@@ -427,6 +438,11 @@ const NetworkDetails: React.FC<{
               {streamStatus}
             </span>
           )}
+          {demo && (
+            <span className="sl-status-pill sl-live-pill" title="Simulated data — nothing is on-chain">
+              demo · simulated
+            </span>
+          )}
           <div className="sl-top-metric">
             <span className="sl-top-metric-value">{invoiceCount !== null ? invoiceCount.toString() : '—'}</span>
             <span className="sl-top-metric-label">live invoices</span>
@@ -438,7 +454,7 @@ const NetworkDetails: React.FC<{
 };
 
 const Body: React.FC = () => {
-  const { networkId, connected, disconnect, connect, deployment, role, setRole, clearRole, walletInfo, error, clearError } =
+  const { networkId, connected, disconnect, connect, deployment, role, setRole, clearRole, walletInfo, error, clearError, demo, enterDemo, exitDemo } =
     useShieldLedger();
   const { state: ledgerState, error: ledgerError } = useLedgerState();
   const location = useLocation();
@@ -465,20 +481,26 @@ const Body: React.FC = () => {
         ? `live · ${new Date(lastUpdate ?? Date.now()).toLocaleTimeString()}`
         : 'connecting…';
 
-  const deployed = deployment.status === 'deployed';
-
   const changeRole = (next: Role) => {
     if (next === role) return;
     setRole(next);
     if (next !== 'lender' && location.pathname === '/portfolio') {
       navigate('/', { replace: true });
     }
-    track('role_switch', { role: next });
+    if (!demo) track('role_switch', { role: next });
   };
+
+  // The shell is available in Demo Mode too: the simulated ledger replaces the
+  // connected wallet as the data source, and nothing network/wallet-related
+  // is rendered.
+  const deployed = deployment.status === 'deployed';
+  const showApp = deployed || demo;
+  const deploymentAddress = deployment.status === 'deployed' ? deployment.address : undefined;
 
   return (
     <div className="sl-app">
-      {connected && (
+      {demo && <DemoBanner onExit={exitDemo} />}
+      {(connected || demo) && (
         <header className="sl-header">
           <div className="sl-header-top">
             <div className="sl-brand">
@@ -494,7 +516,7 @@ const Body: React.FC = () => {
               </div>
             </div>
             <div className="sl-header-actions">
-              {deployed && role != null && (
+              {(deployed || demo) && role != null && (
                 <div className="sl-role-switch" role="group" aria-label="Your role">
                   {ROLE_DEFS.map((option) => (
                     <button
@@ -509,23 +531,37 @@ const Body: React.FC = () => {
                   ))}
                 </div>
               )}
-              {deployed && <NetworkSelector />}
+              {deployed && !demo && <NetworkSelector />}
               <div className="sl-wallet-group">
-                <span className="sl-verified">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2 4 5v6c0 5.25 3.4 9.74 8 11 4.6-1.26 8-5.75 8-11V5l-8-3Z" />
-                    <path d="m9 11.5 2 2 4-4" />
-                  </svg>
-                  Wallet Connected
-                </span>
-                <button className="sl-button sl-button-secondary sl-header-action" onClick={disconnect}>
-                  Disconnect
-                </button>
+                {demo ? (
+                  <>
+                    <span className="sl-status-pill">
+                      <span className="sl-live-dot" aria-hidden="true" />
+                      Demo wallet
+                    </span>
+                    <button className="sl-button sl-button-secondary sl-header-action" onClick={exitDemo}>
+                      Exit demo
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="sl-verified">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 2 4 5v6c0 5.25 3.4 9.74 8 11 4.6-1.26 8-5.75 8-11V5l-8-3Z" />
+                        <path d="m9 11.5 2 2 4-4" />
+                      </svg>
+                      Wallet Connected
+                    </span>
+                    <button className="sl-button sl-button-secondary sl-header-action" onClick={disconnect}>
+                      Disconnect
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
 
-          {deployed && (
+          {(deployed || demo) && (
             <nav className="sl-nav" aria-label="Section">
               <Link
                 className={location.pathname === '/' ? 'sl-nav-item sl-nav-active' : 'sl-nav-item'}
@@ -580,7 +616,7 @@ const Body: React.FC = () => {
 
       <WalletConnect />
 
-      {deployed && (
+      {showApp && (
         <Routes>
           <Route
             path="/"
@@ -588,13 +624,14 @@ const Body: React.FC = () => {
               <div className="sl-home">
                 {role === null ? (
                   <div className="sl-panel">
-                    <NetworkDetails
+<NetworkDetails
                       walletInfo={walletInfo}
-                      deploymentAddress={deployment.address}
+                      deploymentAddress={deploymentAddress ?? ''}
                       deployed={deployed}
                       streamStatus={streamStatus}
                       ledgerError={ledgerError}
                       invoiceCount={ledgerState ? ledgerState.invoiceCount : null}
+                      demo={demo}
                     />
                     <h2>Get invoices financed in hours, not weeks</h2>
                     <p className="sl-meta">
@@ -607,9 +644,9 @@ const Body: React.FC = () => {
                       <span className="u-flex">
                         <span className="sl-status-pill">
                           <span className="sl-live-dot" aria-hidden="true" />
-                          {networkId}
+                          {demo ? 'demo (simulated)' : networkId}
                         </span>
-                        <NetworkSelector />
+                        {!demo && <NetworkSelector />}
                       </span>
                       <button type="button" className="sl-button-ghost" onClick={() => navigate('/ledger')}>
                         Verify on-chain →
@@ -621,11 +658,13 @@ const Body: React.FC = () => {
                     role={role}
                     clearRole={clearRole}
                     walletInfo={walletInfo}
-                    deploymentAddress={deployment.address}
+deploymentAddress={deploymentAddress ?? ''}
                     deployed={deployed}
                     streamStatus={streamStatus}
                     ledgerError={ledgerError}
                     invoiceCount={ledgerState ? ledgerState.invoiceCount : null}
+                    demo={demo}
+                    enterDemo={enterDemo}
                   />
                 )}
               </div>

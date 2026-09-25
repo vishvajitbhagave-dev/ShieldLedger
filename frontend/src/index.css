@@ -2764,3 +2764,49 @@ select.sl-input {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── Demo Mode banner ─────────────────────────────────────────────────────── */
+
+.sl-demo-banner {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  padding: var(--sp-3) var(--sp-4);
+  background: #fff8e1;
+  border-bottom: 1px solid #f0d27a;
+  color: #7a5c00;
+}
+
+.sl-demo-banner-body {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.sl-demo-banner-title {
+  font-weight: 700;
+  font-size: var(--text-sm);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sl-demo-banner-text {
+  font-size: var(--text-sm);
+}
+
+.sl-connect-demo {
+  margin-top: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-2);
+}
+
+.sl-connect-demo .sl-button {
+  align-self: center;
+}

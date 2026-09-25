@@ -21,7 +21,8 @@ import {
   loadRateTrendRecords,
   persistRateTrendRecords,
 } from './rate-trend-store.js';
-import type { InvoiceView } from './shield-ledger-types.js';
+import { demoState$ } from './lib/demo-ledger.js';
+import type { InvoiceView, ShieldLedgerDerivedState } from './shield-ledger-types.js';
 
 export interface RateTrendState {
   readonly records: readonly RateTrendRecord[];
@@ -33,9 +34,11 @@ export interface RateTrendState {
 }
 
 export const useRateTrend = (): RateTrendState => {
-  const { deployment } = useShieldLedger();
+  const { deployment, demo } = useShieldLedger();
   const api = deployment.status === 'deployed' ? deployment.api : null;
-  const [records, setRecords] = useState<readonly RateTrendRecord[]>(() => loadRateTrendRecords());
+  const [records, setRecords] = useState<readonly RateTrendRecord[]>(() =>
+    demo ? [] : loadRateTrendRecords(),
+  );
   const [sessionCount, setSessionCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,53 +48,70 @@ export const useRateTrend = (): RateTrendState => {
   const sessionSeenRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
+    if (demo) {
+      bootstrappedRef.current = false;
+      prevInvoicesRef.current = null;
+      const subscription = demoState$.subscribe({
+        next: (state) => handleNext(state, false),
+        error: (e) => setError(e instanceof Error ? e.message : String(e)),
+      });
+      return () => subscription.unsubscribe();
+    }
     if (!api) return;
     bootstrappedRef.current = false;
     prevInvoicesRef.current = null;
 
     const subscription = api.state$.subscribe({
-      next: (state) => {
-        if (!bootstrappedRef.current) {
-          prevInvoicesRef.current = state.invoices;
-          bootstrappedRef.current = true;
-          return;
-        }
-        const prev = prevInvoicesRef.current ?? [];
-        prevInvoicesRef.current = state.invoices;
-
-        const transitions = detectNewlyFinanced(prev, state.invoices);
-        if (transitions.length === 0) return;
-
-        const seen = new Set(recordsRef.current.map((r) => r.nullifier));
-        const observedAtMs = Date.now();
-        const fresh: RateTrendRecord[] = [];
-        for (const t of transitions) {
-          if (seen.has(t.nullifier)) continue;
-          seen.add(t.nullifier);
-          sessionSeenRef.current.add(t.nullifier);
-          fresh.push(recordFor(t, observedAtMs));
-        }
-        if (fresh.length === 0) return;
-
-        const nextRecords = [...recordsRef.current, ...fresh];
-        recordsRef.current = nextRecords;
-        setRecords(nextRecords);
-        setSessionCount(sessionSeenRef.current.size);
-        persistRateTrendRecords(nextRecords);
-      },
+      next: (state) => handleNext(state, true),
       error: (e) => setError(e instanceof Error ? e.message : String(e)),
     });
 
     return () => subscription.unsubscribe();
-  }, [api]);
+    // handleNext only closes over refs and setters, so it is intentionally
+    // excluded from the deps to keep the subscription stable per source.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api, demo]);
 
+  const handleNext = (state: ShieldLedgerDerivedState, persist: boolean): void => {
+    if (!bootstrappedRef.current) {
+      prevInvoicesRef.current = state.invoices;
+      bootstrappedRef.current = true;
+      return;
+    }
+    const prev = prevInvoicesRef.current ?? [];
+    prevInvoicesRef.current = state.invoices;
+
+    const transitions = detectNewlyFinanced(prev, state.invoices);
+    if (transitions.length === 0) return;
+
+    const seen = new Set(recordsRef.current.map((r) => r.nullifier));
+    const observedAtMs = Date.now();
+    const fresh: RateTrendRecord[] = [];
+    for (const t of transitions) {
+      if (seen.has(t.nullifier)) continue;
+      seen.add(t.nullifier);
+      sessionSeenRef.current.add(t.nullifier);
+      fresh.push(recordFor(t, observedAtMs));
+    }
+    if (fresh.length === 0) return;
+
+    const nextRecords = [...recordsRef.current, ...fresh];
+    recordsRef.current = nextRecords;
+    setRecords(nextRecords);
+    setSessionCount(sessionSeenRef.current.size);
+    if (persist) persistRateTrendRecords(nextRecords);
+  };
+
+  // Reset clears every record. In demo mode the records were never persisted
+  // (they live only in this browser's memory), so the real storage is left
+  // untouched — demo activity must never pollute live trend data.
   const reset = useCallback(() => {
-    clearRateTrendRecords();
+    if (!demo) clearRateTrendRecords();
     sessionSeenRef.current = new Set();
     recordsRef.current = [];
     setRecords([]);
     setSessionCount(0);
-  }, []);
+  }, [demo]);
 
   return { records, sessionCount, error, reset };
 };

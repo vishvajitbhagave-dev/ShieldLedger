@@ -5,6 +5,11 @@ import {
   registerInvoiceLocally,
   type RegisteredInvoice,
 } from '../invoice-registry.js';
+import {
+  demoLoadRegisteredInvoices,
+  demoRegisterInvoiceLocally,
+  getDemoApi,
+} from '../lib/demo-ledger.js';
 import { useLedgerState } from '../use-ledger-state.js';
 import { invoiceStatusOf, isAuctionResolved, isOpenInvoice, isInsuranceClaimed } from '../invoice-status.js';
 import type { InvoiceView } from '../shield-ledger-types.js';
@@ -405,17 +410,22 @@ const WELCOME_ROLES: Array<{ value: 'sme' | 'buyer' | 'lender'; label: string; d
 type Notice = { ok: true; text: string } | { ok: false; error: UserFacingError };
 
 export const InvoiceFinancing: React.FC = () => {
-  const { deployment, connected, role, setRole, clearRole, connect, disconnect } = useShieldLedger();
-  const api = deployment.status === 'deployed' ? deployment.api : null;
-  const busy = deployment.status === 'in-progress' || !connected || api === null;
+  const { deployment, connected, role, setRole, clearRole, connect, disconnect, demo } = useShieldLedger();
+  // In Demo Mode the "api" is the in-memory mock: same method signatures,
+  // simulated ~200ms latency, purely local state.
+  const api = demo ? getDemoApi() : deployment.status === 'deployed' ? deployment.api : null;
 
   const { state: ledgerState } = useLedgerState();
 
   const [form, setForm] = useState<FormState>(initialForm);
   const [message, setMessage] = useState<Notice | null>(null);
   const [working, setWorking] = useState<string | null>(null);
-  const [invoices, setInvoices] = useState<RegisteredInvoice[]>(() => loadRegisteredInvoices());
+  const [invoices, setInvoices] = useState<RegisteredInvoice[]>(() =>
+    demo ? demoLoadRegisteredInvoices() : loadRegisteredInvoices(),
+  );
   const [reputation, setReputation] = useState<ReputationView | null>(null);
+
+  const busy = demo ? working !== null : deployment.status === 'in-progress' || !connected || api === null;
 
   // Sub-tabs navigation state per role
   const [smeTab, setSmeTab] = useState<'register' | 'track' | 'settle' | 'settleSplit'>('register');
@@ -451,8 +461,8 @@ export const InvoiceFinancing: React.FC = () => {
   };
 
   React.useEffect(() => {
-    if (deployment.status === 'deployed') void refreshReputation();
-  }, [deployment.status, connected]);
+    if (demo || deployment.status === 'deployed') void refreshReputation();
+  }, [deployment.status, connected, demo]);
 
   const set = (k: keyof FormState) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -478,12 +488,14 @@ export const InvoiceFinancing: React.FC = () => {
     try {
       await op();
       setMessage({ ok: true, text: `${label} succeeded` });
-      track(label, { outcome: 'success', role: role ?? 'sme' });
+      if (!demo) track(label, { outcome: 'success', role: role ?? 'sme' });
     } catch (e) {
       console.error(`${label} failed:`, e);
       setMessage({ ok: false, error: describeError(label, e) });
-      captureError(e, { step: label });
-      track(label, { outcome: 'error', role: role ?? 'sme' });
+      if (!demo) {
+        captureError(e, { step: label });
+        track(label, { outcome: 'error', role: role ?? 'sme' });
+      }
     } finally {
       setWorking(null);
     }
@@ -492,6 +504,8 @@ export const InvoiceFinancing: React.FC = () => {
   // Offered inside the banner when the wallet session drops mid-operation.
   const reconnectWallet = () => {
     setMessage(null);
+    // Demo Mode has no live session to reconnect — just clear the notice.
+    if (demo) return;
     disconnect();
     void connect();
   };
@@ -502,7 +516,7 @@ export const InvoiceFinancing: React.FC = () => {
     setMessage(null);
     setWorking(null);
     clearRole();
-    track('role_switch_clear', {});
+    if (!demo) track('role_switch_clear', {});
   };
 
   const openInvoices = (ledgerState?.invoices ?? []).filter(isOpenInvoice);
@@ -899,8 +913,10 @@ export const InvoiceFinancing: React.FC = () => {
                   const reputationThreshold = BigInt(form.registerReputation.trim());
                   const splitCount = BigInt(form.registerSplitCount.trim() || '0');
                   void run('registerInvoice', async () => {
-                    const record = await registerInvoiceLocally({ reference, amount, dueDate });
-                    setInvoices(loadRegisteredInvoices());
+                    const record = demo
+                      ? await demoRegisterInvoiceLocally({ reference, amount, dueDate })
+                      : await registerInvoiceLocally({ reference, amount, dueDate });
+                    setInvoices(demo ? demoLoadRegisteredInvoices() : loadRegisteredInvoices());
                     await a.registerInvoice(record.nullifier, creditThreshold, amount, reputationThreshold, splitCount);
                     await refreshReputation();
                     setSmeTab('track');
@@ -1948,8 +1964,16 @@ export const InvoiceFinancing: React.FC = () => {
         <div className="sl-working">
           <span className="sl-loading-spinner sl-loading-spinner-sm" aria-hidden="true" />
           <span>
-            <strong>{working}</strong> in progress… (proof generation can take 30–60s) — when
-            ready, approve in Lace.
+            {demo ? (
+              <>
+                <strong>{working}</strong> simulated — no wallet approval required.
+              </>
+            ) : (
+              <>
+                <strong>{working}</strong> in progress… (proof generation can take 30–60s) — when
+                ready, approve in Lace.
+              </>
+            )}
           </span>
         </div>
       )}
