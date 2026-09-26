@@ -442,7 +442,7 @@ A separate escrow contract (`contracts/escrow.compact`) holds financing per invo
 
 - **Node.js ≥ 22** and npm
 - **Docker** with `docker compose` (for the local proof-server)
-- **Midnight Lace wallet** (browser extension, connected to Preview or Preprod network)
+- **Midnight Lace wallet** (browser extension; the DApp targets **Preprod** by default — switch your wallet there, or to **Preview**, via the app's connect screen)
 - **[compactc](https://docs.midnight.network/developers/tooling/compactc/)** on PATH (used by `npm run compile`)
 
 ### Installation
@@ -469,6 +469,12 @@ npm run frontend:dev
 ```
 
 Open the displayed URL in your browser and connect with the Midnight Lace wallet.
+
+> **Network:** ShieldLedger targets the **Preprod** Midnight network by default. Keep your
+> wallet on **Preprod**, or switch the network from the app's connect screen (Preview ⇄
+> Preprod toggle) *before* connecting — otherwise the wallet refuses with a "Network
+> mismatch" error. Switching to Preview is handy for local testing, and the same toggle is
+> available for connected users in the header.
 
 ### Environment Variables
 
@@ -498,6 +504,11 @@ npm run build          # TypeScript typecheck (root + frontend)
 ![ShieldLedger test suite passing](docs/test-output.png)
 
 The headless Compact circuit simulator covers all circuits (auction, pools, insurance, secondary market, reputation) as well as the frontend analytics logic (pricing engine, price-impact, rate-trend, order book, portfolio, circuit breaker, compliance export, stress tests, reputation backtest). Test count verified via `vitest list` on the current branch; the full suite is green in CI on every push to `main`.
+
+> **Manual testing:** connect with your wallet set to **Preprod** (the DApp's default). If your
+> wallet is on **Preview**, switch it from the connect screen (Preview ⇄ Preprod toggle — shown
+> *before* you pick a wallet) instead of in the extension, then connect; a wallet already on a
+> mismatched network is rejected with a network-mismatch error.
 
 ---
 

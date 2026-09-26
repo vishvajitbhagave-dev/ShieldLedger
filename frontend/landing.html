@@ -42,7 +42,7 @@
 
         <div class="nav-cta">
           <a class="btn btn-ghost" href="./index.html#/?demo=1">Simulation Sandbox</a>
-          <a class="btn btn-solid" href="./index.html">Connect Wallet</a>
+          <button type="button" class="btn btn-solid js-open-wallet">Connect Wallet</button>
         </div>
       </div>
     </header>
@@ -66,7 +66,7 @@
             against defaults. Your financials stay yours.
           </p>
           <div class="hero-cta">
-            <a class="btn btn-solid btn-lg" href="./index.html">Launch the app</a>
+            <button type="button" class="btn btn-solid btn-lg js-open-wallet">Launch the app</button>
             <a class="btn btn-outline btn-lg" href="#how-it-works">See how it works</a>
           </div>
 
@@ -604,10 +604,12 @@
           <span>ShieldLedger</span>
         </div>
         <p class="footer-tagline">Confidential invoice financing on the Midnight Network — zero knowledge by design.</p>
-        <a class="btn btn-solid" href="./index.html">Launch the app</a>
+        <button type="button" class="btn btn-solid js-open-wallet">Launch the app</button>
         <p class="footer-note">Built on the Midnight Network</p>
       </div>
     </footer>
+
+    <div id="wallet-modal-root"></div>
 
     <script type="module" src="/src/landing/landing.ts"></script>
   </body>

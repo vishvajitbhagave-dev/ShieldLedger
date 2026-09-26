@@ -120,3 +120,36 @@ function initNav(): void {
 renderTicker();
 initZkDemo();
 initNav();
+
+// The Connect Wallet / Launch the app CTAs open the wallet picker modal IN
+// PLACE. React + the wallet modal + the Midnight runtime are all kept out of
+// this entry bundle: on click we show a native loading backdrop immediately,
+// then dynamically import the mount module (and with it React + the modal).
+const walletRootEl = document.getElementById('wallet-modal-root');
+
+function openWalletPicker(): void {
+  if (!walletRootEl) return;
+  walletRootEl.replaceChildren();
+  const backdrop = document.createElement('div');
+  backdrop.className = 'sl-modal-backdrop';
+  backdrop.setAttribute('aria-hidden', 'true');
+  const spinner = document.createElement('span');
+  spinner.className = 'sl-modal-loading';
+  backdrop.appendChild(spinner);
+  walletRootEl.appendChild(backdrop);
+  void import('./mountLandingWallet.js')
+    .then(({ mountLandingWallet }) => mountLandingWallet(walletRootEl))
+    .catch(() => {
+      backdrop.remove();
+    });
+}
+
+const walletButtons = Array.from(document.querySelectorAll<HTMLElement>('.js-open-wallet'));
+if (walletButtons.length > 0) {
+  walletButtons.forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      openWalletPicker();
+    });
+  });
+}

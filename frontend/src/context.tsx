@@ -81,6 +81,13 @@ export const useShieldLedger = (): ShieldLedgerContextValue => {
   return value;
 };
 
+/**
+ * Non-throwing variant for components that may render outside the provider
+ * (e.g. the wallet picker modal on the landing page, which has no
+ * ShieldLedgerProvider). Returns null so callers can degrade gracefully.
+ */
+export const useOptionalShieldLedger = (): ShieldLedgerContextValue | null => useContext(ShieldLedgerContext);
+
 export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React.ReactNode }> = ({
   networkId: buildTimeNetwork,
   children,

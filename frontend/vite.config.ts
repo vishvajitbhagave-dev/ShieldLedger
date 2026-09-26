@@ -12,6 +12,21 @@ export default defineConfig({
   build: {
     target: 'esnext',
     minify: false,
+    modulePreload: {
+      // Everything wallet-related is loaded lazily on the landing page: the
+      // first "Connect Wallet" click dynamically imports the React modal, the
+      // wallet manager and the Midnight/wasm runtime. Emitting any
+      // <link rel="modulepreload"> hints for them in landing.html would fetch
+      // them on every landing visit, so the landing entry drops ALL of its
+      // modulepreload links — it statically contains only vanilla landing code.
+      // The app page keeps its full preload set, untouched.
+      resolveDependencies: (filename, deps) => {
+        if (/^assets\/landing-.*\.js$/.test(filename)) {
+          return [];
+        }
+        return deps;
+      },
+    },
     rollupOptions: {
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),

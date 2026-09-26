@@ -350,6 +350,23 @@ body {
   border-color: var(--navy-border);
 }
 
+/* Pre-connect network hint + selector (wallet gate / picker modal). */
+.sl-network-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: var(--sp-4);
+}
+
+.sl-network-hint {
+  margin: 0;
+  font-size: var(--text-caption);
+  line-height: 1.45;
+  color: var(--text-muted);
+  max-width: 46ch;
+}
+
 .sl-live-dot {
   width: 8px;
   height: 8px;
@@ -1351,6 +1368,163 @@ select.sl-input {
 .sl-gate {
   max-width: 30rem;
   margin: 0 auto;
+}
+
+/* ════════════════ Wallet picker modal ════════════════ */
+
+.sl-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-6);
+  background: rgba(9, 16, 26, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.sl-modal {
+  width: min(100%, 26rem);
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  padding: var(--sp-8);
+  animation: sl-modal-in 0.18s ease;
+}
+
+@keyframes sl-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.sl-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.sl-modal-head h3 {
+  margin: 0;
+  font: var(--fw-bold) var(--text-lg) var(--font-ui);
+  color: var(--navy);
+}
+
+.sl-modal-head .sl-meta {
+  margin: 4px 0 0;
+  color: #5b6774;
+}
+
+.sl-modal-close {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #e2e7ee;
+  border-radius: 999px;
+  background: transparent;
+  color: #5b6774;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sl-modal-close svg {
+  width: 16px;
+  height: 16px;
+}
+
+.sl-modal-close:hover {
+  background: rgba(16, 35, 63, 0.06);
+  color: var(--navy);
+}
+
+.sl-modal-loading {
+  width: 34px;
+  height: 34px;
+  border: 3px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: sl-spin 0.7s linear infinite;
+}
+
+@keyframes sl-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* The wallet rows are designed for the app's dark theme; inside the white
+   modal they get a light treatment so the card stays a clean white sheet. */
+.sl-modal .sl-wallet-option {
+  background: #ffffff;
+  border-color: #e2e7ee;
+}
+
+.sl-modal .sl-wallet-option:hover {
+  border-color: #16a36f;
+  background: rgba(22, 163, 111, 0.05);
+  box-shadow: none;
+}
+
+.sl-modal .sl-wallet-name {
+  color: var(--navy);
+}
+
+.sl-modal .sl-wallet-desc {
+  color: #5b6774;
+}
+
+.sl-modal .sl-wallet-option-unavailable,
+.sl-modal .sl-wallet-option-unavailable:hover {
+  background: #ffffff;
+  border-color: #e2e7ee;
+}
+
+.sl-modal .sl-wallet-option-unavailable .sl-wallet-name,
+.sl-modal .sl-wallet-option-unavailable .sl-wallet-desc {
+  color: #8a95a3;
+}
+
+.sl-modal .sl-wallet-install a {
+  color: #16a36f;
+}
+
+.sl-modal .sl-wallet-install a:hover {
+  color: #0f7d54;
+}
+
+/* Light-theme network selector + hint inside the white modal card. */
+.sl-modal .sl-network-selector {
+  background: #eef1f5;
+  border-color: #e2e7ee;
+}
+
+.sl-modal .sl-network-option {
+  color: #8a95a3;
+}
+
+.sl-modal .sl-network-option:hover:not(.sl-network-option-active) {
+  color: var(--navy);
+  background: rgba(16, 35, 63, 0.06);
+}
+
+.sl-modal .sl-network-option-active {
+  background: #ffffff;
+  color: var(--navy);
+  border-color: #c9d2dd;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+}
+
+.sl-modal .sl-network-hint {
+  color: #8a5a08;
 }
 
 .sl-wallet-list {

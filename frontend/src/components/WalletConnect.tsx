@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useShieldLedger } from '../context.js';
-import { listWalletOptions, type WalletOption } from '../manager.js';
+import { listWalletOptions } from '../manager.js';
 import { HexBadge } from './HexBadge.js';
+import { WalletPickerModal } from './WalletPickerModal.js';
+import { WalletNetworkNotice } from './WalletNetworkNotice.js';
+import { clearChosenWallet, readChosenWallet } from '../lib/wallet-handoff.js';
 import { DEFAULT_LEDGER_ADDRESSES, isAdvancedMode } from '../default-contracts.js';
 
 const SparklesIcon: React.FC = () => (
@@ -24,94 +27,55 @@ const ChevronRightIcon: React.FC = () => (
   </svg>
 );
 
-/** Placeholder glyph used when a wallet extension is not installed. */
-const WalletMonogram: React.FC<{ accent: string; monogram: string }> = ({ accent, monogram }) => (
-  <span className="sl-wallet-monogram" style={{ backgroundColor: accent }} aria-hidden="true">
-    {monogram}
-  </span>
-);
-
 export const WalletConnect: React.FC = () => {
   const { networkId, connecting, connected, walletInfo, deployment, connect, deploy, join, demo, enterDemo } = useShieldLedger();
   const [joinAddress, setJoinAddress] = useState('');
   const [joining, setJoining] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  // The landing page's wallet modal hands off its choice through sessionStorage:
+  // on arrival, connect to that wallet once — this is what opens the extension's
+  // single approval prompt here. The flag is cleared before connecting so a
+  // refresh of index.html (or indirect navigation) never re-triggers it.
+  // connect() itself no-ops while a demo session is active (?demo=1 wins).
+  useEffect(() => {
+    const chosen = readChosenWallet();
+    if (chosen === null) return;
+    clearChosenWallet();
+    const option = listWalletOptions().find((o) => o.definition.id === chosen);
+    if (option?.installed) void connect(option);
+  }, [connect]);
 
   const busy = deployment.status === 'in-progress';
 
   // Demo Mode takes over the whole shell — no wallet gate to render.
   if (demo) return null;
 
-  // Not connected to a wallet: a minimal gate replaces the old full connect
-  // card. Every case requires an explicit click before any wallet extension
-  // popup opens — one wallet → a single picker row, several → the same picker
-  // with more rows, zero → install links. The Simulation Sandbox stays
-  // reachable so a wallet-less visitor never hits a dead end.
+  // Not connected to a wallet: a one-line panel with a button that opens the
+  // shared WalletPickerModal. Selecting a wallet here connects directly (we're
+  // already on index.html), reusing the app's normal connect/auto-join path.
   if (!connected) {
-    const installed: WalletOption[] = listWalletOptions().filter((option) => option.installed);
-
     return (
       <div className="sl-panel sl-gate">
-        {installed.length === 0 && (
-          <>
-            <p>
-              <strong>No Midnight wallet detected</strong>
-            </p>
-            <p className="sl-meta">
-              Install one of these extensions to sign on-chain, then refresh this page to connect.
-            </p>
-            <div className="sl-wallet-list">
-              {listWalletOptions().map((option) => (
-                <div key={option.definition.id} className="sl-wallet-option sl-wallet-option-unavailable" aria-disabled="true">
-                  <WalletMonogram accent={option.definition.accent} monogram={option.definition.monogram} />
-                  <span className="sl-wallet-body">
-                    <span className="sl-wallet-name">{option.name}</span>
-                    <span className="sl-wallet-desc">{option.definition.description}</span>
-                  </span>
-                  <span className="sl-wallet-install">
-                    <a href={option.definition.installUrl} target="_blank" rel="noopener noreferrer">
-                      Install
-                    </a>
-                  </span>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {installed.length > 0 && (
-          <>
-            <p>
-              <strong>Choose a wallet</strong>
-            </p>
-            <p className="sl-meta">Pick a Midnight wallet to connect with — the extension will ask you to approve.</p>
-            <div className="sl-wallet-list">
-              {installed.map((option) => (
-                <button
-                  key={option.definition.id}
-                  type="button"
-                  className="sl-wallet-option"
-                  onClick={() => void connect(option)}
-                  disabled={connecting}
-                >
-                  {option.icon ? (
-                    <img className="sl-wallet-icon" src={option.icon} alt="" />
-                  ) : (
-                    <WalletMonogram accent={option.definition.accent} monogram={option.definition.monogram} />
-                  )}
-                  <span className="sl-wallet-body">
-                    <span className="sl-wallet-name">{option.name}</span>
-                    <span className="sl-wallet-desc">{option.definition.description}</span>
-                  </span>
-                  <span className="sl-wallet-detected">Detected</span>
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-
+        <p>
+          <strong>Connect your wallet to continue</strong>
+        </p>
+        <p className="sl-meta">
+          ShieldLedger needs a Midnight wallet to sign for you on-chain. Private state never leaves your wallet.
+        </p>
+        <WalletNetworkNotice />
+        <button type="button" className="sl-button" onClick={() => setPickerOpen(true)} disabled={connecting}>
+          Choose a wallet
+        </button>
         <button type="button" className="sl-button sl-button-secondary" onClick={enterDemo}>
           Try the Simulation Sandbox
         </button>
+        <WalletPickerModal
+          open={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          onSelect={(option) => void connect(option)}
+          busy={connecting}
+        />
       </div>
     );
   }
