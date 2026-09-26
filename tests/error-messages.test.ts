@@ -25,6 +25,7 @@ import {
   GENERIC_TRANSACTION_FAILURE_MESSAGE,
   LEDGER_STREAM_STALL_MARKER,
   LEDGER_STREAM_STALL_MESSAGE,
+  LEDGER_STREAM_INSECURE_WS_MESSAGE,
 } from '../frontend/src/lib/errorMessages.js';
 
 describe('userFacingFailureMessage — network submission rejections', () => {
@@ -182,6 +183,23 @@ describe('describeError — stalled live ledger stream', () => {
   it('accepts the stall marker as a plain string too', () => {
     expect(userFacingFailureMessage('ledgerStream', `${LEDGER_STREAM_STALL_MARKER} stalled`)).toBe(
       LEDGER_STREAM_STALL_MESSAGE,
+    );
+  });
+
+  it('maps a mixed-content blocked WebSocket to the insecure-ws message', () => {
+    // Chromium's wording when an insecure (ws://) WebSocket is constructed
+    // from an HTTPS page; surfaced via the stall marker.
+    const chromium = new Error(
+      `${LEDGER_STREAM_STALL_MARKER} Failed to construct 'WebSocket': An insecure WebSocket connection may not be initiated from a page loaded over HTTPS.`,
+    );
+    expect(describeError('ledgerStream', chromium).message).toBe(LEDGER_STREAM_INSECURE_WS_MESSAGE);
+
+    // Firefox's variant.
+    const firefox = new Error(
+      `${LEDGER_STREAM_STALL_MARKER} "'ws://indexer.example/ws'" is not a valid 'WebSocket' URL: use the WSS protocol to connect from an HTTPS page.`,
+    );
+    expect(userFacingFailureMessage('ledgerStream', firefox)).toBe(
+      LEDGER_STREAM_INSECURE_WS_MESSAGE,
     );
   });
 

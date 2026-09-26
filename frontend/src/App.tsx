@@ -11,6 +11,8 @@ import { ErrorBoundary } from './components/ErrorBoundary.js';
 import { ErrorBanner } from './components/ErrorBanner.js';
 import { LenderPortfolio } from './components/LenderPortfolio.js';
 import { RateTrendChart } from './components/RateTrendChart.js';
+import { Profile } from './components/Profile.js';
+import { ROLE_DEFS } from './roles.js';
 import { describeError } from './lib/errorMessages.js';
 import { useLedgerState } from './use-ledger-state.js';
 import { track } from './lib/analytics.js';
@@ -62,6 +64,13 @@ const BriefcaseIcon: React.FC = () => (
 const TrendIcon: React.FC = () => (
   <svg className="sl-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+  </svg>
+);
+
+const ProfileIcon: React.FC = () => (
+  <svg className="sl-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
   </svg>
 );
 
@@ -119,17 +128,12 @@ const SECTION_DEFS: Array<{
   Component: React.FC;
   roleOnly?: Role;
 }> = [
+  { key: 'profile', path: '/profile', label: 'Profile', Icon: ProfileIcon, Component: Profile },
   { key: 'financing', path: '/finance', label: 'Invoice Financing', Icon: InvoiceIcon, Component: InvoiceFinancing },
   { key: 'ledger', path: '/ledger', label: 'Public Ledger', Icon: BookIcon, Component: LedgerView },
   { key: 'dashboard', path: '/dashboard', label: 'Analytics Dashboard', Icon: ChartIcon, Component: Dashboard },
   { key: 'portfolio', path: '/portfolio', label: 'Lender Portfolio', Icon: BriefcaseIcon, Component: LenderPortfolio, roleOnly: 'lender' },
   { key: 'rate-trend', path: '/rate-trend', label: 'Rate Trend', Icon: TrendIcon, Component: RateTrendChart },
-];
-
-const ROLE_DEFS: Array<{ value: Role; label: string }> = [
-  { value: 'sme', label: 'SME' },
-  { value: 'buyer', label: 'Buyer' },
-  { value: 'lender', label: 'Lender' },
 ];
 
 const formatPct = (value: number | null): string =>
@@ -673,6 +677,7 @@ deploymentAddress={deploymentAddress ?? ''}
           <Route path="/finance" element={<InvoiceFinancing />} />
           <Route path="/ledger" element={<LedgerView />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/profile" element={<Profile />} />
           <Route
             path="/portfolio"
             element={

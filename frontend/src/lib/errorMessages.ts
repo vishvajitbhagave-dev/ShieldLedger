@@ -89,6 +89,17 @@ export const LEDGER_STREAM_STALL_MESSAGE =
   'Having trouble loading live data. This usually means the connection to the network briefly dropped — it will keep retrying automatically. Retry now, or reconnect your wallet if it persists.';
 
 /**
+ * Shown instead of the generic stall message when the ledger WebSocket was
+ * blocked as mixed content: the page is served over HTTPS (e.g. GitHub Pages)
+ * but the wallet-reported indexer uses an insecure `ws://` endpoint, which
+ * browsers refuse to connect to from a secure page. The WebSocket constructor
+ * throws immediately, so `subscribeLedgerState` surfaces the DOMException's
+ * wording in the stall detail — this maps it to a specific, actionable message.
+ */
+export const LEDGER_STREAM_INSECURE_WS_MESSAGE =
+  "Unable to reach the live ledger securely — your browser blocked an insecure WebSocket connection from this secure page. Check the network/wallet configuration and reconnect (the wallet should report secure wss:// endpoints).";
+
+/**
  * Thrown by the wallet provider when balancing (funding) a transaction fails.
  * Carries the original error so the mapper can show the fee/balance guidance
  * while the technical cause stays available behind "Show technical details".
@@ -178,6 +189,21 @@ const NO_WALLET_PATTERN = /could not find a midnight wallet/i;
 
 const NETWORK_MISMATCH_PATTERN = /switch networks in your wallet/i;
 
+// Browser-standard wording for a WebSocket blocked as mixed content
+// (insecure ws:// from an HTTPS page). Variants seen across Chromium:
+// "An insecure WebSocket connection may not be initiated from a page loaded
+// over HTTPS."; Firefox: "use the WSS protocol to connect from an HTTPS
+// page."; Safari: "The operation is insecure."
+const INSECURE_WEBSOCKET_PATTERNS: RegExp[] = [
+  /insecure websocket/i,
+  /may not be initiated from a page loaded over https/i,
+  /use the wss protocol/i,
+  /wss protocol to connect/i,
+  /websocket.*(?:not|in)?secure|not\s+secure.*websocket/i,
+  /the operation is insecure/i,
+  /mixed\s+content/i,
+];
+
 const matchesAny = (text: string, patterns: RegExp[]): boolean => patterns.some((p) => p.test(text));
 
 /** Extract the assertion text after `failed assert:` (wrapped variants included), or null. */
@@ -249,6 +275,14 @@ export function describeError(label: string, error: unknown): UserFacingError {
 
   // The ledger-state hook flags a stalled live stream; give it a retry action
   // so the user never faces a dead "Waiting for ledger state…" shell.
+  if (matchesAny(raw, INSECURE_WEBSOCKET_PATTERNS)) {
+    return {
+      message: LEDGER_STREAM_INSECURE_WS_MESSAGE,
+      technical: raw,
+      action: { kind: 'retry' },
+    };
+  }
+
   if (raw.includes(LEDGER_STREAM_STALL_MARKER)) {
     return { message: LEDGER_STREAM_STALL_MESSAGE, technical: raw, action: { kind: 'retry' } };
   }

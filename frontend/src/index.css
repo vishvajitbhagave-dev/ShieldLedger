@@ -2455,6 +2455,30 @@ select.sl-input {
   max-width: 52ch;
 }
 
+/* Inline "connecting" row shown inside sections that keep their layout while
+   the live ledger stream connects (never a full-page blank — the same page
+   structure renders immediately with em-dash placeholders). */
+.sl-loading-inline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin: var(--sp-2) 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.sl-loading-inline-hint {
+  color: var(--text-faint);
+}
+
+/* Placeholder em-dash table rows rendered while ledger data is still loading,
+   so tables never flash into existence (and never blank the page). */
+.sl-skeleton-row .sl-skeleton-cell {
+  color: var(--text-faint);
+}
+
 .sl-working {
   display: flex;
   align-items: center;

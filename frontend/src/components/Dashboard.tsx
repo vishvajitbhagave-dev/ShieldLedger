@@ -11,9 +11,9 @@ import {
 import { describeError } from '../lib/errorMessages.js';
 import { ErrorBanner } from './ErrorBanner.js';
 import { HealthBanner } from './HealthBanner.js';
-import { LoadingState } from './LoadingState.js';
 import { PageHeader } from './PageHeader.js';
 import { EmptyState } from './EmptyState.js';
+import { ConnectingState, SkeletonRow } from './LoadingPlaceholders.js';
 import { track } from '../lib/analytics.js';
 
 const DASHBOARD_SUBTITLE =
@@ -24,40 +24,20 @@ const formatPct = (value: number | null): string =>
 
 const formatBigInt = (value: bigint): string => value.toLocaleString();
 
+const liveCaption = (err: unknown): string =>
+  err ? 'Live data unavailable' : 'Waiting for live data…';
+
 export const Dashboard: React.FC = () => {
   const { state, error, retry } = useLedgerState();
 
-  if (!state && !error) {
-    return (
-      <div className="sl-panel sl-panel-elevated">
-        <PageHeader title="Analytics Dashboard" subtitle={DASHBOARD_SUBTITLE} />
-        <LoadingState label="Loading live ledger state…" hint="Fetching on-chain metrics — this usually takes a moment." />
-      </div>
-    );
-  }
+  const m = state
+    ? computeDashboardMetrics(state.invoices, state.insuranceClaims, state.insurancePool)
+    : null;
+  const cb = state
+    ? computeCircuitBreakerStatus(state.invoices, state.insuranceClaims, state.insurancePool)
+    : null;
 
-  if (error) {
-    return (
-      <div className="sl-panel sl-panel-elevated">
-        <PageHeader title="Analytics Dashboard" subtitle={DASHBOARD_SUBTITLE} />
-        <ErrorBanner error={describeError('ledgerStream', error)} onRetry={retry} />
-      </div>
-    );
-  }
-
-  const m = computeDashboardMetrics(
-    state!.invoices,
-    state!.insuranceClaims,
-    state!.insurancePool,
-  );
-
-  const cb = computeCircuitBreakerStatus(
-    state!.invoices,
-    state!.insuranceClaims,
-    state!.insurancePool,
-  );
-
-  const noData = m.totalInvoices === 0;
+  const noData = m !== null && m.totalInvoices === 0;
 
   const exportAuditTrail = (): void => {
     if (!state) return;
@@ -83,13 +63,21 @@ export const Dashboard: React.FC = () => {
             type="button"
             className="sl-button"
             onClick={exportAuditTrail}
-            disabled={noData}
+            disabled={!m || noData}
             title="Builds a compliance/audit trail from public on-chain state only — no private data is included."
           >
             Export Audit Trail (JSON)
           </button>
         }
       />
+
+      {error && <ErrorBanner error={describeError('ledgerStream', error)} onRetry={retry} />}
+      {!state && !error && (
+        <ConnectingState
+          label="Connecting to live ledger data…"
+          hint="The dashboard layout is already here — metrics fill in as the live stream connects."
+        />
+      )}
 
       {noData && (
         <EmptyState
@@ -99,65 +87,70 @@ export const Dashboard: React.FC = () => {
         />
       )}
 
-      {!noData && (
-        <>
-          <HealthBanner status={cb} />
-          <div className="u-grid-fit">
-          {/* ── Default Rate ── */}
-          <div className="sl-stage sl-stage-compact">
-            <h3 className="sl-section-title">Default Rate</h3>
-            <div className="u-stat">
-              {formatPct(m.defaultRate)}
-            </div>
-            <p className="sl-meta u-mt-2">
-              {m.defaultedInvoices} defaulted / {m.totalInvoices} total invoices
-            </p>
-          </div>
+      {m && !noData && <HealthBanner status={cb!} />}
 
-          {/* ── Pool Utilization ── */}
-          <div className="sl-stage sl-stage-compact">
-            <h3 className="sl-section-title">Pool Utilization</h3>
-            <div className="u-stat">
-              {formatPct(m.poolUtilization)}
-            </div>
-            <p className="sl-meta u-mt-2">
-              {formatBigInt(m.totalPayouts)} paid / {formatBigInt(m.totalPremiums)} collected (tNight)
-            </p>
-          </div>
+      <div className="u-grid-fit">
+        {/* ── Default Rate ── */}
+        <div className="sl-stage sl-stage-compact">
+          <h3 className="sl-section-title">Default Rate</h3>
+          <div className="u-stat">{m ? formatPct(m.defaultRate) : '—'}</div>
+          <p className="sl-meta u-mt-2">
+            {m ? `${m.defaultedInvoices} defaulted / ${m.totalInvoices} total invoices` : liveCaption(error)}
+          </p>
+        </div>
 
-          {/* ── Pool Balance ── */}
-          <div className="sl-stage sl-stage-compact">
-            <h3 className="sl-section-title">Pool Balance</h3>
-            <div className="u-stat">
-              {formatBigInt(m.poolBalance)} <span className="u-stat-unit">tNight</span>
-            </div>
-            <p className="sl-meta u-mt-2">
-              Insurance pool reserves
-            </p>
-          </div>
+        {/* ── Pool Utilization ── */}
+        <div className="sl-stage sl-stage-compact">
+          <h3 className="sl-section-title">Pool Utilization</h3>
+          <div className="u-stat">{m ? formatPct(m.poolUtilization) : '—'}</div>
+          <p className="sl-meta u-mt-2">
+            {m ? `${formatBigInt(m.totalPayouts)} paid / ${formatBigInt(m.totalPremiums)} collected (tNight)` : liveCaption(error)}
+          </p>
+        </div>
 
-          {/* ── Coverage Ratio ── */}
-          <div className="sl-stage sl-stage-compact">
-            <h3 className="sl-section-title">Coverage Ratio</h3>
-            <div className="u-stat">
-              {m.coverageRatio !== null ? `${m.coverageRatio.toFixed(1)}%` : (
+        {/* ── Pool Balance ── */}
+        <div className="sl-stage sl-stage-compact">
+          <h3 className="sl-section-title">Pool Balance</h3>
+          <div className="u-stat">
+            {m ? (
+              <>
+                {formatBigInt(m.poolBalance)} <span className="u-stat-unit">tNight</span>
+              </>
+            ) : (
+              '—'
+            )}
+          </div>
+          <p className="sl-meta u-mt-2">
+            Insurance pool reserves
+          </p>
+        </div>
+
+        {/* ── Coverage Ratio ── */}
+        <div className="sl-stage sl-stage-compact">
+          <h3 className="sl-section-title">Coverage Ratio</h3>
+          <div className="u-stat">
+            {m ? (
+              m.coverageRatio !== null ? (
+                `${m.coverageRatio.toFixed(1)}%`
+              ) : (
                 m.totalExposure === 0n && m.settledInvoices === 0
                   ? <span className="u-stat-sub">No settled invoices yet</span>
                   : '—'
-              )}
-            </div>
-            <p className="sl-meta u-mt-2">
-              {m.totalExposure > 0n
-                ? `Pool balance / ${formatBigInt(m.totalExposure)} total exposure`
-                : 'Pool balance / total financed amount'}
-            </p>
+              )
+            ) : (
+              '—'
+            )}
           </div>
-          </div>
-        </>
-      )}
+          <p className="sl-meta u-mt-2">
+            {m && m.totalExposure > 0n
+              ? `Pool balance / ${formatBigInt(m.totalExposure)} total exposure`
+              : 'Pool balance / total financed amount'}
+          </p>
+        </div>
+      </div>
 
       {/* ── Summary table ── */}
-      {!noData && (
+      {m && !noData && (
         <table className="sl-table u-mt-4">
           <thead>
             <tr>
@@ -192,6 +185,21 @@ export const Dashboard: React.FC = () => {
             </tr>
           </tbody>
         </table>
+      )}
+      {!m && (
+        <div className="u-scroll-x u-mt-4">
+          <table className="sl-table">
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <SkeletonRow columns={2} />
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

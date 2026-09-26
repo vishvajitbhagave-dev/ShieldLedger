@@ -8,8 +8,9 @@ import {
   type LedgerStreamController,
 } from './ledger-stream.js';
 
-/** How long the "Waiting for ledger state…" shell may stay silent before we surface a stall. */
-export const LEDGER_STATE_TIMEOUT_MS = 20_000;
+/** How long the "Waiting for ledger state…" shell may stay silent before we surface a stall.
+ *  Kept short so users get a clear "connection issue, retry" message quickly instead of a blank/loading page. */
+export const LEDGER_STATE_TIMEOUT_MS = 6_000;
 
 /** Automatic resubscribe attempts after a stall before we give up and wait for a manual retry. */
 export const LEDGER_RETRY_ATTEMPTS = 2;

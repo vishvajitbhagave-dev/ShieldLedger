@@ -5,8 +5,8 @@ import { HexBadge } from './HexBadge.js';
 import { ErrorBanner } from './ErrorBanner.js';
 import { BidDepthChart } from './BidDepthChart.js';
 import { PageHeader } from './PageHeader.js';
-import { LoadingState } from './LoadingState.js';
 import { EmptyState } from './EmptyState.js';
+import { ConnectingState, SkeletonRow } from './LoadingPlaceholders.js';
 import { buildMarketDepth } from '../bid-depth.js';
 import { unixSecondsToDmy } from '../time.js';
 import * as ShieldLedger from '../../../contracts/managed/shield-ledger/contract/index.js';
@@ -34,6 +34,41 @@ const TransferredBadge: React.FC<{ settled?: boolean }> = ({ settled }) => (
   >
     Claim transferred{settled ? ' · settled anonymously' : ''}
   </span>
+);
+
+// Column headers for each section's table — reused between the live and the
+// placeholder (skeleton) renders so tables keep their full structure while the
+// live ledger stream connects.
+const HEADERS = {
+  invoices: ['Nullifier', 'Commitment', 'Credit (ZK-proof)', 'Reputation (ZK-proof)', 'Claimed', 'Buyer-verified', 'Financed by', 'Amount', 'Rate', 'Due'],
+  bids: ['Invoice', 'Lender (pseudonym)', 'Commitment (terms hidden)'],
+  bestBids: ['Invoice', 'Lender (pseudonym)', 'Amount', 'Rate', 'Due', 'Whole'],
+  insuranceClaims: ['Invoice', 'Paid out', 'Claimed at'],
+  poolBids: ['Slot key', 'Lender pseudonym', 'Bid commitment'],
+  payoutCommitments: ['Slot key', 'Payout commitment (hash)'],
+  poolClaims: ['Slot key', 'Claim commitment', 'Transferred'],
+} as const;
+
+const TableHead: React.FC<{ headers: readonly string[] }> = ({ headers }) => (
+  <thead>
+    <tr>
+      {headers.map((h) => (
+        <th key={h}>{h}</th>
+      ))}
+    </tr>
+  </thead>
+);
+
+/** Table shell rendered while the ledger stream is still connecting. */
+const SkeletonTable: React.FC<{ headers: readonly string[] }> = ({ headers }) => (
+  <div className="u-scroll-x">
+    <table className="sl-table">
+      <TableHead headers={headers} />
+      <tbody>
+        <SkeletonRow columns={headers.length} />
+      </tbody>
+    </table>
+  </div>
 );
 
 export const LedgerView: React.FC = () => {
@@ -114,6 +149,8 @@ export const LedgerView: React.FC = () => {
     return Date.now() - time < 4000;
   };
 
+  const ready = state !== null;
+
   return (
     <div className="sl-panel sl-panel-elevated">
       <PageHeader
@@ -121,355 +158,335 @@ export const LedgerView: React.FC = () => {
         subtitle="Read-only view of every disclosed value on-chain — ZK-proof bounds, sealed and leading bids, and the insurance pool."
       />
       {error && <ErrorBanner error={describeError('ledgerStream', error)} onRetry={retry} />}
-      {!state && !error && <LoadingState label="Loading live ledger state…" hint="Fetching public on-chain records — this usually takes a moment." />}
-      {state && (
-        <>
-          <p className="sl-meta">
-            invoiceCount = {state.invoiceCount.toString()} · {state.invoices.length} invoice(s) · {state.bids.length}{' '}
-            sealed bid(s) · {state.bestBids.length} leading bid(s) · insurance pool ={' '}
-            {state.insurancePool ? state.insurancePool.balance.toString() : '0'} tNight
+      {!ready && !error && (
+        <ConnectingState
+          label="Connecting to live ledger data…"
+          hint="The page layout is already here — on-chain values fill in as the live stream connects."
+        />
+      )}
+      {ready && (
+        <p className="sl-meta">
+          invoiceCount = {state!.invoiceCount.toString()} · {state!.invoices.length} invoice(s) · {state!.bids.length}{' '}
+          sealed bid(s) · {state!.bestBids.length} leading bid(s) · insurance pool ={' '}
+          {state!.insurancePool ? state!.insurancePool.balance.toString() : '0'} tNight
+        </p>
+      )}
+      {!ready && (
+        <p className="sl-meta">
+          invoiceCount = — · — invoice(s) · — sealed bid(s) · — leading bid(s) · insurance pool = — tNight
+        </p>
+      )}
+
+      <section className="sl-stage">
+        <h3 className="sl-section-title">Invoices</h3>
+        <p className="sl-note">
+          ZK-proof bounds only — scores stay private; <strong>✓</strong> = a buyer verified it.
+        </p>
+        <details className="sl-details">
+          <summary>Learn more</summary>
+          <p>
+            <strong>Credit (ZK-proof)</strong> and <strong>Reputation (ZK-proof)</strong> are the bounds the SME
+            proved in zero knowledge — the actual scores are never revealed to anyone. A{' '}
+            <strong>Buyer-verified ✓</strong> badge means a corporate buyer proved the invoice genuine; the buyer's
+            identity and terms stay private. A <strong>Claim transferred</strong> badge means the financing claim
+            was resold on the secondary market: only a commitment to the current holder went on-chain, and a
+            settlement pays an anonymous payee — never a named investor.
           </p>
-
-          <section className="sl-stage">
-            <h3 className="sl-section-title">Invoices</h3>
-            <p className="sl-note">
-              ZK-proof bounds only — scores stay private; <strong>✓</strong> = a buyer verified it.
-            </p>
-            <details className="sl-details">
-              <summary>Learn more</summary>
-              <p>
-                <strong>Credit (ZK-proof)</strong> and <strong>Reputation (ZK-proof)</strong> are the bounds the SME
-                proved in zero knowledge — the actual scores are never revealed to anyone. A{' '}
-                <strong>Buyer-verified ✓</strong> badge means a corporate buyer proved the invoice genuine; the buyer's
-                identity and terms stay private. A <strong>Claim transferred</strong> badge means the financing claim
-                was resold on the secondary market: only a commitment to the current holder went on-chain, and a
-                settlement pays an anonymous payee — never a named investor.
-              </p>
-            </details>
-            {state.invoices.length === 0 ? (
-              <EmptyState
-                compact
-                title="No invoices registered yet"
-                description="The first one appears as soon as an SME registers it from the Invoice financing page."
-              />
-            ) : (
-              <div className="u-scroll-x">
-                <table className="sl-table">
-                  <thead>
-                    <tr>
-                      <th>Nullifier</th>
-                      <th>Commitment</th>
-                      <th>Credit (ZK-proof)</th>
-                      <th>Reputation (ZK-proof)</th>
-                      <th>Claimed</th>
-                      <th>Buyer-verified</th>
-                      <th>Financed by</th>
-                      <th>Amount</th>
-                      <th>Rate</th>
-                      <th>Due</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {state.invoices.map((inv) => {
-                      const highlighted =
-                        isHighlighted(inv.nullifier) ||
-                        isHighlighted(`${inv.nullifier}-buyerVerified-${inv.buyerVerified}`) ||
-                        isHighlighted(`${inv.nullifier}-lender-${inv.lender ?? ''}`) ||
-                        isHighlighted(`${inv.nullifier}-transferred-${inv.transferred}`);
-                      return (
-                        <tr key={inv.nullifier} className={highlighted ? 'sl-row-highlight' : ''}>
-                          <td><HexBadge hex={inv.nullifier} /></td>
-                          <td><HexBadge hex={inv.smeCommitment} /></td>
-                          <td title="The SME proved this bound in zero knowledge; the score itself is never revealed.">
-                            score ≥ {inv.creditThreshold.toString()}
-                          </td>
-                          <td title="The SME proved its reputation is at least this bound; the actual score is never revealed.">
-                            {inv.reputationThreshold > 0n ? (
-                              `score ≥ ${inv.reputationThreshold.toString()}`
-                            ) : (
-                              <span className="sl-meta">any</span>
-                            )}
-                          </td>
-                          <td>{inv.invoiceAmount.toString()}</td>
-                          <td>{inv.buyerVerified ? <BuyerVerifiedBadge /> : <span className="sl-meta">—</span>}</td>
-                          <td>
-                            {inv.lender ? (
-                              inv.transferred && inv.lender === SECONDARY_PAYEE ? (
-                                <TransferredBadge settled />
-                              ) : (
-                                <HexBadge hex={inv.lender} />
-                              )
-                            ) : inv.transferred ? (
-                              <TransferredBadge />
-                            ) : (
-                              <span className="sl-meta">— (bidding)</span>
-                            )}
-                          </td>
-                          <td className="u-td-strong">{inv.amount.toString()}</td>
-                          <td>{inv.rateBps > 0n ? `${inv.rateBps.toString()} bps` : '—'}</td>
-                          <td>{unixSecondsToDmy(inv.dueDate)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-
-          <section className="sl-stage">
-            <h3 className="sl-section-title">Sealed bids</h3>
-            {state.bids.length === 0 ? (
-              <EmptyState
-                compact
-                title="No bids submitted yet"
-                description="Sealed lender bids appear here the moment they're committed — their terms stay hidden until reveal."
-              />
-            ) : (
-              <div className="u-scroll-x">
-                <table className="sl-table">
-                  <thead>
-                    <tr>
-                      <th>Invoice</th>
-                      <th>Lender (pseudonym)</th>
-                      <th>Commitment (terms hidden)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {state.bids.map((bid) => {
-                      const highlighted = isHighlighted(bid.bidKey);
-                      return (
-                        <tr key={bid.bidKey} className={highlighted ? 'sl-row-highlight' : ''}>
-                          <td><HexBadge hex={bid.nullifier} /></td>
-                          <td><HexBadge hex={bid.lender} /></td>
-                          <td><HexBadge hex={bid.commitment} /></td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-
-          <section className="sl-stage">
-            <h3 className="sl-section-title">Leading bids (revealed)</h3>
-            {state.bestBids.length === 0 ? (
-              <EmptyState
-                compact
-                title="Nothing revealed yet"
-                description="Bids stay sealed until a lender reveals — each auction's winning terms are the first thing published here."
-              />
-            ) : (
-              <div className="u-scroll-x">
-                <table className="sl-table">
-                  <thead>
-                    <tr>
-                      <th>Invoice</th>
-                      <th>Lender (pseudonym)</th>
-                      <th>Amount</th>
-                      <th>Rate</th>
-                      <th>Due</th>
-                      <th>Whole</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {state.bestBids.map((best) => {
-                      const bestKey = `best-${best.nullifier}-${best.lender}-${best.rateBps}`;
-                      const highlighted = isHighlighted(bestKey);
-                      return (
-                        <tr key={best.nullifier} className={highlighted ? 'sl-row-highlight' : ''}>
-                          <td><HexBadge hex={best.nullifier} /></td>
-                          <td><HexBadge hex={best.lender} /></td>
-                          <td className="u-td-strong">{best.amount.toString()}</td>
-                          <td className="u-td-accent">{best.rateBps.toString()} bps</td>
-                          <td>{unixSecondsToDmy(best.dueDate)}</td>
-                          <td>{best.willingToSplit ? 'Split' : 'Whole'}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-
-          <section className="sl-stage">
-            <h3 className="sl-section-title">Bid depth (order book)</h3>
-            <p className="sl-note">
-              Revealed winning bids across resolved auctions, grouped by rate. Shows disclosed
-              winner terms only — non-winning bids' terms and pool bid rates are never published.
-            </p>
-            <details className="sl-details">
-              <summary>Learn more</summary>
-              <p>
-                The on-chain design discloses the rate/amount of only the <em>single winning</em>{' '}
-                bid per single-lender auction; competing bids' terms are discarded at reveal and
-                pool-bid rates are committed (private). This chart therefore plots exactly what is
-                public — an order-book-style view of who is winning at each rate, not a bid ladder
-                of every competitor. Lowest rate = best offer.
-              </p>
-            </details>
+        </details>
+        {ready ? (
+          state!.invoices.length === 0 ? (
+            <EmptyState
+              compact
+              title="No invoices registered yet"
+              description="The first one appears as soon as an SME registers it from the Invoice financing page."
+            />
+          ) : (
             <div className="u-scroll-x">
-              <BidDepthChart depth={buildMarketDepth(state.bestBids, state.poolBids)} />
+              <table className="sl-table">
+                <TableHead headers={HEADERS.invoices} />
+                <tbody>
+                  {state!.invoices.map((inv) => {
+                    const highlighted =
+                      isHighlighted(inv.nullifier) ||
+                      isHighlighted(`${inv.nullifier}-buyerVerified-${inv.buyerVerified}`) ||
+                      isHighlighted(`${inv.nullifier}-lender-${inv.lender ?? ''}`) ||
+                      isHighlighted(`${inv.nullifier}-transferred-${inv.transferred}`);
+                    return (
+                      <tr key={inv.nullifier} className={highlighted ? 'sl-row-highlight' : ''}>
+                        <td><HexBadge hex={inv.nullifier} /></td>
+                        <td><HexBadge hex={inv.smeCommitment} /></td>
+                        <td title="The SME proved this bound in zero knowledge; the score itself is never revealed.">
+                          score ≥ {inv.creditThreshold.toString()}
+                        </td>
+                        <td title="The SME proved its reputation is at least this bound; the actual score is never revealed.">
+                          {inv.reputationThreshold > 0n ? (
+                            `score ≥ ${inv.reputationThreshold.toString()}`
+                          ) : (
+                            <span className="sl-meta">any</span>
+                          )}
+                        </td>
+                        <td>{inv.invoiceAmount.toString()}</td>
+                        <td>{inv.buyerVerified ? <BuyerVerifiedBadge /> : <span className="sl-meta">—</span>}</td>
+                        <td>
+                          {inv.lender ? (
+                            inv.transferred && inv.lender === SECONDARY_PAYEE ? (
+                              <TransferredBadge settled />
+                            ) : (
+                              <HexBadge hex={inv.lender} />
+                            )
+                          ) : inv.transferred ? (
+                            <TransferredBadge />
+                          ) : (
+                            <span className="sl-meta">— (bidding)</span>
+                          )}
+                        </td>
+                        <td className="u-td-strong">{inv.amount.toString()}</td>
+                        <td>{inv.rateBps > 0n ? `${inv.rateBps.toString()} bps` : '—'}</td>
+                        <td>{unixSecondsToDmy(inv.dueDate)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          </section>
+          )
+        ) : (
+          <SkeletonTable headers={HEADERS.invoices} />
+        )}
+      </section>
 
-          <section className="sl-stage">
-            <h3 className="sl-section-title">Default insurance pool</h3>
-            <p className="sl-note">
-              Every invoice registration pays in 2% of its face amount; a proven default pays out 50% of the financed
-              amount — partially if the pool is thin.
-            </p>
-            <details className="sl-details">
-              <summary>Learn more</summary>
-              <p>
-                The pool is one shared public balance. The premium and each payout are proven inside the circuit (the
-                exact percentages cannot be faked), but observers only ever see totals: which SME funded the pool and
-                why a specific claim was paid stays private. A paid claim is recorded solely under the invoice's
-                already-public nullifier, so every default can only ever pay out once.
-              </p>
-            </details>
-            {state.insurancePool === null ? (
-              <EmptyState
-                compact
-                title="Not seeded yet"
-                description="The pool starts empty — the first invoice registration pays in its 2% premium automatically."
-              />
-            ) : (
-              <>
-                <p
-                  className={[isHighlighted(`insurancePool-${state.insurancePool.balance.toString()}`) ? 'sl-row-highlight' : '', 'sl-subheading'].filter(Boolean).join(' ')}
-                >
-                  Balance: {state.insurancePool.balance.toString()} tNight
-                </p>
-                {state.insuranceClaims.length === 0 ? (
-                  <EmptyState
-                    compact
-                    title="No default claims paid yet"
-                    description="A claim appears here only after a proven default pays out from the pool."
-                  />
-                ) : (
-                  <div className="u-scroll-x">
-                    <table className="sl-table">
-                      <thead>
-                        <tr>
-                          <th>Invoice</th>
-                          <th>Paid out</th>
-                          <th>Claimed at</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {state.insuranceClaims.map((claim) => {
-                          const highlighted = isHighlighted(`insuranceClaim-${claim.nullifier}`);
-                          return (
-                            <tr key={claim.nullifier} className={highlighted ? 'sl-row-highlight' : ''}>
-                              <td><HexBadge hex={claim.nullifier} /></td>
-                              <td className="u-td-strong">{claim.payout.toString()} tNight</td>
-                              <td>{unixSecondsToDmy(claim.claimedAt)}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </>
-            )}
-          </section>
-
-          {state.poolBids.length > 0 && (
-            <section className="sl-stage">
-              <h3 className="sl-section-title">Pool bids (bestPools)</h3>
-              <p className="sl-note">Revealed bids for pool-financed invoices — lender pseudonym and commitment only.</p>
-              <div className="u-scroll-x">
-                <table className="sl-table">
-                  <thead>
-                    <tr>
-                      <th>Slot key</th>
-                      <th>Lender pseudonym</th>
-                      <th>Bid commitment</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {state.poolBids.map((bid) => (
-                      <tr key={bid.slotKey}>
-                        <td><HexBadge hex={bid.slotKey} /></td>
+      <section className="sl-stage">
+        <h3 className="sl-section-title">Sealed bids</h3>
+        {ready ? (
+          state!.bids.length === 0 ? (
+            <EmptyState
+              compact
+              title="No bids submitted yet"
+              description="Sealed lender bids appear here the moment they're committed — their terms stay hidden until reveal."
+            />
+          ) : (
+            <div className="u-scroll-x">
+              <table className="sl-table">
+                <TableHead headers={HEADERS.bids} />
+                <tbody>
+                  {state!.bids.map((bid) => {
+                    const highlighted = isHighlighted(bid.bidKey);
+                    return (
+                      <tr key={bid.bidKey} className={highlighted ? 'sl-row-highlight' : ''}>
+                        <td><HexBadge hex={bid.nullifier} /></td>
                         <td><HexBadge hex={bid.lender} /></td>
                         <td><HexBadge hex={bid.commitment} /></td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )
+        ) : (
+          <SkeletonTable headers={HEADERS.bids} />
+        )}
+      </section>
 
-          {state.payoutCommitments.length > 0 && (
-            <section className="sl-stage">
-              <h3 className="sl-section-title">Pool settlement commitments</h3>
-              <p className="sl-note">
-                Per-lender payout commitment hashes for pool-financed invoices. Individual payout <em>values</em> are
-                private — each commitment binds a slot to its payout (verified at insurance-claim time), without ever
-                publishing the amount.
+      <section className="sl-stage">
+        <h3 className="sl-section-title">Leading bids (revealed)</h3>
+        {ready ? (
+          state!.bestBids.length === 0 ? (
+            <EmptyState
+              compact
+              title="Nothing revealed yet"
+              description="Bids stay sealed until a lender reveals — each auction's winning terms are the first thing published here."
+            />
+          ) : (
+            <div className="u-scroll-x">
+              <table className="sl-table">
+                <TableHead headers={HEADERS.bestBids} />
+                <tbody>
+                  {state!.bestBids.map((best) => {
+                    const bestKey = `best-${best.nullifier}-${best.lender}-${best.rateBps}`;
+                    const highlighted = isHighlighted(bestKey);
+                    return (
+                      <tr key={best.nullifier} className={highlighted ? 'sl-row-highlight' : ''}>
+                        <td><HexBadge hex={best.nullifier} /></td>
+                        <td><HexBadge hex={best.lender} /></td>
+                        <td className="u-td-strong">{best.amount.toString()}</td>
+                        <td className="u-td-accent">{best.rateBps.toString()} bps</td>
+                        <td>{unixSecondsToDmy(best.dueDate)}</td>
+                        <td>{best.willingToSplit ? 'Split' : 'Whole'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )
+        ) : (
+          <SkeletonTable headers={HEADERS.bestBids} />
+        )}
+      </section>
+
+      <section className="sl-stage">
+        <h3 className="sl-section-title">Bid depth (order book)</h3>
+        <p className="sl-note">
+          Revealed winning bids across resolved auctions, grouped by rate. Shows disclosed
+          winner terms only — non-winning bids' terms and pool bid rates are never published.
+        </p>
+        <details className="sl-details">
+          <summary>Learn more</summary>
+          <p>
+            The on-chain design discloses the rate/amount of only the <em>single winning</em>{' '}
+            bid per single-lender auction; competing bids' terms are discarded at reveal and
+            pool-bid rates are committed (private). This chart therefore plots exactly what is
+            public — an order-book-style view of who is winning at each rate, not a bid ladder
+            of every competitor. Lowest rate = best offer.
+          </p>
+        </details>
+        <div className="u-scroll-x">
+          {state ? (
+            <BidDepthChart depth={buildMarketDepth(state.bestBids, state.poolBids)} />
+          ) : !error ? (
+            <ConnectingState label="Waiting for live bid data…" />
+          ) : null}
+        </div>
+      </section>
+
+      <section className="sl-stage">
+        <h3 className="sl-section-title">Default insurance pool</h3>
+        <p className="sl-note">
+          Every invoice registration pays in 2% of its face amount; a proven default pays out 50% of the financed
+          amount — partially if the pool is thin.
+        </p>
+        <details className="sl-details">
+          <summary>Learn more</summary>
+          <p>
+            The pool is one shared public balance. The premium and each payout are proven inside the circuit (the
+            exact percentages cannot be faked), but observers only ever see totals: which SME funded the pool and
+            why a specific claim was paid stays private. A paid claim is recorded solely under the invoice's
+            already-public nullifier, so every default can only ever pay out once.
+          </p>
+        </details>
+        {ready ? (
+          state!.insurancePool === null ? (
+            <EmptyState
+              compact
+              title="Not seeded yet"
+              description="The pool starts empty — the first invoice registration pays in its 2% premium automatically."
+            />
+          ) : (
+            <>
+              <p
+                className={[isHighlighted(`insurancePool-${state!.insurancePool.balance.toString()}`) ? 'sl-row-highlight' : '', 'sl-subheading'].filter(Boolean).join(' ')}
+              >
+                Balance: {state!.insurancePool.balance.toString()} tNight
               </p>
-              <details className="sl-details">
-                <summary>Learn more</summary>
-                <p>
-                  At settlement the SME proves each payout is proportional to its contribution in zero knowledge, then
-                  writes <code>hash(slotKey, payout)</code> on-chain. Every lender keeps their payout in their own wallet;
-                  when default insurance is claimed, the circuit re-derives that hash from the undisclosed payout and
-                  requires it to match this ledger entry — so nobody can fabricate a payout to inflate their claim.
-                </p>
-              </details>
-              <div className="u-scroll-x">
-                <table className="sl-table">
-                  <thead>
-                    <tr>
-                      <th>Slot key</th>
-                      <th>Payout commitment (hash)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {state.payoutCommitments.map((c) => (
-                      <tr key={c.slotKey}>
-                        <td><HexBadge hex={c.slotKey} /></td>
-                        <td><HexBadge hex={c.hash} /></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
+              {state!.insuranceClaims.length === 0 ? (
+                <EmptyState
+                  compact
+                  title="No default claims paid yet"
+                  description="A claim appears here only after a proven default pays out from the pool."
+                />
+              ) : (
+                <div className="u-scroll-x">
+                  <table className="sl-table">
+                    <TableHead headers={HEADERS.insuranceClaims} />
+                    <tbody>
+                      {state!.insuranceClaims.map((claim) => {
+                        const highlighted = isHighlighted(`insuranceClaim-${claim.nullifier}`);
+                        return (
+                          <tr key={claim.nullifier} className={highlighted ? 'sl-row-highlight' : ''}>
+                            <td><HexBadge hex={claim.nullifier} /></td>
+                            <td className="u-td-strong">{claim.payout.toString()} tNight</td>
+                            <td>{unixSecondsToDmy(claim.claimedAt)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )
+        ) : (
+          <>
+            <p className="sl-subheading">Balance: — tNight</p>
+            <SkeletonTable headers={HEADERS.insuranceClaims} />
+          </>
+        )}
+      </section>
 
-          {state.poolClaims.length > 0 && (
-            <section className="sl-stage">
-              <h3 className="sl-section-title">Pool claim commitments</h3>
-              <p className="sl-note">Per-lender secondary-market claim ownership for pool invoices.</p>
-              <div className="u-scroll-x">
-                <table className="sl-table">
-                  <thead>
-                    <tr>
-                      <th>Slot key</th>
-                      <th>Claim commitment</th>
-                      <th>Transferred</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {state.poolClaims.map((c) => (
-                      <tr key={c.slotKey}>
-                        <td><HexBadge hex={c.slotKey} /></td>
-                        <td><HexBadge hex={c.claimCommitment} /></td>
-                        <td>{c.transferred ? 'Yes' : 'No'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
-        </>
+      {state && state.poolBids.length > 0 && (
+        <section className="sl-stage">
+          <h3 className="sl-section-title">Pool bids (bestPools)</h3>
+          <p className="sl-note">Revealed bids for pool-financed invoices — lender pseudonym and commitment only.</p>
+          <div className="u-scroll-x">
+            <table className="sl-table">
+              <TableHead headers={HEADERS.poolBids} />
+              <tbody>
+                {state.poolBids.map((bid) => (
+                  <tr key={bid.slotKey}>
+                    <td><HexBadge hex={bid.slotKey} /></td>
+                    <td><HexBadge hex={bid.lender} /></td>
+                    <td><HexBadge hex={bid.commitment} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {state && state.payoutCommitments.length > 0 && (
+        <section className="sl-stage">
+          <h3 className="sl-section-title">Pool settlement commitments</h3>
+          <p className="sl-note">
+            Per-lender payout commitment hashes for pool-financed invoices. Individual payout <em>values</em> are
+            private — each commitment binds a slot to its payout (verified at insurance-claim time), without ever
+            publishing the amount.
+          </p>
+          <details className="sl-details">
+            <summary>Learn more</summary>
+            <p>
+              At settlement the SME proves each payout is proportional to its contribution in zero knowledge, then
+              writes <code>hash(slotKey, payout)</code> on-chain. Every lender keeps their payout in their own wallet;
+              when default insurance is claimed, the circuit re-derives that hash from the undisclosed payout and
+              requires it to match this ledger entry — so nobody can fabricate a payout to inflate their claim.
+            </p>
+          </details>
+          <div className="u-scroll-x">
+            <table className="sl-table">
+              <TableHead headers={HEADERS.payoutCommitments} />
+              <tbody>
+                {state.payoutCommitments.map((c) => (
+                  <tr key={c.slotKey}>
+                    <td><HexBadge hex={c.slotKey} /></td>
+                    <td><HexBadge hex={c.hash} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {state && state.poolClaims.length > 0 && (
+        <section className="sl-stage">
+          <h3 className="sl-section-title">Pool claim commitments</h3>
+          <p className="sl-note">Per-lender secondary-market claim ownership for pool invoices.</p>
+          <div className="u-scroll-x">
+            <table className="sl-table">
+              <TableHead headers={HEADERS.poolClaims} />
+              <tbody>
+                {state.poolClaims.map((c) => (
+                  <tr key={c.slotKey}>
+                    <td><HexBadge hex={c.slotKey} /></td>
+                    <td><HexBadge hex={c.claimCommitment} /></td>
+                    <td>{c.transferred ? 'Yes' : 'No'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
       )}
     </div>
   );

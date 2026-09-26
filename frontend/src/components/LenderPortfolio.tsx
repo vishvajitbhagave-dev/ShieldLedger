@@ -11,6 +11,7 @@ import { ErrorBanner } from './ErrorBanner.js';
 import { PageHeader } from './PageHeader.js';
 import { LoadingState } from './LoadingState.js';
 import { EmptyState } from './EmptyState.js';
+import { ConnectingState, SkeletonRow } from './LoadingPlaceholders.js';
 import { unixSecondsToDmy } from '../time.js';
 
 const PAGE_TITLE = 'My Lender Portfolio';
@@ -18,6 +19,9 @@ const PAGE_SUBTITLE =
   'Your wallet\u2019s positions over time, derived from public ledger state — remaining comparisons are pseudonymous.';
 
 const formatBigInt = (value: bigint): string => value.toLocaleString();
+
+const liveCaption = (err: unknown): string =>
+  err ? 'Live data unavailable' : 'Waiting for live data…';
 
 const shortNullifier = (hex: string): string =>
   hex.length > 14 ? `${hex.slice(0, 8)}…${hex.slice(-6)}` : hex;
@@ -81,29 +85,17 @@ export const LenderPortfolio: React.FC = () => {
     return m;
   }, [myPseudonym, demo]);
 
-  if (!state && !error) {
-    return (
-      <div className="sl-panel sl-panel-elevated">
-        <PageHeader title={PAGE_TITLE} subtitle={PAGE_SUBTITLE} />
-        <LoadingState label="Loading live ledger state…" hint="Fetching public on-chain records — this usually takes a moment." />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="sl-panel sl-panel-elevated">
-        <PageHeader title={PAGE_TITLE} subtitle={PAGE_SUBTITLE} />
-        <ErrorBanner error={describeError('ledgerStream', error)} onRetry={retry} />
-      </div>
-    );
-  }
-
   if (myPseudonym === undefined) {
     return (
       <div className="sl-panel sl-panel-elevated">
         <PageHeader title={PAGE_TITLE} subtitle={PAGE_SUBTITLE} />
-        <LoadingState label="Resolving your lender pseudonym…" hint="Reading this wallet's private pseudonym from its local state." />
+        {error && <ErrorBanner error={describeError('ledgerStream', error)} onRetry={retry} />}
+        {!error && (
+          <LoadingState
+            label="Resolving your lender pseudonym…"
+            hint="Reading this wallet's private pseudonym from its local state."
+          />
+        )}
       </div>
     );
   }
@@ -112,6 +104,7 @@ export const LenderPortfolio: React.FC = () => {
     return (
       <div className="sl-panel sl-panel-elevated">
         <PageHeader title={PAGE_TITLE} subtitle={PAGE_SUBTITLE} />
+        {error && <ErrorBanner error={describeError('ledgerStream', error)} onRetry={retry} />}
         <EmptyState
           title="No lender identity in this wallet yet"
           description="Submit a sealed bid once and a lender pseudonym is created for this wallet — winning and pool positions then show up here."
@@ -125,13 +118,16 @@ export const LenderPortfolio: React.FC = () => {
     );
   }
 
-  const portfolio = buildLenderPortfolio(state!, myPseudonym, localPayouts);
-  const singles = portfolio.positions.filter((p) => p.kind === 'single');
-  const pools = portfolio.positions.filter((p) => p.kind === 'pool');
+  const portfolio = state
+    ? buildLenderPortfolio(state, myPseudonym, localPayouts)
+    : null;
+  const singles = portfolio?.positions.filter((p) => p.kind === 'single') ?? [];
+  const pools = portfolio?.positions.filter((p) => p.kind === 'pool') ?? [];
 
   return (
     <div className="sl-panel sl-panel-elevated">
       <PageHeader title={PAGE_TITLE} subtitle={PAGE_SUBTITLE} />
+      {error && <ErrorBanner error={describeError('ledgerStream', error)} onRetry={retry} />}
       <div className="u-flex u-mb-1">
         <span className="sl-meta">Pseudonym</span>
         <HexBadge hex={myPseudonym} />
@@ -142,7 +138,7 @@ export const LenderPortfolio: React.FC = () => {
         confidential. Comparisons use only your own pseudonym — nothing is newly disclosed.
       </p>
 
-      {portfolio.positions.length === 0 && (
+      {portfolio && portfolio.positions.length === 0 && (
         <EmptyState
           title="No positions yet"
           description="Win a single-lender auction or reveal a pool slot to build a portfolio here — positions are read from public ledger state and matched to your pseudonym."
@@ -154,7 +150,64 @@ export const LenderPortfolio: React.FC = () => {
         />
       )}
 
-      {portfolio.positions.length > 0 && (
+      {!portfolio && (
+        <>
+          {!error && (
+            <ConnectingState
+              label="Connecting to live ledger data…"
+              hint="Your positions will appear here as the live stream connects."
+            />
+          )}
+          <div className="u-grid-fit u-mb-4">
+            <div className="sl-stage sl-stage-compact">
+              <h3 className="sl-section-title">Issued Exposure</h3>
+              <div className="u-stat">
+                — <span className="u-stat-unit">tNight</span>
+              </div>
+              <p className="sl-meta u-mt-2">{liveCaption(error)}</p>
+            </div>
+            <div className="sl-stage sl-stage-compact">
+              <h3 className="sl-section-title">Contracted Return</h3>
+              <div className="u-stat">
+                — <span className="u-stat-unit">tNight</span>
+              </div>
+              <p className="sl-meta u-mt-2">{liveCaption(error)}</p>
+            </div>
+            <div className="sl-stage sl-stage-compact">
+              <h3 className="sl-section-title">Positions</h3>
+              <div className="u-stat">—</div>
+              <p className="sl-meta u-mt-2">{liveCaption(error)}</p>
+            </div>
+            <div className="sl-stage sl-stage-compact">
+              <h3 className="sl-section-title">Concentration</h3>
+              <div className="u-stat">—</div>
+              <p className="sl-meta u-mt-2">{liveCaption(error)}</p>
+            </div>
+          </div>
+          <div className="u-scroll-x">
+            <table className="sl-table u-mt-4">
+              <thead>
+                <tr>
+                  <th>Invoice</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Face amount</th>
+                  <th>Financed</th>
+                  <th>Rate</th>
+                  <th>Due</th>
+                  <th>Expected return</th>
+                  <th>My share</th>
+                </tr>
+              </thead>
+              <tbody>
+                <SkeletonRow columns={9} />
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {portfolio && portfolio.positions.length > 0 && (
         <>
           <div className="u-grid-fit u-mb-4">
             <div className="sl-stage sl-stage-compact">
