@@ -175,6 +175,7 @@ Credit score ≥ threshold, reputation score ≥ threshold, lender credit score 
 | 8 | Vishwa Kalburge | vishwakalburge2@gmail.com | mn_addr_preprod1wf35yvncnrhhj3m3j2n7qfdtyqkmuqt0h0tekwfjqcmkp72da62s6ajhxk | "When I use this application, at that time I got Public Ledger, Analytic Dashboard, and Lender Portfolio blank."<br>"Add Profile Section" (feature request) | [CI run #36230809372](https://github.com/vishvajitbhagave-dev/ShieldLedger/actions/runs/36230809372) |
 | 9 | Saniya Ghase | saniyaghase4@gmail.com | mn_addr_preprod19nnl3zz0f2xpjeecwft3hcvapmza5gs7z6cmfmscw4eyk2pzjxrqvc3rc9 | "I am Register an Invoice and Settled it, then my Private Reputation score increases 0 --> 10. After that, when I go back and after some time when I start connect wallet again then my Reputation score showing me 0. So, try to solve this problem."<br>"Settings Section" (feature request) | [CI run #36306864597](https://github.com/vishvajitbhagave-dev/ShieldLedger/actions/runs/36306864597) |
 | 10 | Ayaan | ayaanusmani2005@gmail.com | mn_addr_preprod16w3sg7g3756khspe4v27lpyugyzvr34km2zkvp9aqljpy2gnttzq03ur96 | "tested as SME, rated 4/5, “Easy” to use. Tested nearly every feature (register, sealed bid, reveal, settlement, pooled financing, insurance claim, secondary market, analytics, circuit breaker, portfolio, rate trend, compliance audit). Reported finding a bug (no further detail given in the form) and, when asked directly for more detail, said: “remove unwanted things on UI (If that things are not needed) and make UI more like Professional and User friendly also.”" | [712e0aa](https://github.com/vishvajitbhagave-dev/ShieldLedger/commit/712e0aa) (Phase 1), [79fb6d9](https://github.com/vishvajitbhagave-dev/ShieldLedger/commit/79fb6d9) (Phase 2), [117bce2](https://github.com/vishvajitbhagave-dev/ShieldLedger/commit/117bce2) (Phase 3) |
+| 11 | Vidhi Patil | vidhipatil300@gmail.com | mn_addr_preprod1334x2n4a8h4muv0gdvvlvsuzk2c9jfl6kcxrek5lfd6xvwxvr7nqq86l9j | "tested as SME/Lender, rated 5/5, “Easy” to use. Tested register/view invoice, sealed bid, bid reveal. No bugs, no confusing errors. Liked most: “UI”. Requested: “Add AI chat option, so user ask his question to that AI and the AI will give answers of user's questions.”" | Noted for future roadmap — see 'Future Ideas / Roadmap' section below |
 
 ### Improvements Implemented Based on Feedback
 
@@ -194,6 +195,14 @@ Credit score ≥ threshold, reputation score ≥ threshold, lender credit score 
 | Ayaan (SME): reported a bug and requested the UI feel more professional and user-friendly, with unwanted/unneeded elements removed | Conducted a full UI audit and cleanup across three phases — (1) fixed demo/live data mismatches (e.g. incorrect dates, missing pool positions in Simulation Sandbox) and removed internal jargon/debug text from user-facing copy across Public Ledger, Rate Trend, Lender Portfolio, and Settings; (2) removed dead/non-functional UI code (unused state, unreachable warnings, broken error banners) and added missing context to wallet picker; (3) removed duplicated UI elements (network selector, exit-demo button, invoice count shown twice, redundant Profile sections) and unified inconsistent styling (stat cards, segmented switches, page headers, role-change confirmations) across the app | `712e0aa, 79fb6d9, 117bce2` |
 
 *Note: no new work was needed for the reputation score from the earlier feedback — it was already available before that (SME hero panel, existing wallet-private-state data via `src/reputation.ts`); that feedback was about the score's visibility. The later reset-on-reconnect bug (see Saniya Ghase's feedback above) was identified and fixed separately.*
+
+### Future Ideas / Roadmap
+
+> Feature requests that are valid and worth considering, but not yet scheduled
+> for implementation. New entries should be appended in the same simple list
+> style.
+
+- **AI chat assistant** — a chatbot within ShieldLedger that lets users ask questions about how the platform works (e.g. sealed bids, settlement, reputation) and get instant answers, instead of needing external help. Requested by tester Vidhi Patil. Scope and approach (general FAQ-style vs. live-data-aware assistant) not yet decided.
 
 ---
 
