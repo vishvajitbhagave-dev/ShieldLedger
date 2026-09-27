@@ -21,6 +21,7 @@ import { computeDashboardMetrics } from './dashboard-metrics.js';
 import { computeCircuitBreakerStatus, type CircuitBreakerStatus } from './circuit-breaker.js';
 import { HealthBanner } from './components/HealthBanner.js';
 import { NetworkSelector } from './components/NetworkSelector.js';
+import { PageHeader } from './components/PageHeader.js';
 import type { ShieldLedgerDerivedState } from './shield-ledger-types.js';
 import { unixSecondsToDmy } from './time.js';
 
@@ -207,16 +208,14 @@ const HomeDashboard: React.FC<{
   deployed: boolean;
   streamStatus: string;
   ledgerError: string | null;
-  invoiceCount: bigint | null;
   demo: boolean;
   enterDemo: () => void;
-}> = ({ role, clearRole, walletInfo, deploymentAddress, deployed, streamStatus, ledgerError, invoiceCount, demo, enterDemo }) => {
+}> = ({ role, clearRole, walletInfo, deploymentAddress, deployed, streamStatus, ledgerError, demo, enterDemo }) => {
   const { state, error, retry } = useLedgerState();
   const navigate = useNavigate();
   const heldRole = role;
 
   const switchRole = () => {
-    if (!window.confirm('Switch role? Your current role selection will be cleared.')) return;
     clearRole();
     if (!demo) track('role_switch_clear', {});
   };
@@ -281,22 +280,22 @@ const HomeDashboard: React.FC<{
 
   return (
     <div className="sl-panel">
-      <div className="sl-row u-flex-between">
-        <div className="u-flex-1">
-          <h2>Welcome back</h2>
-          <p className="sl-meta">{roleTitle} — here's the current state of the platform.</p>
-        </div>
-        <div className="u-flex">
-          {!demo && (
-            <button type="button" className="sl-button sl-button-secondary" onClick={enterDemo}>
-              Simulation Sandbox
+      <PageHeader
+        title="Welcome back"
+        subtitle={`${roleTitle} — here's the current state of the platform.`}
+        actions={
+          <>
+            {!demo && (
+              <button type="button" className="sl-button sl-button-secondary" onClick={enterDemo}>
+                Simulation Sandbox
+              </button>
+            )}
+            <button type="button" className="sl-button sl-button-secondary" onClick={switchRole}>
+              ← Back / Switch Role
             </button>
-          )}
-          <button className="sl-button sl-button-secondary" type="button" onClick={switchRole}>
-            ← Back / Switch Role
-          </button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <div className="sl-hero">
         <div className="sl-hero-content">
@@ -397,13 +396,12 @@ const HomeDashboard: React.FC<{
         </p>
       )}
 
-      <NetworkDetails
+<NetworkDetails
         walletInfo={walletInfo}
-deploymentAddress={deploymentAddress ?? ''}
+        deploymentAddress={deploymentAddress ?? ''}
         deployed={deployed}
         streamStatus={streamStatus}
         ledgerError={ledgerError}
-        invoiceCount={invoiceCount}
       />
     </div>
   );
@@ -415,9 +413,8 @@ const NetworkDetails: React.FC<{
   deployed: boolean;
   streamStatus: string;
   ledgerError: string | null;
-  invoiceCount: bigint | null;
   demo?: boolean;
-}> = ({ walletInfo, deploymentAddress, deployed, streamStatus, ledgerError, invoiceCount, demo = false }) => {
+}> = ({ walletInfo, deploymentAddress, deployed, streamStatus, ledgerError, demo = false }) => {
   return (
     <>
       <h3 className="sl-section-title sl-section-tag">Network &amp; Account</h3>
@@ -456,10 +453,6 @@ const NetworkDetails: React.FC<{
               demo · simulated
             </span>
           )}
-          <div className="sl-top-metric">
-            <span className="sl-top-metric-value">{invoiceCount !== null ? invoiceCount.toString() : '—'}</span>
-            <span className="sl-top-metric-label">live invoices</span>
-          </div>
         </div>
       </div>
     </>
@@ -547,15 +540,10 @@ const Body: React.FC = () => {
               {deployed && !demo && <NetworkSelector />}
               <div className="sl-wallet-group">
                 {demo ? (
-                  <>
-                    <span className="sl-status-pill">
-                      <span className="sl-live-dot" aria-hidden="true" />
-                      Demo wallet
-                    </span>
-                    <button className="sl-button sl-button-secondary sl-header-action" onClick={exitDemo}>
-                      Exit demo
-                    </button>
-                  </>
+                  <span className="sl-status-pill">
+                    <span className="sl-live-dot" aria-hidden="true" />
+                    Demo wallet
+                  </span>
                 ) : (
                   <>
                     <span className="sl-verified">
@@ -635,31 +623,31 @@ const Body: React.FC = () => {
             path="/"
             element={
               <div className="sl-home">
-                {role === null ? (
+{role === null ? (
                   <div className="sl-panel">
-<NetworkDetails
+                    <NetworkDetails
                       walletInfo={walletInfo}
                       deploymentAddress={deploymentAddress ?? ''}
                       deployed={deployed}
                       streamStatus={streamStatus}
                       ledgerError={ledgerError}
-                      invoiceCount={ledgerState ? ledgerState.invoiceCount : null}
                       demo={demo}
                     />
-                    <h2>Get invoices financed in hours, not weeks</h2>
-                    <p className="sl-meta">
-                      Without exposing your books — bids stay sealed and only the winning rate is ever revealed.
-                    </p>
-                    <button type="button" className="sl-button" onClick={() => navigate('/finance')}>
-                      Choose your role
-                    </button>
+                    <PageHeader
+                      title="Get invoices financed in hours, not weeks"
+                      subtitle="Without exposing your books — bids stay sealed and only the winning rate is ever revealed."
+                      actions={
+                        <button type="button" className="sl-button" onClick={() => navigate('/finance')}>
+                          Choose your role
+                        </button>
+                      }
+                    />
                     <div className="u-flex-between u-mt-2">
                       <span className="u-flex">
                         <span className="sl-status-pill">
                           <span className="sl-live-dot" aria-hidden="true" />
                           {demo ? 'demo (simulated)' : networkId}
                         </span>
-                        {!demo && <NetworkSelector />}
                       </span>
                       <button type="button" className="sl-button-ghost" onClick={() => navigate('/ledger')}>
                         Verify on-chain →
@@ -667,15 +655,14 @@ const Body: React.FC = () => {
                     </div>
                   </div>
                 ) : (
-                  <HomeDashboard
+<HomeDashboard
                     role={role}
                     clearRole={clearRole}
                     walletInfo={walletInfo}
-deploymentAddress={deploymentAddress ?? ''}
+                    deploymentAddress={deploymentAddress ?? ''}
                     deployed={deployed}
                     streamStatus={streamStatus}
                     ledgerError={ledgerError}
-                    invoiceCount={ledgerState ? ledgerState.invoiceCount : null}
                     demo={demo}
                     enterDemo={enterDemo}
                   />

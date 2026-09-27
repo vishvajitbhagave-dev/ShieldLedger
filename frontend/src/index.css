@@ -300,48 +300,7 @@ body {
   border-color: rgba(220, 38, 38, 0.25);
 }
 
-/* ─── Runtime network switch (Preview / Preprod) ─────────────────────────── */
-.sl-network-selector {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 999px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-}
-
-.sl-network-option {
-  font-size: var(--text-caption);
-  font-weight: var(--fw-semibold);
-  letter-spacing: 0.04em;
-  padding: 5px 11px;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--text-faint);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
-}
-
-.sl-network-option:hover:not(.sl-network-option-active) {
-  color: var(--navy);
-  background: var(--navy-soft);
-}
-
-.sl-network-option:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
-
-.sl-network-option-active {
-  background: var(--navy-soft-strong);
-  color: var(--navy);
-  border-color: var(--navy-border);
-}
-
-/* Pre-connect network hint + selector (wallet gate / picker modal). */
+/* ─── Pre-connect network hint (picker modal) ─────────────────────────────── */
 .sl-network-notice {
   display: flex;
   flex-direction: column;
@@ -379,30 +338,7 @@ body {
   padding: 3px 10px;
 }
 
-.sl-top-metric {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  line-height: 1;
-}
-
-.sl-top-metric-value {
-  font-size: var(--text-2xl);
-  font-weight: var(--fw-bold);
-  letter-spacing: -0.02em;
-  color: var(--navy);
-}
-
-.sl-top-metric-label {
-  font-size: var(--text-caption);
-  font-weight: var(--fw-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-faint);
-  margin-top: 4px;
-}
-
-/* ─── Role + network segmented switches (header, on navy) ─────────────────── */
+/* ─── Segmented switches (role + network, on navy) ────────────────────────── */
 .sl-role-switch {
   display: inline-flex;
   align-items: center;
@@ -444,26 +380,6 @@ body {
   box-shadow: 0 2px 8px rgba(15, 157, 107, 0.4);
 }
 
-.sl-header .sl-network-selector {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.16);
-}
-
-.sl-header .sl-network-option {
-  color: #a9bcd4;
-}
-
-.sl-header .sl-network-option:hover:not(.sl-network-option-active) {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.sl-header .sl-network-option-active {
-  background: #fff;
-  color: var(--navy);
-  border-color: rgba(255, 255, 255, 0.6);
-}
-
 /* ════════════════ Icon navigation (section shell, on navy) ════════════════ */
 
 .sl-nav {
@@ -479,7 +395,7 @@ body {
 
 .sl-nav-item {
   display: flex;
-  flex: 1 1 0%;
+  flex: 1 1 auto;
   align-items: center;
   justify-content: center;
   gap: var(--sp-2);
@@ -1466,25 +1382,28 @@ select.sl-input {
   color: #0f7d54;
 }
 
-/* Light-theme network selector + hint inside the white modal card. */
-.sl-modal .sl-network-selector {
+/* Light-theme segmented switch + hint inside the white modal card. */
+.sl-modal .sl-role-switch {
   background: #eef1f5;
   border-color: #e2e7ee;
 }
 
-.sl-modal .sl-network-option {
+.sl-modal .sl-role-option {
   color: #8a95a3;
 }
 
-.sl-modal .sl-network-option:hover:not(.sl-network-option-active) {
+.sl-modal .sl-role-option:hover:not(.sl-role-option-active) {
   color: var(--navy);
   background: rgba(16, 35, 63, 0.06);
 }
 
-.sl-modal .sl-network-option-active {
+.sl-modal .sl-role-option:focus-visible {
+  box-shadow: 0 0 0 3px rgba(16, 35, 63, 0.25);
+}
+
+.sl-modal .sl-role-option-active {
   background: #ffffff;
   color: var(--navy);
-  border-color: #c9d2dd;
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
 }
 
@@ -2346,10 +2265,6 @@ select.sl-input {
   padding: var(--sp-4);
 }
 
-.sl-stage-tight {
-  padding: var(--sp-3) var(--sp-4);
-}
-
 .sl-subheading {
   font-size: var(--text-lg);
   font-weight: var(--fw-bold);
@@ -2666,10 +2581,6 @@ select.sl-input {
   .sl-logo {
     width: 38px;
     height: 38px;
-  }
-
-  .sl-top-metric {
-    align-items: flex-start;
   }
 }
 

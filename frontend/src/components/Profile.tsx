@@ -1,42 +1,31 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useShieldLedger, type Role } from '../context.js';
-import { useLedgerState } from '../use-ledger-state.js';
-import { buildLenderPortfolio } from '../lender-portfolio.js';
+import { Link } from 'react-router-dom';
+import { useShieldLedger } from '../context.js';
 import { loadRegisteredInvoices } from '../invoice-registry.js';
-import { loadPoolPayouts } from '../pool-payouts.js';
 import type { WalletScope } from '../wallet-scope.js';
-import { demoLoadPoolPayouts, demoLoadRegisteredInvoices, getDemoApi } from '../lib/demo-ledger.js';
-import { ROLE_DEFS } from '../roles.js';
+import { demoLoadRegisteredInvoices, getDemoApi } from '../lib/demo-ledger.js';
 import { HexBadge } from './HexBadge.js';
 import { PageHeader } from './PageHeader.js';
-import { NetworkSelector } from './NetworkSelector.js';
 import { EmptyState } from './EmptyState.js';
-import { ConnectingState } from './LoadingPlaceholders.js';
 import { unixSecondsToDmy } from '../time.js';
-import { track } from '../lib/analytics.js';
-import { describeError } from '../lib/errorMessages.js';
-import { ErrorBanner } from './ErrorBanner.js';
 
 const PAGE_TITLE = 'Profile';
 
-const formatBigInt = (value: bigint): string => value.toLocaleString();
-
 /**
- * Your own wallet's profile view. Every value shown here is either already
- * public on-chain (addresses, contract instance, winning terms) or stored
- * locally in this browser (role, network, registered-invoice records, lender
- * pseudonym) — the same privacy rules that govern the rest of the app are
- * respected: no credit/reputation scores, buyer identity, or bid secrets.
+ * Your own wallet's identity and browser-activity view: the wallet's lender
+ * pseudonym and the invoices this browser registered. Wallet addresses and the
+ * contract instance live on the Home page's Network &amp; Account block, and
+ * financing positions live on the Lender Portfolio page (linked from here).
+ * Nothing private is disclosed.
  */
 export const Profile: React.FC = () => {
-  const { walletInfo, role, setRole, demo, deployment } = useShieldLedger();
-  const { state, error, retry } = useLedgerState();
+  const { walletInfo, role, demo, deployment } = useShieldLedger();
   const api = demo ? getDemoApi() : deployment.status === 'deployed' ? deployment.api : null;
   const [myPseudonym, setMyPseudonym] = useState<string | null | undefined>(undefined);
 
-  // Registered invoices and pool payouts are wallet+contract scoped: only this
-  // wallet's own records on the active contract are shown (never another
-  // wallet's, even in the same browser).
+  // Registered invoices are wallet+contract scoped: only this wallet's own
+  // records on the active contract are shown (never another wallet's, even in
+  // the same browser).
   const scope: WalletScope = {
     shieldedAddress: walletInfo?.shieldedAddress ?? '',
     contractAddress: deployment.status === 'deployed' ? deployment.address : '',
@@ -61,59 +50,21 @@ export const Profile: React.FC = () => {
     };
   }, [api]);
 
-  const localPayouts = useMemo(() => {
-    const m = new Map<string, bigint>();
-    const records = demo ? demoLoadPoolPayouts() : loadPoolPayouts(scope);
-    for (const record of records) {
-      m.set(record.slotKey, BigInt(record.payout));
-    }
-    return m;
-  }, [myPseudonym, demo, scope.shieldedAddress, scope.contractAddress]);
-
   const registeredInvoices = useMemo(
     () => (demo ? demoLoadRegisteredInvoices() : loadRegisteredInvoices(scope)),
     [demo, scope.shieldedAddress, scope.contractAddress],
   );
 
-  /** Summary only — the full positions table lives on the Lender Portfolio page. */
-  const portfolio = state && myPseudonym ? buildLenderPortfolio(state, myPseudonym, localPayouts) : null;
-
-  const switchRole = (next: Role): void => {
-    if (next === role) return;
-    setRole(next);
-    if (!demo) track('role_switch', { role: next });
-  };
-
   return (
     <div className="sl-panel sl-panel-elevated">
       <PageHeader
         title={PAGE_TITLE}
-        subtitle="Your wallet, role, and network — plus this browser's own activity. Everything shown is local or already public on-chain."
+        subtitle="Your wallet's identity and this browser's own activity — everything shown is local or already public on-chain."
       />
 
       <section className="sl-stage">
         <h3 className="sl-section-title">Wallet identity</h3>
         <div className="sl-status-group sl-header-details">
-          <div className="sl-status-item">
-            <span className="sl-status-label">Unshielded Address</span>
-            <span className="sl-status-value">
-              {demo ? 'demo (simulated)' : walletInfo ? <HexBadge hex={walletInfo.unshieldedAddress} /> : 'Not connected'}
-            </span>
-          </div>
-          <div className="sl-status-item">
-            <span className="sl-status-label">Shielded Address</span>
-            <span className="sl-status-value">
-              {demo ? 'demo (simulated)' : walletInfo ? <HexBadge hex={walletInfo.shieldedAddress} /> : 'Not connected'}
-            </span>
-          </div>
-          {deployment.status === 'deployed' && (
-            <div className="sl-status-item">
-              <span className="sl-status-label">Contract Address</span>
-              <span className="sl-status-value">
-                <HexBadge hex={deployment.address ?? ''} />
-              </span>
-            </div>
-          )}
           <div className="sl-status-item">
             <span className="sl-status-label">Lender pseudonym</span>
             <span className="sl-status-value">
@@ -127,42 +78,10 @@ export const Profile: React.FC = () => {
             </span>
           </div>
         </div>
-      </section>
-
-      <section className="sl-stage">
-        <h3 className="sl-section-title">Role</h3>
-        <div className="sl-role-switch" role="group" aria-label="Your role">
-          {ROLE_DEFS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              className={role === option.value ? 'sl-role-option sl-role-option-active' : 'sl-role-option'}
-              aria-pressed={role === option.value}
-              onClick={() => switchRole(option.value)}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
         <p className="sl-note">
-          Your role drives what you can do and which pages you see — the Lender role unlocks the
-          Lender Portfolio page and the portfolio summary below.
+          Wallet addresses and the active contract instance are shown on the Home page&rsquo;s
+          Network &amp; Account block.
         </p>
-      </section>
-
-      <section className="sl-stage">
-        <h3 className="sl-section-title">Network</h3>
-        {demo ? (
-          <p className="sl-meta">Demo mode runs on an in-memory simulated ledger — no network connection is needed.</p>
-        ) : (
-          <>
-            <NetworkSelector />
-            <p className="sl-note">
-              The selection persists and is the single source of truth for connect and ledger lookups.
-              Switching while connected reconnects your wallet on the new network.
-            </p>
-          </>
-        )}
       </section>
 
       <section className="sl-stage">
@@ -204,78 +123,20 @@ export const Profile: React.FC = () => {
         )}
 
         <p className="sl-meta sl-section-tag">Portfolio (Lender role)</p>
-        {error && (
-          <ErrorBanner
-            error={describeError('ledgerStream', error)}
-            onRetry={retry}
-          />
-        )}
         {role !== 'lender' ? (
           <p className="sl-note">
-            Switch your role to <strong>Lender</strong> to see financing-position summaries here.
-          </p>
-        ) : myPseudonym === undefined ? (
-          !error && <ConnectingState label="Resolving your lender pseudonym…" />
-        ) : myPseudonym === null ? (
-          !error && (
-            <ConnectingState label="No lender identity yet — submit a bid once and positions will appear here." />
-          )
-        ) : portfolio === null ? (
-          !error && (
-            <ConnectingState
-              label="Connecting to live ledger data…"
-              hint="Position summaries fill in as the live stream connects."
-            />
-          )
-        ) : portfolio.positions.length === 0 ? (
-          <p className="sl-note">
-            No positions yet — win a single-lender auction or reveal a pool slot to build a portfolio.
+            Financing-position summaries live on the Lender Portfolio page once you choose the
+            Lender role.
           </p>
         ) : (
           <>
-            <div className="u-grid-fit">
-              <div className="sl-stage sl-stage-compact">
-                <h3 className="sl-section-title">Positions</h3>
-                <div className="u-stat">
-                  {portfolio.activeCount}
-                  <span className="u-stat-suffix"> / {portfolio.positions.length}</span>
-                </div>
-                <p className="sl-meta u-mt-2">
-                  {portfolio.settledCount} settled, {portfolio.defaultedCount} defaulted
-                </p>
-              </div>
-              <div className="sl-stage sl-stage-compact">
-                <h3 className="sl-section-title">Issued Exposure</h3>
-                <div className="u-stat">
-                  {formatBigInt(portfolio.issuedExposure)} <span className="u-stat-unit">tNight</span>
-                </div>
-                <p className="sl-meta u-mt-2">
-                  {portfolio.singleCount} single-lender financing{portfolio.poolCount > 0 ? ` (${portfolio.poolCount} pool slot principal confidential)` : ''}
-                </p>
-              </div>
-              <div className="sl-stage sl-stage-compact">
-                <h3 className="sl-section-title">Contracted Return</h3>
-                <div className="u-stat">
-                  {formatBigInt(portfolio.contractedReturn)} <span className="u-stat-unit">tNight</span>
-                </div>
-                <p className="sl-meta u-mt-2">Expected if repaid on time — not guaranteed</p>
-              </div>
-              <div className="sl-stage sl-stage-compact">
-                <h3 className="sl-section-title">Concentration</h3>
-                <div className="u-stat">
-                  {portfolio.concentrationRate === null
-                    ? '—'
-                    : `${(portfolio.concentrationRate * 100).toFixed(1)}%`}
-                </div>
-                <p className="sl-meta u-mt-2">
-                  Largest position / disclosed exposure across {portfolio.invoiceCount} invoiced position{portfolio.invoiceCount === 1 ? '' : 's'}
-                </p>
-              </div>
-            </div>
-            <p className="sl-meta">
-              Full per-position details — including pool-slot confidentiality rules — live on the
-              Lender Portfolio page.
+            <p className="sl-note">
+              Issued exposure, contracted return, concentration, and per-position details —
+              including pool-slot confidentiality rules — live on the Lender Portfolio page.
             </p>
+            <Link className="sl-button" to="/portfolio">
+              View Lender Portfolio →
+            </Link>
           </>
         )}
       </section>

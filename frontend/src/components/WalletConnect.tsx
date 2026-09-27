@@ -3,7 +3,6 @@ import { useShieldLedger } from '../context.js';
 import { listWalletOptions } from '../manager.js';
 import { HexBadge } from './HexBadge.js';
 import { WalletPickerModal } from './WalletPickerModal.js';
-import { WalletNetworkNotice } from './WalletNetworkNotice.js';
 import { clearChosenWallet, readChosenWallet } from '../lib/wallet-handoff.js';
 import { DEFAULT_LEDGER_ADDRESSES, isAdvancedMode } from '../default-contracts.js';
 
@@ -63,7 +62,6 @@ export const WalletConnect: React.FC = () => {
         <p className="sl-meta">
           ShieldLedger needs a Midnight wallet to sign for you on-chain. Private state never leaves your wallet.
         </p>
-        <WalletNetworkNotice />
         <button type="button" className="sl-button" onClick={() => setPickerOpen(true)} disabled={connecting}>
           Choose a wallet
         </button>

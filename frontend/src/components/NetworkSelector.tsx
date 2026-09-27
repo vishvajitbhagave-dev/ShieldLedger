@@ -7,14 +7,14 @@ export const NetworkSelector: React.FC = () => {
   const { networkId, setNetwork } = useShieldLedger();
 
   return (
-    <div className="sl-network-selector" role="group" aria-label="Midnight network">
+    <div className="sl-role-switch" role="group" aria-label="Midnight network">
       {RUNTIME_NETWORK_IDS.map((network: RuntimeNetworkId) => {
         const active = networkId === network;
         return (
           <button
             key={network}
             type="button"
-            className={active ? 'sl-network-option sl-network-option-active' : 'sl-network-option'}
+            className={active ? 'sl-role-option sl-role-option-active' : 'sl-role-option'}
             aria-pressed={active}
             onClick={() => setNetwork(network)}
           >

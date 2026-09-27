@@ -527,9 +527,9 @@ export const InvoiceFinancing: React.FC = () => {
     void connect();
   };
 
-  // Switch identity: confirm first because the current role's form drafts are discarded.
+  // Switching identity clears the current role's form drafts, mirroring the
+  // instant role switcher in the app header.
   const switchRole = () => {
-    if (!window.confirm('Switch role? Your current role selection and unsaved form fields will be cleared.')) return;
     setMessage(null);
     setWorking(null);
     clearRole();

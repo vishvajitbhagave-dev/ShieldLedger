@@ -177,21 +177,21 @@ export const RateTrendChart: React.FC = () => {
       {records.length > 0 && (
         <>
           <div className="u-grid-fit-sm u-mb-4">
-            <div className="sl-stage sl-stage-tight">
+            <div className="sl-stage sl-stage-compact">
               <div className="u-stat u-stat-sm">{records.length}</div>
               <p className="sl-meta u-mt-1">records observed in this browser</p>
             </div>
-            <div className="sl-stage sl-stage-tight">
+            <div className="sl-stage sl-stage-compact">
               <div className="u-stat u-stat-sm">{sessionCount}</div>
               <p className="sl-meta u-mt-1">observed this session</p>
             </div>
-            <div className="sl-stage sl-stage-tight">
+            <div className="sl-stage sl-stage-compact">
               <div className="u-stat u-stat-sm">
                 {avg === null ? '—' : `${avg.toString()} bps`}
               </div>
               <p className="sl-meta u-mt-1">average rate{band !== 'all' ? ` (${band})` : ' (all bands)'}</p>
             </div>
-            <div className="sl-stage sl-stage-tight">
+            <div className="sl-stage sl-stage-compact">
               <div className="u-stat u-stat-sm">{buckets.length}</div>
               <p className="sl-meta u-mt-1">time buckets plotted</p>
             </div>
