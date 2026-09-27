@@ -44,7 +44,6 @@ const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 const connectWithUnlockRetry = async (
   wallet: InitialAPI,
   networkId: string,
-  onLocked: () => void,
   signal?: AbortSignal,
 ): Promise<ConnectedAPI> => {
   const deadline = Date.now() + UNLOCK_WAIT_MS;
@@ -55,7 +54,6 @@ const connectWithUnlockRetry = async (
     } catch (error) {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       if (!isLockedError(error)) throw error;
-      onLocked();
       if (Date.now() >= deadline) {
         throw new Error(
           `Timed out waiting for ${wallet.name || 'the wallet'} to be unlocked. Unlock it via the extension icon and try again.`,
@@ -136,13 +134,12 @@ export const listWalletOptions = (): WalletOption[] =>
  * to that wallet directly. Otherwise it polls for the first compatible
  * injected wallet — the pre-multi-wallet behavior, kept as a fallback.
  *
- * While the wallet is locked, reports 'wallet-locked' via onStatus and keeps
- * retrying until the user unlocks it (or the wait times out). Any connect
- * rejection, approval timeout, or network mismatch surfaces as a clear error.
+ * While the wallet is locked, keeps retrying until the user unlocks it (or the
+ * wait times out). Any connect rejection, approval timeout, or network
+ * mismatch surfaces as a clear error.
  */
 export const connectToWallet = (
   networkId: string,
-  onStatus?: (status: 'wallet-locked') => void,
   selectedWallet?: InitialAPI,
   signal?: AbortSignal,
 ): Promise<ConnectedAPI> => {
@@ -165,7 +162,7 @@ export const connectToWallet = (
   return firstValueFrom(
     source$.pipe(
       concatMap(async (initialAPI: InitialAPI) => {
-        const connectedAPI = await connectWithUnlockRetry(initialAPI, networkId, () => onStatus?.('wallet-locked'), signal);
+        const connectedAPI = await connectWithUnlockRetry(initialAPI, networkId, signal);
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
         const connectionStatus = await connectedAPI.getConnectionStatus();
         log.info(`Wallet connection status: ${JSON.stringify(connectionStatus)}`);

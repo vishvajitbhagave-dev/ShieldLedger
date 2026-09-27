@@ -18,6 +18,18 @@ import { PageHeader } from './PageHeader.js';
 
 const PAGE_TITLE = 'Settings';
 
+function storageIsUsable(): boolean {
+  if (typeof localStorage === 'undefined') return false;
+  try {
+    const probeKey = `shieldledger-storage-probe-${Date.now()}`;
+    localStorage.setItem(probeKey, '1');
+    localStorage.removeItem(probeKey);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * App behavior + local-data control. Profile stays identity-focused (wallet,
  * role, network, activity); this page is about how ShieldLedger behaves in this
@@ -28,8 +40,9 @@ const PAGE_TITLE = 'Settings';
  */
 export const Settings: React.FC = () => {
   const { networkId, demo, deployment, walletInfo } = useShieldLedger();
-  // Recomputes every snapshot read against localStorage after each clear.
+// Recomputes every snapshot read against localStorage after each clear.
   const [clearedTick, setClearedTick] = useState(0);
+  const [storageAvailable, setStorageAvailable] = useState<boolean>(() => storageIsUsable());
   const [message, setMessage] = useState<string | null>(null);
 
   // Wallet-owned local records (invoices, settlement payouts, private state)
@@ -43,9 +56,10 @@ export const Settings: React.FC = () => {
 
   const scopeIsSet = scope.contractAddress !== '';
 
-  const reload = (): void => setClearedTick((t) => t + 1);
-
-  const storageAvailable = typeof localStorage !== 'undefined';
+const reload = (): void => {
+    setClearedTick((t) => t + 1);
+    setStorageAvailable(storageIsUsable());
+  };
 
   const unsetScopeNote = !scopeIsSet && (
     <p className="sl-note sl-note-accent">

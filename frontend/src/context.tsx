@@ -52,7 +52,6 @@ export interface ShieldLedgerContextValue {
   readonly networkId: string;
   readonly setNetwork: (network: RuntimeNetworkId) => void;
   readonly connecting: boolean;
-  readonly walletLocked: boolean;
   readonly connected: boolean;
   readonly walletInfo: WalletInfo | null;
   readonly deployment: DeploymentState;
@@ -94,7 +93,6 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
 }) => {
   const [networkId, setNetworkIdState] = useState<string>(() => loadStoredNetworkId(buildTimeNetwork));
   const [connecting, setConnecting] = useState(false);
-  const [walletLocked, setWalletLocked] = useState(false);
   const [walletInfo, setWalletInfo] = useState<WalletInfo | null>(null);
   const [role, setRoleState] = useState<Role | null>(() => loadRole());
   const [providers, setProviders] = useState<ShieldLedgerProviders | null>(null);
@@ -165,16 +163,10 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
     const gen = ++connectGeneration.current;
 
     setConnecting(true);
-    setWalletLocked(false);
     setError(null);
     try {
       const api = await connectToWallet(
         networkId,
-        (status) => {
-          if (status === 'wallet-locked' && gen === connectGeneration.current) {
-            setWalletLocked(true);
-          }
-        },
         selected?.api ?? undefined,
         controller.signal,
       );
@@ -225,7 +217,6 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
       // Only clear the "connecting" flag if we are still the active attempt.
       if (gen === connectGeneration.current) {
         setConnecting(false);
-        setWalletLocked(false);
       }
     }
   }, [networkId]);
@@ -235,7 +226,6 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
     setWalletInfo(null);
     setProviders(null);
     setDeployment({ status: 'idle' });
-    setWalletLocked(false);
     setError(null);
   }, []);
 
@@ -281,7 +271,6 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
         setWalletInfo(null);
         setProviders(null);
         setDeployment({ status: 'idle' });
-        setWalletLocked(false);
         setError({
           message: `Switched to the ${NETWORK_LABELS[next]} network. Reconnect your wallet to continue on ${NETWORK_LABELS[next]}.`,
           technical: '',
@@ -330,7 +319,6 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
       networkId,
       setNetwork,
       connecting,
-      walletLocked,
       connected: walletInfo !== null,
       walletInfo,
       deployment,
@@ -347,7 +335,7 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
       enterDemo,
       exitDemo,
     }),
-    [networkId, setNetwork, connecting, walletLocked, walletInfo, deployment, role, setRole, clearRole, connect, disconnect, deploy, join, error, clearError, demo, enterDemo, exitDemo],
+    [networkId, setNetwork, connecting, walletInfo, deployment, role, setRole, clearRole, connect, disconnect, deploy, join, error, clearError, demo, enterDemo, exitDemo],
   );
 
   return <ShieldLedgerContext.Provider value={value}>{children}</ShieldLedgerContext.Provider>;

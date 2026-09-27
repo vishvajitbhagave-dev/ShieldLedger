@@ -16,6 +16,13 @@ interface ErrorBannerProps {
 export const ErrorBanner: React.FC<ErrorBannerProps> = ({ error, onDismiss, onReconnect, onRetry }) => {
   if (!error) return null;
 
+  const action = error.action;
+  const hasRenderableAction =
+    action !== undefined &&
+    (action.kind === 'link' ||
+      (action.kind === 'reconnect' && onReconnect !== undefined) ||
+      (action.kind === 'retry' && onRetry !== undefined));
+
   return (
     <div className="sl-error sl-error-banner" role="alert">
       {onDismiss && (
@@ -25,7 +32,7 @@ export const ErrorBanner: React.FC<ErrorBannerProps> = ({ error, onDismiss, onRe
       )}
       <div className="sl-error-body">
         <span className="sl-error-message">{error.message}</span>
-        {error.action && (
+        {hasRenderableAction && (
           <div className="sl-error-actions">
             {error.action?.kind === 'link' && (
               <a

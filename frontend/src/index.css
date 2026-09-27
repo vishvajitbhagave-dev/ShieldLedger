@@ -102,7 +102,6 @@
   --text-lg: 18px;           /* panel titles */
   --text-xl: 22px;           /* section headings */
   --text-2xl: 28px;          /* page title / hero metric */
-  --text-display: 44px;      /* landing display only */
 
   /* Type weights - 400..700 only */
   --fw-normal: 400;
@@ -302,14 +301,6 @@ body {
 }
 
 /* ─── Runtime network switch (Preview / Preprod) ─────────────────────────── */
-.sl-network-bar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sp-3);
-  flex-wrap: wrap;
-}
-
 .sl-network-selector {
   display: inline-flex;
   align-items: center;
@@ -374,28 +365,6 @@ body {
   display: inline-block;
   flex: none;
   animation: pulse 2s ease-in-out infinite;
-}
-
-.sl-avatar {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  flex: none;
-  display: grid;
-  place-items: center;
-  background: var(--navy-soft);
-  color: var(--navy);
-  font-weight: var(--fw-bold);
-  font-size: var(--text-md);
-  border: 1px solid var(--navy-soft-strong);
-}
-
-.sl-identity {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  min-width: 0;
 }
 
 .sl-verified {
@@ -907,14 +876,6 @@ body {
   align-items: center;
   gap: var(--sp-4);
   flex-wrap: wrap;
-}
-
-.sl-or {
-  color: var(--text-faint);
-  font-weight: var(--fw-semibold);
-  text-transform: uppercase;
-  font-size: var(--text-caption);
-  letter-spacing: 0.06em;
 }
 
 /* ════════════════ Hero card ════════════════ */
@@ -1497,6 +1458,10 @@ select.sl-input {
   color: #16a36f;
 }
 
+.sl-modal .sl-wallet-missing {
+  color: #8a95a3;
+}
+
 .sl-modal .sl-wallet-install a:hover {
   color: #0f7d54;
 }
@@ -1632,6 +1597,22 @@ select.sl-input {
 .sl-wallet-option-unavailable .sl-wallet-name,
 .sl-wallet-option-unavailable .sl-wallet-desc {
   color: var(--text-muted);
+}
+
+.sl-wallet-install {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sl-wallet-missing {
+  font-size: var(--text-caption);
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  white-space: nowrap;
 }
 
 .sl-wallet-install a {
@@ -1911,16 +1892,6 @@ select.sl-input {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-}
-
-.sl-live {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-  flex: none;
-  background: var(--success);
-  animation: pulse 2s ease-in-out infinite;
 }
 
 /* ════════════════ Tables ════════════════ */

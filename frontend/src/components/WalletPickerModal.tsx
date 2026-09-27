@@ -100,6 +100,7 @@ export const WalletPickerModal: React.FC<WalletPickerModalProps> = ({ open, onCl
                   <span className="sl-wallet-desc">{option.definition.description}</span>
                 </span>
                 <span className="sl-wallet-install">
+                  <span className="sl-wallet-missing">Not installed</span>
                   <a href={option.definition.installUrl} target="_blank" rel="noopener noreferrer">
                     Install
                   </a>

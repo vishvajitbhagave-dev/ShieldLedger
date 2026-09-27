@@ -99,6 +99,9 @@ export const LEDGER_STREAM_STALL_MESSAGE =
 export const LEDGER_STREAM_INSECURE_WS_MESSAGE =
   "Unable to reach the live ledger securely — your browser blocked an insecure WebSocket connection from this secure page. Check the network/wallet configuration and reconnect (the wallet should report secure wss:// endpoints).";
 
+export const LEDGER_STREAM_FAIL_MESSAGE =
+  'Unable to read live ledger data. Check your connection, then try again — or reconnect your wallet if it keeps failing.';
+
 /**
  * Thrown by the wallet provider when balancing (funding) a transaction fails.
  * Carries the original error so the mapper can show the fee/balance guidance
@@ -245,6 +248,7 @@ function isBareError(raw: string): boolean {
 const ASSERTION_NOUNS: Record<string, string> = {
   settleInvoice: 'settlement',
   revealBid: 'bid reveal',
+  contractDeployment: 'ledger deployment',
 };
 
 /**
@@ -343,6 +347,9 @@ export function describeError(label: string, error: unknown): UserFacingError {
         return { message: ALREADY_BUYER_VERIFIED_MESSAGE, technical: raw };
       return { message: GENERIC_CONFIRM_FAILURE_MESSAGE, technical: raw };
     }
+    if (label === 'ledgerStream') {
+      return { message: `The live ledger reported a problem: ${detail}`, technical: raw };
+    }
     const noun = ASSERTION_NOUNS[label] ?? 'transaction';
     return {
       message: `The contract rejected this ${noun}: ${detail}`,
@@ -353,6 +360,7 @@ export function describeError(label: string, error: unknown): UserFacingError {
   if (label === 'registerInvoice') return { message: GENERIC_REGISTER_FAILURE_MESSAGE, technical: raw };
   if (label === 'submitBid') return { message: GENERIC_SUBMIT_BID_FAILURE_MESSAGE, technical: raw };
   if (label === 'confirmInvoice') return { message: GENERIC_CONFIRM_FAILURE_MESSAGE, technical: raw };
+  if (label === 'ledgerStream') return { message: LEDGER_STREAM_FAIL_MESSAGE, technical: raw };
 
   return { message: GENERIC_TRANSACTION_FAILURE_MESSAGE, technical: raw };
 }

@@ -26,6 +26,7 @@ import {
   LEDGER_STREAM_STALL_MARKER,
   LEDGER_STREAM_STALL_MESSAGE,
   LEDGER_STREAM_INSECURE_WS_MESSAGE,
+  LEDGER_STREAM_FAIL_MESSAGE,
 } from '../frontend/src/lib/errorMessages.js';
 
 describe('userFacingFailureMessage — network submission rejections', () => {
@@ -211,6 +212,27 @@ describe('describeError — stalled live ledger stream', () => {
     const assert = new Error('failed assert: amount exceeds winning bid');
     expect(userFacingFailureMessage('ledgerStream', assert)).toContain(
       'amount exceeds winning bid',
+    );
+  });
+});
+
+describe('describeError — contract deployment and ledger stream labels', () => {
+  it('names a contract-deployment assertion accurately', () => {
+    const err = new Error('failed assert: contract already exists for this commitment');
+    expect(describeError('contractDeployment', err).message).toBe(
+      'The contract rejected this ledger deployment: contract already exists for this commitment',
+    );
+  });
+
+  it('routes ledger-stream assertion details through stream wording, not transaction wording', () => {
+    const mapped = describeError('ledgerStream', new Error('failed assert: amount exceeds winning bid'));
+    expect(mapped.message).toContain('amount exceeds winning bid');
+    expect(mapped.message).not.toContain('The contract rejected this transaction');
+  });
+
+  it('gives unmapped ledger-stream errors the live-data fallback', () => {
+    expect(describeError('ledgerStream', new Error('unexpected stream hiccup')).message).toBe(
+      LEDGER_STREAM_FAIL_MESSAGE,
     );
   });
 });

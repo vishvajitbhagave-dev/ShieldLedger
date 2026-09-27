@@ -114,7 +114,7 @@ export const WalletConnect: React.FC = () => {
             <span className="sl-row-body">
               <span className="sl-row-title">Deploy a new contract</span>
               <span className="sl-row-sub">
-                Create a fresh ShieldLedger auction on {deployment.status === 'idle' ? 'this network' : 'this network'}.
+                Create a fresh ShieldLedger auction on this network.
               </span>
             </span>
             <ChevronRightIcon />
