@@ -5,7 +5,9 @@
 // Reputation is wallet-side: after each settlement the API reads the SME's
 // private state from the provider, applies the on-time/late classification the
 // circuit returned, and writes the updated score back. The provider (in-memory
-// for this demo) keeps it for the session; it never goes on-chain.
+// for this demo) keeps it for the session; it never goes on-chain. To survive
+// disconnects, the full private state is also cached in localStorage, scoped by
+// the wallet's shielded address AND the contract address (private-state-cache.ts).
 import * as ShieldLedger from '../../contracts/managed/shield-ledger/contract/index.js';
 import { deployContract, findDeployedContract } from '@midnight-ntwrk/midnight-js-contracts';
 import { type ContractAddress } from '@midnight-ntwrk/midnight-js-protocol/compact-runtime';
@@ -32,64 +34,11 @@ import {
   type ShieldLedgerProviders,
 } from './shield-ledger-types.js';
 import { persistPoolPayout, lookupPoolPayout } from './pool-payouts.js';
+import { loadCachedPrivateState, persistPrivateState } from './private-state-cache.js';
+import type { WalletScope } from './wallet-scope.js';
 
 function toHex(bytes: Uint8Array): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-// ─── Private-state persistence across sessions ──────────────────────────────
-// The in-memory provider drops all state on disconnect. To preserve reputation
-// and wallet identity across browser sessions, we cache the full private state
-// to localStorage (keyed by contract address) after every mutation, and hydrate
-// from the cache when joining an existing contract.
-
-const PS_CACHE_PREFIX = 'shieldledger.private-state.';
-
-function psCacheKey(contractAddress: ContractAddress): string {
-  return `${PS_CACHE_PREFIX}${contractAddress}`;
-}
-
-function encodePrivateState(state: ShieldLedgerPrivateState): string {
-  return JSON.stringify(state, (_key, value) => {
-    if (value instanceof Uint8Array) return { __bytes: toHex(value) };
-    if (typeof value === 'bigint') return { __bigint: value.toString() };
-    return value;
-  });
-}
-
-function decodePrivateState(json: string): ShieldLedgerPrivateState {
-  return JSON.parse(json, (_key, value) => {
-    if (value && typeof value === 'object' && !Array.isArray(value)) {
-      const obj = value as Record<string, unknown>;
-      if (typeof obj.__bytes === 'string') {
-        const hex = obj.__bytes;
-        const out = new Uint8Array(hex.length / 2);
-        for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-        return out;
-      }
-      if (typeof obj.__bigint === 'string') return BigInt(obj.__bigint);
-    }
-    return value;
-  }) as ShieldLedgerPrivateState;
-}
-
-function persistPrivateState(contractAddress: ContractAddress, state: ShieldLedgerPrivateState): void {
-  try {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(psCacheKey(contractAddress), encodePrivateState(state));
-  } catch {
-    // Storage unavailable or full — silently ignore.
-  }
-}
-
-function loadCachedPrivateState(contractAddress: ContractAddress): ShieldLedgerPrivateState | null {
-  try {
-    if (typeof localStorage === 'undefined') return null;
-    const raw = localStorage.getItem(psCacheKey(contractAddress));
-    return raw ? decodePrivateState(raw) : null;
-  } catch {
-    return null;
-  }
 }
 
 function fromHex(input: string): Uint8Array {
@@ -171,10 +120,41 @@ function toDerivedState(state: Parameters<typeof ShieldLedger.ledger>[0]): Shiel
   };
 }
 
+/**
+ * Resolves the wallet+contract-scoped private state a join should use:
+ * the in-memory provider's current value (same session), else the local cache
+ * (a previous session), else — first ever join for this wallet/contract — a
+ * freshly created state. On that last path the fresh secrets are persisted to
+ * the cache immediately (mirroring deploy()) so any reconnect/reload before
+ * the first settlement restores the SAME SME identity instead of silently
+ * issuing a new random secret (which would fail every registered invoice's
+ * `deriveCommitment(...) == smeCommitment` settle check with "not the SME").
+ */
+export async function resolveInitialPrivateState(
+  providers: Pick<ShieldLedgerProviders, 'privateStateProvider'>,
+  shieldedAddress: string,
+  contractAddress: ContractAddress,
+): Promise<ShieldLedgerPrivateState> {
+  providers.privateStateProvider.setContractAddress(contractAddress);
+  let existing = await providers.privateStateProvider.get(shieldLedgerPrivateStateKey);
+  if (!existing) {
+    const cached = loadCachedPrivateState(shieldedAddress, contractAddress);
+    if (cached) {
+      await providers.privateStateProvider.set(shieldLedgerPrivateStateKey, cached);
+      existing = cached;
+    }
+  }
+  if (existing) return existing;
+  const created = createShieldLedgerPrivateState();
+  persistPrivateState(shieldedAddress, contractAddress, created);
+  return created;
+}
+
 export class ShieldLedgerAPI {
   private constructor(
     public readonly deployedContract: DeployedShieldLedgerContract,
     private readonly providers: ShieldLedgerProviders,
+    private readonly shieldedAddress: string,
   ) {
     this.deployedContractAddress = deployedContract.deployTxData.public.contractAddress;
     providers.privateStateProvider.setContractAddress(this.deployedContractAddress);
@@ -185,6 +165,14 @@ export class ShieldLedgerAPI {
 
   readonly deployedContractAddress: ContractAddress;
   readonly state$: Observable<ShieldLedgerDerivedState>;
+
+  /** Wallet+contract scope shared by the browser-local stores. */
+  private get walletScope(): WalletScope {
+    return {
+      shieldedAddress: this.shieldedAddress,
+      contractAddress: this.deployedContractAddress,
+    };
+  }
 
   /**
    * Registers an invoice as the SME. The wallet computes the exact 2%
@@ -270,7 +258,7 @@ export class ShieldLedgerAPI {
     if (!privateState) return null;
     const updated = applyReputationUpdate(privateState, onTime);
     await this.providers.privateStateProvider.set(shieldLedgerPrivateStateKey, updated);
-    persistPrivateState(this.deployedContractAddress, updated);
+    persistPrivateState(this.shieldedAddress, this.deployedContractAddress, updated);
     return reputationView(updated);
   }
 
@@ -439,14 +427,14 @@ export class ShieldLedgerAPI {
     // payout locally (keyed by slot key) for later insurance claims.
     for (let i = 0; i < 4; i++) {
       const slotKey = toHex(ShieldLedger.pureCircuits.poolSlotKey(nullifier, BigInt(i)));
-      persistPoolPayout({ nullifier: toHex(nullifier), slotIndex: BigInt(i), slotKey, payout: payouts[i] });
+      persistPoolPayout({ nullifier: toHex(nullifier), slotIndex: BigInt(i), slotKey, payout: payouts[i] }, this.walletScope);
     }
     const onTime = results.private.result === true;
     const privateState = await this.providers.privateStateProvider.get(shieldLedgerPrivateStateKey);
     if (!privateState) return onTime;
     const updated = applyReputationUpdate(privateState, onTime);
     await this.providers.privateStateProvider.set(shieldLedgerPrivateStateKey, updated);
-    persistPrivateState(this.deployedContractAddress, updated);
+    persistPrivateState(this.shieldedAddress, this.deployedContractAddress, updated);
     return onTime;
   }
 
@@ -502,7 +490,7 @@ export class ShieldLedgerAPI {
     // persisted locally when this wallet settled the invoice; replay it here as
     // the undisclosed witness. The circuit re-derives the commitment hash and
     // requires it to match on-chain, so a stale/wrong value is rejected.
-    const settlementPayout = lookupPoolPayout(toHex(slotKey));
+    const settlementPayout = lookupPoolPayout(toHex(slotKey), this.walletScope);
     if (settlementPayout === null) {
       throw new Error(
         'No locally stored payout for this slot. This wallet must have settled the pool invoice (which stores the per-lender payout privately) before it can claim insurance on it.',
@@ -531,40 +519,37 @@ export class ShieldLedgerAPI {
     return results.private.result;
   }
 
-  static async deploy(providers: ShieldLedgerProviders): Promise<ShieldLedgerAPI> {
+  static async deploy(
+    providers: ShieldLedgerProviders,
+    shieldedAddress: string,
+  ): Promise<ShieldLedgerAPI> {
     const deployedContract = await deployContract(providers, {
       compiledContract: compiledShieldLedgerContract,
       privateStateId: shieldLedgerPrivateStateKey,
       initialPrivateState: createShieldLedgerPrivateState(),
     });
-    const api = new ShieldLedgerAPI(deployedContract, providers);
+    const api = new ShieldLedgerAPI(deployedContract, providers, shieldedAddress);
     const initial = await providers.privateStateProvider.get(shieldLedgerPrivateStateKey);
-    if (initial) persistPrivateState(api.deployedContractAddress, initial);
+    if (initial) persistPrivateState(shieldedAddress, api.deployedContractAddress, initial);
     return api;
   }
 
   static async join(
     providers: ShieldLedgerProviders,
     contractAddress: ContractAddress,
+    shieldedAddress: string,
   ): Promise<ShieldLedgerAPI> {
-    providers.privateStateProvider.setContractAddress(contractAddress);
-    let existing = await providers.privateStateProvider.get(shieldLedgerPrivateStateKey);
-    if (!existing) {
-      const cached = loadCachedPrivateState(contractAddress);
-      if (cached) {
-        await providers.privateStateProvider.set(shieldLedgerPrivateStateKey, cached);
-        existing = cached;
-      }
-    }
-    const initialPrivateState: ShieldLedgerPrivateState =
-      existing ?? createShieldLedgerPrivateState();
-
+    const initialPrivateState = await resolveInitialPrivateState(
+      providers,
+      shieldedAddress,
+      contractAddress,
+    );
     const deployedContract = await findDeployedContract(providers, {
       contractAddress,
       compiledContract: compiledShieldLedgerContract,
       privateStateId: shieldLedgerPrivateStateKey,
       initialPrivateState,
     });
-    return new ShieldLedgerAPI(deployedContract, providers);
+    return new ShieldLedgerAPI(deployedContract, providers, shieldedAddress);
   }
 }

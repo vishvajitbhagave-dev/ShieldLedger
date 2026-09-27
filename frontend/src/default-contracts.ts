@@ -55,3 +55,13 @@ export function contractOverrideFromUrl(): string | null {
   const match = window.location.hash.match(CONTRACT_QUERY_REGEX);
   return match ? match[1].toLowerCase() : null;
 }
+
+/** Forgets a user-chosen contract address for a network, reverting to the default. */
+export function clearStoredContractAddress(networkId: string): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.removeItem(`${CONTRACT_STORAGE_PREFIX}${networkId}`);
+  } catch {
+    // Storage unavailable — nothing was persisted to clear.
+  }
+}

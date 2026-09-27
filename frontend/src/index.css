@@ -2745,3 +2745,92 @@ select.sl-input {
 .sl-demo-banner-text {
   font-size: var(--text-sm);
 }
+
+/* ════════════════ Settings page ════════════════ */
+
+.sl-settings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.sl-settings-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  background: var(--surface);
+}
+
+.sl-settings-row + .sl-settings-row {
+  border-top: 1px solid var(--border-strong);
+}
+
+.sl-settings-row strong {
+  display: block;
+  margin-bottom: var(--sp-1);
+}
+
+.sl-settings-row p {
+  margin: 0;
+}
+
+.sl-settings-row-danger {
+  background: var(--danger-soft);
+}
+
+.sl-settings-row-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-shrink: 0;
+}
+
+.sl-settings-contracts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--sp-4);
+  margin-top: var(--sp-4);
+}
+
+.sl-settings-contract {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-4);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  align-items: flex-start;
+}
+
+.sl-settings-contract-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+}
+
+.sl-settings-contract-name {
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: var(--text-xs);
+}
+
+@media (max-width: 640px) {
+  .sl-settings-row {
+    flex-direction: column;
+  }
+
+  .sl-settings-row-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

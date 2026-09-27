@@ -203,7 +203,7 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
         if (target) {
           setDeployment({ status: 'in-progress', kind: 'join' });
           try {
-            const joined = await joinShieldLedger(ps, target);
+            const joined = await joinShieldLedger(ps, target, info.shieldedAddress);
             if (gen !== connectGeneration.current) return;
             setDeployment({ status: 'deployed', api: joined, address: joined.deployedContractAddress });
             track('contract_join', { outcome: 'success' });
@@ -296,7 +296,7 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
     setError(null);
     setDeployment({ status: 'in-progress', kind: 'deploy' });
     try {
-      const api = await deployShieldLedger(providers);
+      const api = await deployShieldLedger(providers, walletInfo?.shieldedAddress ?? '');
       setDeployment({ status: 'deployed', api, address: api.deployedContractAddress });
       storeStoredContractAddress(networkId, api.deployedContractAddress);
       track('contract_deploy', { outcome: 'success' });
@@ -305,14 +305,14 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
       captureError(e, { step: 'deploy' });
       track('contract_deploy', { outcome: 'error' });
     }
-  }, [providers]);
+  }, [providers, walletInfo]);
 
   const join = useCallback(async (contractAddress: string) => {
     if (!providers) return;
     setError(null);
     setDeployment({ status: 'in-progress', kind: 'join' });
     try {
-      const api = await joinShieldLedger(providers, contractAddress.trim());
+      const api = await joinShieldLedger(providers, contractAddress.trim(), walletInfo?.shieldedAddress ?? '');
       setDeployment({ status: 'deployed', api, address: api.deployedContractAddress });
       if (api.deployedContractAddress !== DEFAULT_LEDGER_ADDRESSES[networkId]) {
         storeStoredContractAddress(networkId, api.deployedContractAddress);
@@ -323,7 +323,7 @@ export const ShieldLedgerProvider: React.FC<{ networkId: string; children: React
       captureError(e, { step: 'join' });
       track('contract_join', { outcome: 'error' });
     }
-  }, [providers]);
+  }, [providers, walletInfo]);
 
   const value = useMemo<ShieldLedgerContextValue>(
     () => ({

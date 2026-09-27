@@ -287,18 +287,22 @@ export type DeploymentState =
   | { status: 'failed'; error: string };
 
 /** Deploys a brand-new ShieldLedger contract with the given providers. */
-export const deployShieldLedger = async (providers: ShieldLedgerProviders): Promise<ShieldLedgerAPI> => {
+export const deployShieldLedger = async (
+  providers: ShieldLedgerProviders,
+  shieldedAddress: string,
+): Promise<ShieldLedgerAPI> => {
   log.info('Deploying ShieldLedger contract');
-  return ShieldLedgerAPI.deploy(providers);
+  return ShieldLedgerAPI.deploy(providers, shieldedAddress);
 };
 
 /** Joins an existing ShieldLedger contract by address. */
 export const joinShieldLedger = async (
   providers: ShieldLedgerProviders,
   contractAddress: string,
+  shieldedAddress: string,
 ): Promise<ShieldLedgerAPI> => {
   log.info(`Joining ShieldLedger contract ${contractAddress}`);
-  return ShieldLedgerAPI.join(providers, contractAddress as ContractAddress);
+  return ShieldLedgerAPI.join(providers, contractAddress as ContractAddress, shieldedAddress);
 };
 
 export { shieldLedgerPrivateStateKey };

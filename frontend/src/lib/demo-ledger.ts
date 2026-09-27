@@ -3,7 +3,8 @@
 // Everything in this module is SIMULATED: an in-memory ledger, an in-memory
 // SME invoice registry and in-memory pool payouts. It deliberately never
 // touches the real localStorage keys used by the live app
-// ("shieldledger.registeredInvoices", "shieldledger.poolPayouts",
+// ("shieldledger.registeredInvoices.<shieldedAddress>.<contractAddress>",
+// "shieldledger.poolPayouts.<shieldedAddress>.<contractAddress>",
 // "shieldledger.private-state.*", the rate-trend store) — demo activity is a
 // throwaway of this browser session state only.
 //

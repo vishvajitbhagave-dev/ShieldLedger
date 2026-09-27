@@ -248,6 +248,11 @@ These are normal contract rejections:
 - **"Already settled"** — the invoice has already been settled; you cannot settle it again.
 - **"Auction not resolved"** — no bids have been revealed yet, or no bids were placed. You need at least one revealed bid before settling.
 
-### Browser DApp resets my reputation after page reload
+### Browser DApp resets my reputation after page reload?
 
-This is a known demo limitation. The browser DApp stores reputation in memory, which resets on reload. The CLI persists reputation to a local file (`midnight-private-state.json`) and survives restarts. A production deployment would use persistent wallet storage.
+It should not. The browser DApp stores reputation as part of the wallet's private state and caches it in the browser's `localStorage` after every settlement — scoped to both the wallet's **shielded address** and the **contract address**, so it survives page reloads and wallet reconnects. Caveats:
+
+- The cache is per-browser and per-wallet: switching wallets, networks, or using a different browser/device starts a fresh reputation until the next settlement re-derives it. Private browsing or cleared site data also wipes it (the DApp logs a console warning and the **Settings → Local data & privacy** page can show what's stored).
+- The on-chain contract stores only proven bounds (e.g. `reputationThreshold ≥ 5`), never the raw score, so a lost cache cannot be recovered from the ledger.
+- **Demo Mode never persists reputation** — the simulated ledger is in-memory and resets on every entry by design.
+- The CLI persists reputation to a local file (`midnight-private-state.json`) and survives restarts.

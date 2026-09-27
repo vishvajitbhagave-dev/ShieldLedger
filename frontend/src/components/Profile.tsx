@@ -4,7 +4,8 @@ import { useLedgerState } from '../use-ledger-state.js';
 import { buildLenderPortfolio } from '../lender-portfolio.js';
 import { loadRegisteredInvoices } from '../invoice-registry.js';
 import { loadPoolPayouts } from '../pool-payouts.js';
-import { demoLoadPoolPayouts, getDemoApi } from '../lib/demo-ledger.js';
+import type { WalletScope } from '../wallet-scope.js';
+import { demoLoadPoolPayouts, demoLoadRegisteredInvoices, getDemoApi } from '../lib/demo-ledger.js';
 import { ROLE_DEFS } from '../roles.js';
 import { HexBadge } from './HexBadge.js';
 import { PageHeader } from './PageHeader.js';
@@ -33,6 +34,14 @@ export const Profile: React.FC = () => {
   const api = demo ? getDemoApi() : deployment.status === 'deployed' ? deployment.api : null;
   const [myPseudonym, setMyPseudonym] = useState<string | null | undefined>(undefined);
 
+  // Registered invoices and pool payouts are wallet+contract scoped: only this
+  // wallet's own records on the active contract are shown (never another
+  // wallet's, even in the same browser).
+  const scope: WalletScope = {
+    shieldedAddress: walletInfo?.shieldedAddress ?? '',
+    contractAddress: deployment.status === 'deployed' ? deployment.address : '',
+  };
+
   useEffect(() => {
     if (!api) {
       setMyPseudonym(undefined);
@@ -54,14 +63,17 @@ export const Profile: React.FC = () => {
 
   const localPayouts = useMemo(() => {
     const m = new Map<string, bigint>();
-    const records = demo ? demoLoadPoolPayouts() : loadPoolPayouts();
+    const records = demo ? demoLoadPoolPayouts() : loadPoolPayouts(scope);
     for (const record of records) {
       m.set(record.slotKey, BigInt(record.payout));
     }
     return m;
-  }, [myPseudonym, demo]);
+  }, [myPseudonym, demo, scope.shieldedAddress, scope.contractAddress]);
 
-  const registeredInvoices = useMemo(() => loadRegisteredInvoices(), []);
+  const registeredInvoices = useMemo(
+    () => (demo ? demoLoadRegisteredInvoices() : loadRegisteredInvoices(scope)),
+    [demo, scope.shieldedAddress, scope.contractAddress],
+  );
 
   /** Summary only — the full positions table lives on the Lender Portfolio page. */
   const portfolio = state && myPseudonym ? buildLenderPortfolio(state, myPseudonym, localPayouts) : null;

@@ -5,6 +5,7 @@ import {
   registerInvoiceLocally,
   type RegisteredInvoice,
 } from '../invoice-registry.js';
+import type { WalletScope } from '../wallet-scope.js';
 import {
   demoLoadRegisteredInvoices,
   demoRegisterInvoiceLocally,
@@ -410,10 +411,18 @@ const WELCOME_ROLES: Array<{ value: 'sme' | 'buyer' | 'lender'; label: string; d
 type Notice = { ok: true; text: string } | { ok: false; error: UserFacingError };
 
 export const InvoiceFinancing: React.FC = () => {
-  const { deployment, connected, role, setRole, clearRole, connect, disconnect, demo } = useShieldLedger();
+  const { deployment, connected, role, setRole, clearRole, connect, disconnect, demo, walletInfo } = useShieldLedger();
   // In Demo Mode the "api" is the in-memory mock: same method signatures,
   // simulated ~200ms latency, purely local state.
   const api = demo ? getDemoApi() : deployment.status === 'deployed' ? deployment.api : null;
+
+  // The invoice registry is scoped by wallet shielded address + contract so a
+  // different wallet (or the same browser on another contract) never leaks
+  // another wallet's registered invoices.
+  const scope: WalletScope = {
+    shieldedAddress: walletInfo?.shieldedAddress ?? '',
+    contractAddress: deployment.status === 'deployed' ? deployment.address : '',
+  };
 
   const { state: ledgerState } = useLedgerState();
 
@@ -421,7 +430,7 @@ export const InvoiceFinancing: React.FC = () => {
   const [message, setMessage] = useState<Notice | null>(null);
   const [working, setWorking] = useState<string | null>(null);
   const [invoices, setInvoices] = useState<RegisteredInvoice[]>(() =>
-    demo ? demoLoadRegisteredInvoices() : loadRegisteredInvoices(),
+    demo ? demoLoadRegisteredInvoices() : loadRegisteredInvoices(scope),
   );
   const [reputation, setReputation] = useState<ReputationView | null>(null);
 
@@ -463,6 +472,14 @@ export const InvoiceFinancing: React.FC = () => {
   React.useEffect(() => {
     if (demo || deployment.status === 'deployed') void refreshReputation();
   }, [deployment.status, connected, demo]);
+
+  // Re-hydrate the invoice list whenever the wallet or the active contract
+  // changes (the registry is wallet+contract scoped).
+  React.useEffect(() => {
+    if (demo || scope.contractAddress !== '') {
+      setInvoices(demo ? demoLoadRegisteredInvoices() : loadRegisteredInvoices(scope));
+    }
+  }, [demo, scope.shieldedAddress, scope.contractAddress]);
 
   const set = (k: keyof FormState) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -915,8 +932,8 @@ export const InvoiceFinancing: React.FC = () => {
                   void run('registerInvoice', async () => {
                     const record = demo
                       ? await demoRegisterInvoiceLocally({ reference, amount, dueDate })
-                      : await registerInvoiceLocally({ reference, amount, dueDate });
-                    setInvoices(demo ? demoLoadRegisteredInvoices() : loadRegisteredInvoices());
+                      : await registerInvoiceLocally({ reference, amount, dueDate }, scope);
+                    setInvoices(demo ? demoLoadRegisteredInvoices() : loadRegisteredInvoices(scope));
                     await a.registerInvoice(record.nullifier, creditThreshold, amount, reputationThreshold, splitCount);
                     await refreshReputation();
                     setSmeTab('track');

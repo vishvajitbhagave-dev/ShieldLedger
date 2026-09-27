@@ -4,6 +4,7 @@ import { useShieldLedger } from '../context.js';
 import { useLedgerState } from '../use-ledger-state.js';
 import { buildLenderPortfolio, type LenderPosition, type PositionStatus } from '../lender-portfolio.js';
 import { loadPoolPayouts } from '../pool-payouts.js';
+import type { WalletScope } from '../wallet-scope.js';
 import { demoLoadPoolPayouts, getDemoApi } from '../lib/demo-ledger.js';
 import { HexBadge } from './HexBadge.js';
 import { describeError } from '../lib/errorMessages.js';
@@ -52,10 +53,17 @@ const PoolShare: React.FC<{ position: LenderPosition }> = ({ position }) => {
 };
 
 export const LenderPortfolio: React.FC = () => {
-  const { deployment, demo } = useShieldLedger();
+  const { deployment, demo, walletInfo } = useShieldLedger();
   const { state, error, retry } = useLedgerState();
   const api = demo ? getDemoApi() : deployment.status === 'deployed' ? deployment.api : null;
   const [myPseudonym, setMyPseudonym] = useState<string | null | undefined>(undefined);
+
+  // Pool settlement payouts are wallet+contract scoped (a pool payout belongs
+  // to the wallet that settled the pool invoice), so read only this wallet's.
+  const scope: WalletScope = {
+    shieldedAddress: walletInfo?.shieldedAddress ?? '',
+    contractAddress: deployment.status === 'deployed' ? deployment.address : '',
+  };
 
   useEffect(() => {
     if (!api) {
@@ -78,12 +86,12 @@ export const LenderPortfolio: React.FC = () => {
 
   const localPayouts = useMemo(() => {
     const m = new Map<string, bigint>();
-    const records = demo ? demoLoadPoolPayouts() : loadPoolPayouts();
+    const records = demo ? demoLoadPoolPayouts() : loadPoolPayouts(scope);
     for (const record of records) {
       m.set(record.slotKey, BigInt(record.payout));
     }
     return m;
-  }, [myPseudonym, demo]);
+  }, [myPseudonym, demo, scope.shieldedAddress, scope.contractAddress]);
 
   if (myPseudonym === undefined) {
     return (

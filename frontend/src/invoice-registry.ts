@@ -1,11 +1,18 @@
 // Derives the opaque on-chain nullifier for an invoice from its *private*
-// details, and keeps a browser-local registry of the SME's own invoices so the
-// same nullifier can be reused across Register / Bid / Reveal / Settle.
+// details, and keeps a wallet+contract-scoped browser-local registry of the
+// SME's own invoices so the same nullifier can be reused across Register /
+// Bid / Reveal / Settle.
 //
 // Privacy model: only SHA-256("shieldledger:invoice:v1" || reference || amount
 // || dueDate || secret) ever touches the ledger. The invoice fields stay in the
 // browser; the random secret blinds the digest so nobody can guess which
-// invoice a nullifier represents.
+// invoice a nullifier represents. The registry is scoped by the wallet's
+// shielded address AND the contract address (like the private-state cache), so
+// a different wallet — or the same browser on a different contract — never
+// sees invoices it did not register (which could not be settled anyway: the
+// circuit proves the caller's smeSecret matches the on-chain commitment).
+
+import { isCompleteScope, scopeIdentity, type WalletScope } from './wallet-scope.js';
 
 export const INVOICE_DOMAIN = 'shieldledger:invoice:v1';
 
@@ -76,11 +83,14 @@ export interface RegisteredInvoice {
   readonly createdAt: number;
 }
 
-const STORAGE_KEY = 'shieldledger.registeredInvoices';
+const STORAGE_PREFIX = 'shieldledger.registeredInvoices.';
 
-export function loadRegisteredInvoices(): RegisteredInvoice[] {
+const keyFor = (scope: WalletScope): string => `${STORAGE_PREFIX}${scopeIdentity(scope)}`;
+
+export function loadRegisteredInvoices(scope: WalletScope): RegisteredInvoice[] {
   if (typeof localStorage === 'undefined') return [];
-  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!isCompleteScope(scope)) return [];
+  const raw = localStorage.getItem(keyFor(scope));
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw) as unknown;
@@ -90,10 +100,11 @@ export function loadRegisteredInvoices(): RegisteredInvoice[] {
   }
 }
 
-function saveRegisteredInvoices(invoices: RegisteredInvoice[]): void {
+function saveRegisteredInvoices(invoices: RegisteredInvoice[], scope: WalletScope): void {
   if (typeof localStorage === 'undefined') return;
+  if (!isCompleteScope(scope)) return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(invoices));
+    localStorage.setItem(keyFor(scope), JSON.stringify(invoices));
   } catch {
     // Storage unavailable (e.g. private mode): the invoice still works for this
     // session, it just can't be recalled on a later visit.
@@ -101,12 +112,15 @@ function saveRegisteredInvoices(invoices: RegisteredInvoice[]): void {
 }
 
 /** The previously registered invoice with the same private details, if any. */
-export function findRegisteredInvoice(params: {
-  reference: string;
-  amount: bigint;
-  dueDate: bigint;
-}): RegisteredInvoice | undefined {
-  return loadRegisteredInvoices().find(
+export function findRegisteredInvoice(
+  params: {
+    reference: string;
+    amount: bigint;
+    dueDate: bigint;
+  },
+  scope: WalletScope,
+): RegisteredInvoice | undefined {
+  return loadRegisteredInvoices(scope).find(
     (inv) =>
       inv.reference === params.reference &&
       inv.amount === params.amount.toString() &&
@@ -116,15 +130,23 @@ export function findRegisteredInvoice(params: {
 
 /**
  * Registers an invoice locally: derives its nullifier from the private details
- * plus a fresh secret and persists the record. Re-registering identical
- * details reuses the existing nullifier (idempotent).
+ * plus a fresh secret and persists the record under the wallet+contract scope.
+ * Re-registering identical details reuses the existing nullifier (idempotent).
  */
-export async function registerInvoiceLocally(params: {
-  reference: string;
-  amount: bigint;
-  dueDate: bigint;
-}): Promise<RegisteredInvoice> {
-  const existing = findRegisteredInvoice(params);
+export async function registerInvoiceLocally(
+  params: {
+    reference: string;
+    amount: bigint;
+    dueDate: bigint;
+  },
+  scope: WalletScope,
+): Promise<RegisteredInvoice> {
+  if (!isCompleteScope(scope)) {
+    throw new Error(
+      'The invoice registry requires a connected wallet and an active contract to store the registration locally.',
+    );
+  }
+  const existing = findRegisteredInvoice(params, scope);
   if (existing) return existing;
   const secret = generateInvoiceSecret();
   const nullifier = await deriveInvoiceNullifier({
@@ -141,7 +163,7 @@ export async function registerInvoiceLocally(params: {
     nullifier,
     createdAt: Date.now(),
   };
-  saveRegisteredInvoices([...loadRegisteredInvoices(), record]);
+  saveRegisteredInvoices([...loadRegisteredInvoices(scope), record], scope);
   return record;
 }
 
@@ -153,4 +175,15 @@ export async function deriveRegisteredNullifier(inv: RegisteredInvoice): Promise
     dueDate: BigInt(inv.dueDate),
     secret: hexToBytes(inv.secret),
   });
+}
+
+/** Clears the invoices registered by a specific wallet on a specific contract. */
+export function clearRegisteredInvoices(scope: WalletScope): void {
+  if (typeof localStorage === 'undefined') return;
+  if (!isCompleteScope(scope)) return;
+  try {
+    localStorage.removeItem(keyFor(scope));
+  } catch {
+    // Storage unavailable (e.g. private mode): nothing was persisted to clear.
+  }
 }
