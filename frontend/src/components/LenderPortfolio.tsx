@@ -312,9 +312,9 @@ export const LenderPortfolio: React.FC = () => {
 
           <p className="sl-meta">
             Pool positions: the invoice face, total pool payout and due date are public
-            ({pools.length > 0 ? formatBigInt(pools[0].totalPayout) : 0}… per pool invoice); the per-slot
-            contribution is a private witness and the pool rate is not stored ({'"'}shieldledger:pool{'"'}
-            markers set rateBps to 0). Your own payout appears only if this browser settled that pool.
+            ({pools.length > 0 ? formatBigInt(pools[0].totalPayout) : 0}… per pool invoice); each slot&rsquo;s
+            contribution and the pool&rsquo;s effective rate stay private. Your own payout appears only if
+            this browser settled that pool.
           </p>
         </>
       )}

@@ -162,8 +162,7 @@ export const RateTrendChart: React.FC = () => {
         from contract state, an invoice becoming financed with a public single-lender rate. It is
         <strong> not</strong> a complete historical record: nothing predating these local records is
         reconstructed, pool-financed invoices are excluded (their rate is not public), and the data
-        lives only in this browser{` `}(localStorage). An on-chain or indexer-sourced history was
-        explicitly declined — see docs/TRUST_AND_DATA_PROVENANCE.md §3.
+        lives only in this browser{` `}(localStorage) — no on-chain or indexer-sourced history is used.
       </p>
 
       {error && <ErrorBanner error={describeError('ledgerStream', error)} />}
@@ -220,10 +219,10 @@ export const RateTrendChart: React.FC = () => {
               <TrendChart buckets={buckets} bucketMs={bucketMs} />
               <p className="sl-note u-mt-2">
                 Each point is the average of the {band === 'all' ? 'observed' : band} financing
-                rate(s) in its time bucket. Risk bands group by the public{' '}
-                creditThreshold/reputationThreshold — the <em>attested lower bounds</em> an SME
-                proved in ZK at registration, the same inputs the pricing engine uses — never the
-                SME's true private score.
+                rate(s) in its time bucket. Risk bands group by the public credit and reputation
+                thresholds — the <em>attested lower bounds</em> the SME proved in zero knowledge
+                at registration, the same inputs the pricing engine uses — never the SME's true
+                private score.
               </p>
             </>
           )}
@@ -255,7 +254,7 @@ export const RateTrendChart: React.FC = () => {
 
           <p className="sl-meta">
             Records are stamped at observation time, not the on-chain block time; the chart is
-            this browser's view (category (b)/(a) data only — no off-chain service is involved).
+            this browser's own view — no off-chain service is involved.
           </p>
         </>
       )}

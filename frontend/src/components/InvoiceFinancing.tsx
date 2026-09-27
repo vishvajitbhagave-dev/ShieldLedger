@@ -868,7 +868,7 @@ export const InvoiceFinancing: React.FC = () => {
         <button className="sl-button sl-button-secondary" type="button" onClick={() => setForm(sampleForm)} disabled={busy || working !== null}>
           Use sample values
         </button>
-        <span className="sl-meta">Fills the forms with sample values.</span>
+        <span className="sl-meta">Fills the forms with test data — not a real invoice, just an example of the expected format.</span>
       </div>
 
       <HeroCard

@@ -28,6 +28,7 @@ import type {
   ShieldLedgerDerivedState,
 } from '../shield-ledger-types.js';
 import type { Ledger } from '../../../contracts/managed/shield-ledger/contract/index.js';
+import * as ShieldLedger from '../../../contracts/managed/shield-ledger/contract/index.js';
 import {
   bytesToHex,
   deriveInvoiceNullifier,
@@ -89,6 +90,16 @@ function fakeHex(seed: string): string {
   }
   const body = a.toString(16).padStart(8, '0') + b.toString(16).padStart(8, '0');
   return (body + body + body + body).slice(0, 64);
+}
+
+const toHex = (bytes: Uint8Array): string =>
+  Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+
+function fromHex(input: string): Uint8Array {
+  const hex = input.trim().toLowerCase().replace(/^0x/, '');
+  const out = new Uint8Array(32);
+  for (let i = 0; i < 32; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  return out;
 }
 
 /** The facade demo lender pseudonym used for every bid/pool reveal in demo mode. */
@@ -177,6 +188,9 @@ function buildSeedStore(): DemoLedgerStore {
 
   const bestF = { nullifier: invF.nullifier, lender: fakeHex('other-lender-2'), amount: 8800n, dueDate: pastDue, rateBps: 480n, willingToSplit: false };
   const bestH = { nullifier: invH.nullifier, lender: fakeHex('other-lender'), amount: 5900n, dueDate: pastDue, rateBps: 500n, willingToSplit: false };
+  // invD was pre-financed by the demo lender; in the contract its winning bid
+  // stays on the ledger, so it must appear here too (portfolio + bid depth).
+  const bestD = { nullifier: invD.nullifier, lender: DEMO_LENDER_PSEUDONYM, amount: 11800n, dueDate: nearDue, rateBps: 420n, willingToSplit: false };
 
   return {
     invoices: [invA, invB, invC, invD, invE, invF, invH],
@@ -186,6 +200,7 @@ function buildSeedStore(): DemoLedgerStore {
     ],
     bestBids: [
       { nullifier: invB.nullifier, lender: DEMO_LENDER_PSEUDONYM, amount: 9950n, dueDate: futureDue, rateBps: 400n, willingToSplit: false },
+      bestD,
       bestF,
       bestH,
     ],
@@ -203,7 +218,7 @@ function buildSeedStore(): DemoLedgerStore {
         dueDate: futureDue.toString(),
         secret: fakeHex('demo-sme-secret'),
         nullifier: invB.nullifier,
-        createdAt: now,
+        createdAt: Date.now(),
       },
     ],
     poolPayouts: [],
@@ -260,7 +275,9 @@ function requireInvoice(nullifier: string): MutableInvoice {
 }
 
 function poolSlotKey(nullifier: string, slotIndex: bigint | number): string {
-  return fakeHex(`pool-slot:${nullifier}:${slotIndex}`);
+  // Match the real on-chain slot derivation (lender-portfolio.ts re-derives
+  // the same key) so demo pool positions line up with the live portfolio view.
+  return toHex(ShieldLedger.pureCircuits.poolSlotKey(fromHex(nullifier), BigInt(slotIndex)));
 }
 
 function applyReputation(onTime: boolean): void {

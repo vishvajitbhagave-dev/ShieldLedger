@@ -126,11 +126,22 @@ export const Settings: React.FC = () => {
         subtitle="What ShieldLedger stores in this browser and which ledger instance it connects to — no data leaves this browser except what is already public on-chain."
       />
 
+      {demo ? (
+        <section className="sl-stage">
+          <h3 className="sl-section-title">Simulation Sandbox</h3>
+          <p className="sl-meta">
+            Demo mode keeps everything in memory for this browser session &mdash; there is no local data
+            to clear and no live ledger instance to connect to. The local-data and ledger-instance settings
+            on this page apply only when a real ledger is deployed or joined.
+          </p>
+        </section>
+      ) : (
+        <>
       <section className="sl-stage">
         <h3 className="sl-section-title">Local data &amp; privacy</h3>
         <p className="sl-meta">
           Everything the browser DApp keeps locally lives in this browser&rsquo;s own storage. Wallet-owned
-          records (invoices, settlement payouts, private state) are scoped per wallet shielded address +
+          records (invoices, settlement payouts, private data) are scoped per wallet shielded address +
           contract, so another wallet in the same browser never sees them; rate-trend history is browser-wide
           by nature. Private-mode / cleared-site-data sessions simply don&rsquo;t persist.
         </p>
@@ -149,9 +160,9 @@ export const Settings: React.FC = () => {
             <div>
               <strong>Registered invoices</strong>
               <p className="sl-meta">
-                The connected wallet&rsquo;s local registry of its own invoices and derived nullifiers
-                on the current contract, so it can re-use the same nullifier across Register / Reveal /
-                Settle. Scoped per wallet + contract.
+                The connected wallet&rsquo;s local record of the invoices it registered on the current
+                contract, plus the private secret used to identify them, so the same invoice can be
+                revealed and settled later. Scoped per wallet + contract.
               </p>
             </div>
             <div className="sl-settings-row-actions">
@@ -173,10 +184,10 @@ export const Settings: React.FC = () => {
             <div>
               <strong>Pool settlement payouts</strong>
               <p className="sl-meta">
-                This wallet&rsquo;s per-lender insurance-payout values for pool-settled invoices on the
-                current contract. Stored locally only as a commitment hash on-chain — clearing this also
-                forfeits this wallet&rsquo;s future per-lender (split) default-insurance claims. Scoped
-                per wallet + contract.
+                This wallet&rsquo;s per-lender payout values for pool-financed invoices on the
+                current contract. Only a fingerprint of each payout is committed on-chain &mdash;
+                clearing this also forfeits this wallet&rsquo;s share of any future default-insurance
+                payout for those invoices. Scoped per wallet + contract.
               </p>
             </div>
             <div className="sl-settings-row-actions">
@@ -221,10 +232,10 @@ export const Settings: React.FC = () => {
             <div>
               <strong>Private-state / reputation cache</strong>
               <p className="sl-meta">
-                The locally cached copy of the connected wallet&rsquo;s private state — including the
-                private reputation score and wallet secrets — written after each settlement and
-                scoped to the wallet&rsquo;s shielded address plus the contract. This cache is what
-                keeps your reputation intact across wallet reconnects.
+                The locally stored copy of this wallet&rsquo;s private data &mdash; including its private
+                reputation score and the wallet secrets used to prove ownership &mdash; written after each
+                settlement and scoped to the wallet&rsquo;s shielded address plus the contract. This cache
+                is what keeps a wallet&rsquo;s reputation intact across reconnects.
               </p>
               <p className="sl-note sl-note-accent">
                 Clearing this is meaningful: your locally cached reputation and secrets are gone
@@ -291,7 +302,9 @@ export const Settings: React.FC = () => {
             </div>
           ))}
         </div>
-      </section>
+        </section>
+        </>
+      )}
     </div>
   );
 };

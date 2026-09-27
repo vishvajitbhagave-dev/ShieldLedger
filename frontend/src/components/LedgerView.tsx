@@ -44,9 +44,9 @@ const HEADERS = {
   bids: ['Invoice', 'Lender (pseudonym)', 'Commitment (terms hidden)'],
   bestBids: ['Invoice', 'Lender (pseudonym)', 'Amount', 'Rate', 'Due', 'Whole'],
   insuranceClaims: ['Invoice', 'Paid out', 'Claimed at'],
-  poolBids: ['Slot key', 'Lender pseudonym', 'Bid commitment'],
-  payoutCommitments: ['Slot key', 'Payout commitment (hash)'],
-  poolClaims: ['Slot key', 'Claim commitment', 'Transferred'],
+  poolBids: ['Pool slot', 'Lender (pseudonym)', 'Bid commitment'],
+  payoutCommitments: ['Pool slot', 'Payout commitment'],
+  poolClaims: ['Pool slot', 'Claim commitment', 'Transferred'],
 } as const;
 
 const TableHead: React.FC<{ headers: readonly string[] }> = ({ headers }) => (
@@ -166,15 +166,14 @@ export const LedgerView: React.FC = () => {
       )}
       {ready && (
         <p className="sl-meta">
-          invoiceCount = {state!.invoiceCount.toString()} · {state!.invoices.length} invoice(s) · {state!.bids.length}{' '}
-          sealed bid(s) · {state!.bestBids.length} leading bid(s) · insurance pool ={' '}
+          {state!.invoices.length} invoice{state!.invoices.length === 1 ? '' : 's'} ·{' '}
+          {state!.bids.length} sealed bid{state!.bids.length === 1 ? '' : 's'} ·{' '}
+          {state!.bestBids.length} leading bid{state!.bestBids.length === 1 ? '' : 's'} · insurance pool ={' '}
           {state!.insurancePool ? state!.insurancePool.balance.toString() : '0'} tNight
         </p>
       )}
       {!ready && (
-        <p className="sl-meta">
-          invoiceCount = — · — invoice(s) · — sealed bid(s) · — leading bid(s) · insurance pool = — tNight
-        </p>
+        <p className="sl-meta">— invoices · — sealed bids · — leading bids · insurance pool = — tNight</p>
       )}
 
       <section className="sl-stage">
@@ -416,8 +415,12 @@ export const LedgerView: React.FC = () => {
 
       {state && state.poolBids.length > 0 && (
         <section className="sl-stage">
-          <h3 className="sl-section-title">Pool bids (bestPools)</h3>
-          <p className="sl-note">Revealed bids for pool-financed invoices — lender pseudonym and commitment only.</p>
+          <h3 className="sl-section-title">Pool bids</h3>
+          <p className="sl-note">
+            Revealed bids for pool-financed invoices — the lender&rsquo;s pseudonym and the bid&rsquo;s
+            commitment. A commitment is a fingerprint recorded on-chain that proves a value was set
+            without publishing it.
+          </p>
           <div className="u-scroll-x">
             <table className="sl-table">
               <TableHead headers={HEADERS.poolBids} />
