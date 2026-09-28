@@ -2660,6 +2660,77 @@ select.sl-input {
   }
 }
 
+/* ── Suggested next-step card (Home) ────────────────────────────────────── */
+
+.sl-nextstep {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  margin-top: var(--sp-5);
+  padding: var(--sp-4) var(--sp-5);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--emerald);
+  border-radius: var(--radius);
+}
+
+.sl-nextstep-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.sl-nextstep-eyebrow {
+  font-size: var(--text-caption);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--emerald);
+}
+
+.sl-nextstep-text {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--fw-bold);
+  color: var(--text);
+}
+
+.sl-nextstep-hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.sl-nextstep-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.sl-nextstep-dismiss {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: var(--text-lg);
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sl-nextstep-dismiss:hover {
+  background: var(--navy-soft);
+  color: var(--text);
+}
+
 /* ── Demo Mode banner ─────────────────────────────────────────────────────── */
 
 .sl-demo-banner {
