@@ -205,6 +205,7 @@ Credit score ≥ threshold, reputation score ≥ threshold, lender credit score 
 > style.
 
 - **AI chat assistant** — a chatbot within ShieldLedger that lets users ask questions about how the platform works (e.g. sealed bids, settlement, reputation) and get instant answers, instead of needing external help. Requested by tester Vidhi Patil. Scope and approach (general FAQ-style vs. live-data-aware assistant) not yet decided.
+- **Customizable dashboard widgets** — allow users to rearrange/hide dashboard cards via drag-and-drop, personalizing their view. Requested by tester Yogi Patil. Not yet scoped — a larger UI/UX effort involving per-user layout persistence, likely deferred until core features stabilize further.
 
 ---
 
