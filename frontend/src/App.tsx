@@ -3,6 +3,7 @@ import { HashRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } f
 import { ShieldLedgerProvider, useShieldLedger, type Role } from './context.js';
 import { WalletConnect } from './components/WalletConnect.js';
 import { DemoBanner } from './components/DemoBanner.js';
+import { EmptyState } from './components/EmptyState.js';
 import { InvoiceFinancing } from './components/InvoiceFinancing.js';
 import { LedgerView } from './components/LedgerView.js';
 import { Dashboard } from './components/Dashboard.js';
@@ -390,10 +391,10 @@ const HomeDashboard: React.FC<{
           )}
         </ul>
       ) : (
-        <p className="sl-empty">
-          No recent platform activity yet — financings and insurance payouts will appear here once
-          invoices are financed or claims are paid on-chain.
-        </p>
+        <EmptyState
+          title="No recent platform activity yet"
+          description="Financings and insurance payouts will appear here once invoices are financed or claims are paid on-chain."
+        />
       )}
 
 <NetworkDetails

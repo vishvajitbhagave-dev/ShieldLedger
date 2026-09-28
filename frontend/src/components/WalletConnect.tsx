@@ -89,7 +89,7 @@ export const WalletConnect: React.FC = () => {
   if (manualChoiceVisible) {
     return (
       <div className="sl-panel">
-        <h2>Wallet connected</h2>
+        <h2 className="sl-page-head-title">Wallet connected</h2>
         <div className="sl-row">
           <div className="u-grow">
             <p className="sl-meta">

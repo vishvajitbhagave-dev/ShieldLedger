@@ -589,6 +589,18 @@ input:focus-visible {
   outline: none;
 }
 
+.zk-field input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.zk-field input[type='number']::-webkit-outer-spin-button,
+.zk-field input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
 .zk-result {
   margin-top: 6px;
   border-radius: 10px;
@@ -991,7 +1003,59 @@ input:focus-visible {
   background: var(--text-faint);
 }
 
-/* ─── 8 · FAQ ─── */
+/* ─── 9 · Why ShieldLedger (vs traditional) ─── */
+
+.compare {
+  display: grid;
+  gap: 14px;
+}
+
+.compare-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.compare-col {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.compare-col.compare-sl {
+  border-top: 3px solid var(--success);
+}
+
+.compare-col-heading {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.compare-col-heading.compare-trad {
+  color: var(--text-faint);
+}
+
+.compare-col-heading.compare-sl {
+  color: var(--success);
+}
+
+.compare-col h3 {
+  font-size: var(--text-md);
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.compare-col p {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* ─── 10 · FAQ ─── */
 
 .faq {
   display: grid;
@@ -1041,7 +1105,7 @@ input:focus-visible {
   max-width: 720px;
 }
 
-/* ─── 9 · Footer ─── */
+/* ─── 11 · Footer ─── */
 
 .footer {
   background: var(--surface);
@@ -1144,6 +1208,10 @@ input:focus-visible {
   }
 
   .steps {
+    grid-template-columns: 1fr;
+  }
+
+  .compare-row {
     grid-template-columns: 1fr;
   }
 
