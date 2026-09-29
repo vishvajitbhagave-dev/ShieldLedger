@@ -212,6 +212,8 @@ Credit score ≥ threshold, reputation score ≥ threshold, lender credit score 
 - **Customizable dashboard widgets** — allow users to rearrange/hide dashboard cards via drag-and-drop, personalizing their view. Requested by tester Yogi Patil. Not yet scoped — a larger UI/UX effort involving per-user layout persistence, likely deferred until core features stabilize further.
 - **Native mobile app** — a dedicated iOS/Android app version of ShieldLedger, beyond responsive web design. Requested by tester Tooba. Not yet scoped — a separate technology stack and distribution effort, likely much further out than web-based improvements.
 - **Mobile card-list view for data tables** — replace horizontal-scroll tables (Public Ledger, Invoice Financing) with a stacked card layout on small screens for easier mobile browsing. Identified during mobile responsiveness audit; optional polish, not required (current tables are functional via horizontal scroll).
+- **In-platform messaging between SME and Buyer** — a way for SMEs and Buyers to message each other inside ShieldLedger. Requested by tester Rachana Shinde. Not yet scoped — needs message storage, delivery and identity handling, and must be designed carefully so it doesn't weaken ShieldLedger's privacy goals.
+- **Live chat support during business hours** — a live support channel users can reach during business hours. Requested by tester Rachana Shinde. Not yet scoped — needs a staffed support process and possibly a third-party chat tool, so it's an operations decision as much as a coding one.
 
 ---
 
