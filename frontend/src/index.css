@@ -288,6 +288,7 @@ body {
 
 .sl-header-details-right {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-5);
   margin-left: auto;
@@ -787,6 +788,7 @@ body {
       subtle "status block" chip instead of floating loose. */
 .sl-home .sl-header-details-right {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-4);
   margin-left: auto;
@@ -2717,6 +2719,26 @@ select.sl-input {
   .sl-table {
     font-size: var(--text-xs);
   }
+
+  /* Mobile table tuning for the widest tables (Public Ledger, Invoice
+     Financing): let column headings and label/text cells wrap instead of
+     forcing one long row. Amounts, hex tokens and badges keep nowrap. */
+  .sl-table thead th {
+    white-space: normal;
+  }
+
+  .sl-table tbody td {
+    overflow-wrap: anywhere;
+  }
+
+  /* Mobile scroll affordance for the section tab strip: the trailing edge
+     fades out so it's clear more tabs are reachable by swiping. Pure mask —
+     the strip stays horizontally scrollable (overflow-x: auto). */
+  .sl-nav {
+    padding-right: 12px;
+    -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 48px), transparent 100%);
+    mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 48px), transparent 100%);
+  }
 }
 
 @media (max-width: 480px) {
@@ -2727,6 +2749,15 @@ select.sl-input {
   .sl-logo {
     width: 38px;
     height: 38px;
+  }
+
+  /* Compress the header's vertical footprint on small screens: the stacked
+     header (brand, controls, nav) leaves less dead air between rows. */
+  .sl-header {
+    padding-top: var(--sp-4);
+    padding-bottom: var(--sp-4);
+    padding-inline: var(--sp-4);
+    gap: var(--sp-3);
   }
 }
 
