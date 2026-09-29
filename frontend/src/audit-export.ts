@@ -237,3 +237,95 @@ export function auditReportFilename(now: Date = new Date()): string {
   const stamp = now.toISOString().replace(/[:.]/g, '-');
   return `shieldledger-audit-${stamp}.json`;
 }
+
+/* ──────────────────────────────────────────────────────────────────────────────
+ * CSV export for accounting.
+ *
+ * A flat, spreadsheet-friendly export of the SAME public ledger data the JSON
+ * audit report already reads. Same privacy constraint as the JSON export: only
+ * already-public on-chain fields, plus ONE status column derived purely from
+ * those fields. It deliberately does NOT add per-invoice insurance fees or
+ * registration/settlement timestamps (none exist in the public data), and it
+ * never reads sealed bids or any wallet/private state.
+ * ────────────────────────────────────────────────────────────────────────────── */
+
+/** The status values the public fields can actually distinguish. */
+export type InvoiceStatus = 'bidding' | 'financed' | 'transferred';
+
+/**
+ * Derive the per-invoice lifecycle status from public fields ONLY.
+ * Rule: `transferred` (resold on the secondary market) wins; otherwise a
+ * non-null `lender` pseudonym means the auction resolved and the invoice is
+ * `financed`; otherwise still `bidding`. No other state can be evidenced from
+ * the public view without inventing data (e.g. default also needs settlement
+ * history and is already reported separately in the JSON audit report).
+ */
+export function statusOfInvoice(inv: {
+  readonly lender: string | null;
+  readonly transferred: boolean;
+}): InvoiceStatus {
+  if (inv.transferred) return 'transferred';
+  return inv.lender !== null ? 'financed' : 'bidding';
+}
+
+const INVOICES_CSV_COLUMNS = [
+  'nullifier',
+  'smeCommitment',
+  'buyerVerified',
+  'invoiceAmount',
+  'lender',
+  'amount',
+  'dueDate',
+  'rateBps',
+  'splitCount',
+  'transferred',
+  'status',
+] as const;
+
+/**
+ * Quote a cell per RFC 4180 when it contains a comma, quote or line break, and
+ * neutralise spreadsheet formula injection: any cell starting with `=`, `+`,
+ * `-`, `@`, or a tab gets a leading `'` so spreadsheets treat it as text, not
+ * as a formula.
+ */
+const csvCell = (raw: string): string => {
+  let value = raw;
+  if (/^[=+\-@\t]/.test(value)) value = `'${value}`;
+  return /[",\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+};
+
+/** Build the full CSV document: one header row + one row per invoice. */
+export function generateInvoicesCsv(state: Pick<AuditSource, 'invoices'>): string {
+  const header = INVOICES_CSV_COLUMNS.map(csvCell).join(',');
+  const rows = state.invoices.map((inv) =>
+    [
+      inv.nullifier,
+      inv.smeCommitment,
+      String(inv.buyerVerified),
+      dec(inv.invoiceAmount),
+      inv.lender ?? '',
+      dec(inv.amount),
+      dec(inv.dueDate),
+      dec(inv.rateBps),
+      dec(inv.splitCount),
+      String(inv.transferred),
+      statusOfInvoice(inv),
+    ]
+      .map(csvCell)
+      .join(','),
+  );
+  return [header, ...rows].join('\n');
+}
+
+/**
+ * Build a downloadable CSV File object. Prefixed with a UTF-8 BOM so Excel
+ * opens it correctly; the BOM is not part of the CSV document itself.
+ */
+export function invoicesCsvBlob(state: Pick<AuditSource, 'invoices'>): Blob {
+  return new Blob(['\uFEFF' + generateInvoicesCsv(state)], { type: 'text/csv;charset=utf-8' });
+}
+
+export function invoicesCsvFilename(now: Date = new Date()): string {
+  const stamp = now.toISOString().replace(/[:.]/g, '-');
+  return `shieldledger-invoices-${stamp}.csv`;
+}

@@ -7,6 +7,8 @@ import {
   generateAuditReport,
   auditReportBlob,
   auditReportFilename,
+  invoicesCsvBlob,
+  invoicesCsvFilename,
 } from '../audit-export.js';
 import { describeError } from '../lib/errorMessages.js';
 import { ErrorBanner } from './ErrorBanner.js';
@@ -53,21 +55,45 @@ export const Dashboard: React.FC = () => {
     track('audit_export', { invoices: report.summary.invoicesRegistered });
   };
 
+  const exportCsvForAccounting = (): void => {
+    if (!state) return;
+    const url = URL.createObjectURL(invoicesCsvBlob(state));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = invoicesCsvFilename();
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    track('csv_export', { invoices: state.invoices.length });
+  };
+
   return (
     <div className="sl-panel sl-panel-elevated">
       <PageHeader
         title="Analytics Dashboard"
         subtitle={DASHBOARD_SUBTITLE}
         actions={
-          <button
-            type="button"
-            className="sl-button"
-            onClick={exportAuditTrail}
-            disabled={!m || noData}
-            title="Builds a compliance/audit trail from public on-chain state only — no private data is included."
-          >
-            Export Audit Trail (JSON)
-          </button>
+          <>
+            <button
+              type="button"
+              className="sl-button"
+              onClick={exportAuditTrail}
+              disabled={!m || noData}
+              title="Builds a compliance/audit trail from public on-chain state only — no private data is included."
+            >
+              Export Audit Trail (JSON)
+            </button>
+            <button
+              type="button"
+              className="sl-button"
+              onClick={exportCsvForAccounting}
+              disabled={!m || noData}
+              title="Flat spreadsheet export of the public invoice ledger — one row per invoice, public fields only, for accounting."
+            >
+              Export CSV for Accounting
+            </button>
+          </>
         }
       />
 

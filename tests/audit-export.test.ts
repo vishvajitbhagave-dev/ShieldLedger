@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   generateAuditReport,
   serializeAuditReport,
+  generateInvoicesCsv,
+  statusOfInvoice,
 } from '../frontend/src/audit-export.js';
 import type { InvoiceView, InsuranceClaimView } from '../frontend/src/shield-ledger-types.js';
 
@@ -240,5 +242,119 @@ describe('audit trail — NO PRIVATE FIELDS LEAK', () => {
     );
     // The exported line must not carry any private-bearing field.
     expect(keys.join(',')).not.toMatch(/credit|reputation|contribution|secret/i);
+  });
+});
+
+describe('invoices CSV — accounting export', () => {
+  const CSV_HEADER =
+    'nullifier,smeCommitment,buyerVerified,invoiceAmount,lender,amount,dueDate,rateBps,splitCount,transferred,status';
+
+  it('emits the exact header row and nothing else for an empty ledger', () => {
+    const csv = generateInvoicesCsv({ invoices: [] });
+    expect(csv).toBe(CSV_HEADER);
+    expect(csv.split('\n')).toHaveLength(1);
+  });
+
+  it('writes one row per invoice and derives status from public fields only', () => {
+    const source = {
+      invoices: [
+        inv({ nullifier: 'a', invoiceAmount: 10_000n, lender: LENDER_PSEUDONYM, amount: 5000n, buyerVerified: true }),
+        inv({ nullifier: 'b', invoiceAmount: 20_000n }),
+        inv({ nullifier: 'c', invoiceAmount: 5000n, lender: LENDER_PSEUDONYM, amount: 2500n, transferred: true }),
+      ],
+      insuranceClaims: [],
+      insurancePool: null,
+      payoutCommitments: [],
+    };
+    const csv = generateInvoicesCsv(source);
+    const lines = csv.split('\n');
+    expect(lines).toHaveLength(4); // header + 3 invoices
+    expect(lines[0]).toBe(CSV_HEADER);
+
+    // Financed (lender set, not transferred).
+    expect(lines[1]).toBe('a,,true,10000,0x9f8e7d,5000,0,0,0,false,financed');
+    // Still bidding (no lender yet).
+    expect(lines[2]).toBe('b,,false,20000,,0,0,0,0,false,bidding');
+    // Transferred wins over financed.
+    expect(lines[3]).toBe('c,,false,5000,0x9f8e7d,2500,0,0,0,true,transferred');
+  });
+
+  it('statusOfInvoice follows the transferred > financed > bidding rule', () => {
+    expect(statusOfInvoice({ lender: null, transferred: false })).toBe('bidding');
+    expect(statusOfInvoice({ lender: '0x1', transferred: false })).toBe('financed');
+    expect(statusOfInvoice({ lender: '0x1', transferred: true })).toBe('transferred');
+    expect(statusOfInvoice({ lender: null, transferred: true })).toBe('transferred');
+  });
+
+  it('escapes commas and double quotes in cell values', () => {
+    const source = {
+      invoices: [
+        inv({ nullifier: 'a', lender: 'Bob, "The" Lender' }),
+      ],
+      insuranceClaims: [],
+      insurancePool: null,
+      payoutCommitments: [],
+    };
+    const csv = generateInvoicesCsv(source);
+    const row = csv.split('\n')[1];
+    // The lender cell must be quoted (it contains a comma) with quotes doubled.
+    expect(row).toBe('a,,false,1000,"Bob, ""The"" Lender",0,0,0,0,false,financed');
+    expect(csv).not.toContain('Bob, "The" Lender,0'); // never appears unquoted
+  });
+
+  it('neutralises spreadsheet formula injection in cells', () => {
+    const source = {
+      invoices: [
+        inv({ nullifier: '-2+3', lender: '=HYPERLINK("http://evil")', smeCommitment: '@SUM(1,2)' }),
+      ],
+      insuranceClaims: [],
+      insurancePool: null,
+      payoutCommitments: [],
+    };
+    const csv = generateInvoicesCsv(source);
+    // Neutralised cells must not begin a formula: a leading `'` turns them into text.
+    expect(csv).toContain("'-2+3");
+    expect(csv).toContain("'=HYPERLINK(");
+    expect(csv).toContain("'@SUM(");
+    // A cell value that starts with =, +, -, @ or tab must never appear unquoted/prefixed.
+    for (const marker of ['=HYPERLINK', '-2+3', '@SUM']) {
+      const atCellStart = csv.split('\n').slice(1).some((line) =>
+        line.split(',').some((cell) => cell.startsWith(marker)),
+      );
+      expect(atCellStart).toBe(false);
+    }
+  });
+
+  it('never serialises private-field names or sealed-bid / non-invoice data', () => {
+    const source = {
+      invoices: [inv({ nullifier: 'a', invoiceAmount: 10_000n, lender: LENDER_PSEUDONYM })],
+      // Non-invoice public data must stay out of the invoices CSV.
+      insuranceClaims: [{ nullifier: 'zzz', payout: 424_242_424n, claimedAt: 42n }],
+      insurancePool: { balance: 777n },
+      payoutCommitments: [{ slotKey: 's0', hash: '0xsecretlooking' }],
+    };
+    const csv = generateInvoicesCsv(source);
+
+    expect(csv).not.toContain('424242424');
+    expect(csv).not.toContain('777');
+    expect(csv).not.toContain('0xsecretlooking');
+    expect(csv).not.toContain('zzz');
+
+    for (const forbidden of [
+      'creditScore',
+      'smeCreditScore',
+      'lenderCreditScore',
+      'reputationScore',
+      'contribution',
+      'buyerSecret',
+      'claimSecret',
+      'lenderSecret',
+      'secret',
+    ]) {
+      expect(csv).not.toContain(forbidden);
+    }
+
+    // Header exposes only the 10 public fields + the derived status column.
+    expect(csv.split('\n')[0]).toBe(CSV_HEADER);
   });
 });
