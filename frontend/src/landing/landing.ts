@@ -1,5 +1,7 @@
 import './landing.css';
 
+import { getCurrentTheme, toggleTheme } from '../theme.js';
+
 type TickerItem = {
   invoice: string;
   status: string;
@@ -92,7 +94,7 @@ function initNav(): void {
   });
 
   links.addEventListener('click', (event) => {
-    if ((event.target as HTMLElement).tagName === 'A') {
+    if ((event.target as HTMLElement).tagName === 'A' || (event.target as HTMLElement).tagName === 'BUTTON') {
       links.classList.remove('open');
       toggle.setAttribute('aria-expanded', 'false');
     }
@@ -117,9 +119,26 @@ function initNav(): void {
   onScroll();
 }
 
+function initThemeToggle(): void {
+  const button = document.querySelector<HTMLButtonElement>('.nav-theme');
+  if (!button) return;
+
+  const syncLabel = (): void => {
+    const dark = getCurrentTheme() === 'dark';
+    button.setAttribute('aria-label', dark ? 'Switch to light theme' : 'Switch to dark theme');
+  };
+
+  button.addEventListener('click', () => {
+    toggleTheme();
+    syncLabel();
+  });
+  syncLabel();
+}
+
 renderTicker();
 initZkDemo();
 initNav();
+initThemeToggle();
 
 // The Connect Wallet / Launch the app CTAs open the wallet picker modal IN
 // PLACE. React + the wallet modal + the Midnight runtime are all kept out of

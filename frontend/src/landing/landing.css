@@ -1191,7 +1191,8 @@ input:focus-visible {
     border-bottom: 1px solid var(--border);
   }
 
-  .nav-links a:last-child {
+  .nav-links a:last-child,
+  .nav-links :last-child {
     border-bottom: 0;
   }
 
@@ -1337,5 +1338,70 @@ input:focus-visible {
   *::before,
   *::after {
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* ════════════════ Dark-theme tweaks (landing) ════════════════
+   The landing page is fully token-driven; only the sticky nav's translucent
+   light fill and the skip-link's navy chip need dark-specific treatment. */
+
+:root[data-theme='dark'] .nav {
+  background: rgba(11, 20, 36, 0.92);
+}
+
+:root[data-theme='dark'] .skip-link {
+  background: #0e1c33;
+  color: #fff;
+}
+
+/* ─── Theme toggle (nav) ─── */
+
+.nav-theme {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  font: var(--fw-semibold) var(--text-sm) var(--font-ui);
+  color: var(--navy);
+  cursor: pointer;
+  padding: 4px;
+  white-space: nowrap;
+}
+
+.nav-theme:hover {
+  color: var(--navy-hover);
+}
+
+.nav-theme svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+.nav-theme .icon-moon,
+.nav-theme .nav-theme-label-dark {
+  display: none;
+}
+
+:root[data-theme='dark'] .nav-theme .icon-moon {
+  display: inline;
+}
+
+:root[data-theme='dark'] .nav-theme .icon-sun,
+:root[data-theme='dark'] .nav-theme .nav-theme-label-light {
+  display: none;
+}
+
+:root[data-theme='dark'] .nav-theme .nav-theme-label-dark {
+  display: inline;
+}
+
+@media (max-width: 860px) {
+  .nav-theme {
+    padding: 12px 0;
+    width: 100%;
+    justify-content: flex-start;
+    border-bottom: 1px solid var(--border);
   }
 }

@@ -23,6 +23,7 @@ import { computeDashboardMetrics } from './dashboard-metrics.js';
 import { computeCircuitBreakerStatus, type CircuitBreakerStatus } from './circuit-breaker.js';
 import { HealthBanner } from './components/HealthBanner.js';
 import { NetworkSelector } from './components/NetworkSelector.js';
+import { ThemeToggle } from './components/ThemeToggle.js';
 import { PageHeader } from './components/PageHeader.js';
 import type { ShieldLedgerDerivedState } from './shield-ledger-types.js';
 import { unixSecondsToDmy } from './time.js';
@@ -542,6 +543,7 @@ const Body: React.FC = () => {
                 </div>
               )}
               {deployed && !demo && <NetworkSelector />}
+              <ThemeToggle />
               <div className="sl-wallet-group">
                 {demo ? (
                   <span className="sl-status-pill">

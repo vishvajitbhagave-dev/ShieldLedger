@@ -9,6 +9,7 @@ import './index.css';
 import { initMonitoring } from './lib/monitoring.js';
 import { trackPageView } from './lib/analytics.js';
 import { startWebVitals } from './lib/web-vitals.js';
+import { applyTheme, followSystemTheme, resolveInitialTheme } from './theme.js';
 
 // Network target. Defaults to the local docker-compose devnet ("undeployed").
 const networkId = import.meta.env.VITE_NETWORK_ID ?? 'undeployed';
@@ -20,6 +21,11 @@ setNetworkId(networkId);
 initMonitoring();
 startWebVitals();
 trackPageView();
+
+// Theme: default to the stored preference or the OS setting, applied before
+// first paint (the HTML <head> snippet also does this for the pre-JS flash).
+applyTheme(resolveInitialTheme());
+followSystemTheme();
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>

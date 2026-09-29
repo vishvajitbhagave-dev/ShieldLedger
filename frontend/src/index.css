@@ -120,6 +120,79 @@
   --hero-gradient: linear-gradient(135deg, var(--navy-bright) 0%, var(--navy-800) 100%);
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+ *  Dark theme — a clean extension of the token system above. The light values
+ *  in `:root` remain the default; these semantic overrides swap in when the
+ *  `data-theme="dark"` attribute is set on <html> by the theme toggle.
+ *  ══════════════════════════════════════════════════════════════════════════ */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* Color Palette - Cool Neutral Dark (navy-tinted, matches the brand) */
+  --bg: #0b1424;
+  --surface: #0f1a2e;
+  --surface-hover: #15223b;
+  --surface-2: #16233a;
+  --surface-3: #1d2d49;
+
+  /* Neutral gray ramp (kept cool, slightly lighter for dark surfaces) */
+  --gray-50: #f8fafc;
+  --gray-100: #eef2f7;
+  --gray-200: #d7dee8;
+  --gray-300: #9fb0c6;
+  --gray-400: #7b8ba3;
+  --gray-500: #64748b;
+  --gray-600: #4d5c73;
+  --gray-800: #2b3a52;
+  --gray-900: #e7ecf5;
+
+  --border: rgba(148, 163, 184, 0.18);
+  --border-strong: rgba(148, 163, 184, 0.34);
+  --border-focus: #7da6de;
+
+  /* Chip fill (neutral marker) - used by chart split markers */
+  --chip: var(--gray-400);
+
+  --text: var(--gray-900);
+  --text-muted: var(--gray-300);
+  --text-faint: var(--gray-400);
+
+  /* Brand: navy turns into a light steel-blue so text/links on dark surfaces
+     keep contrast. The navy hero gradient still reads as a dark band because
+     navy-bright/navy-800 are the gradient's dark anchors. */
+  --navy: #7da6de;
+  --navy-hover: #8fb4e6;
+  --navy-800: #0a1220;
+  --navy-bright: #102c4d;
+  --navy-soft: rgba(148, 163, 184, 0.12);
+  --navy-soft-strong: rgba(148, 163, 184, 0.2);
+  --navy-border: rgba(148, 163, 184, 0.28);
+
+  /* Action: emerald lightened slightly so CTAs pop on dark surfaces */
+  --emerald: #15b07e;
+  --emerald-hover: #12a675;
+  --emerald-800: #0c8a60;
+  --emerald-soft: rgba(15, 197, 128, 0.14);
+  --emerald-border: rgba(15, 197, 128, 0.34);
+
+  /* Semantic softs/borders tuned for dark surfaces */
+  --warning-soft: rgba(212, 140, 46, 0.16);
+  --warning-border: rgba(212, 140, 46, 0.36);
+  --danger-soft: rgba(248, 113, 113, 0.14);
+  --danger-border: rgba(248, 113, 113, 0.34);
+  --info-soft: rgba(96, 165, 250, 0.16);
+  --info-border: rgba(96, 165, 250, 0.36);
+
+  /* Focus ring - lighter ring on dark */
+  --focus-ring: 0 0 0 3px rgba(125, 166, 222, 0.4);
+
+  /* Elevation shadows - deeper on dark */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.34), 0 1px 2px rgba(0, 0, 0, 0.28);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 20px 45px rgba(0, 0, 0, 0.5), 0 8px 14px rgba(0, 0, 0, 0.34);
+}
+
 *,
 *::before,
 *::after {
@@ -1288,7 +1361,7 @@ select.sl-input {
 
 .sl-modal {
   width: min(100%, 26rem);
-  background: #ffffff;
+  background: var(--surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xl);
   padding: var(--sp-8);
@@ -1316,12 +1389,12 @@ select.sl-input {
 .sl-modal-head h3 {
   margin: 0;
   font: var(--fw-bold) var(--text-lg) var(--font-ui);
-  color: var(--navy);
+  color: var(--text);
 }
 
 .sl-modal-head .sl-meta {
   margin: 4px 0 0;
-  color: #5b6774;
+  color: var(--text-muted);
 }
 
 .sl-modal-close {
@@ -1330,10 +1403,10 @@ select.sl-input {
   height: 32px;
   display: grid;
   place-items: center;
-  border: 1px solid #e2e7ee;
+  border: 1px solid var(--border);
   border-radius: 999px;
   background: transparent;
-  color: #5b6774;
+  color: var(--text-muted);
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
@@ -1344,8 +1417,8 @@ select.sl-input {
 }
 
 .sl-modal-close:hover {
-  background: rgba(16, 35, 63, 0.06);
-  color: var(--navy);
+  background: var(--navy-soft);
+  color: var(--text);
 }
 
 .sl-modal-loading {
@@ -1363,77 +1436,77 @@ select.sl-input {
   }
 }
 
-/* The wallet rows are designed for the app's dark theme; inside the white
-   modal they get a light treatment so the card stays a clean white sheet. */
+/* The wallet rows are designed for the app's dark theme; inside the modal
+   they get a light treatment so the card stays a clean surface sheet. */
 .sl-modal .sl-wallet-option {
-  background: #ffffff;
-  border-color: #e2e7ee;
+  background: var(--surface);
+  border-color: var(--border);
 }
 
 .sl-modal .sl-wallet-option:hover {
-  border-color: #16a36f;
-  background: rgba(22, 163, 111, 0.05);
+  border-color: var(--success);
+  background: var(--success-soft);
   box-shadow: none;
 }
 
 .sl-modal .sl-wallet-name {
-  color: var(--navy);
+  color: var(--text);
 }
 
 .sl-modal .sl-wallet-desc {
-  color: #5b6774;
+  color: var(--text-muted);
 }
 
 .sl-modal .sl-wallet-option-unavailable,
 .sl-modal .sl-wallet-option-unavailable:hover {
-  background: #ffffff;
-  border-color: #e2e7ee;
+  background: var(--surface);
+  border-color: var(--border);
 }
 
 .sl-modal .sl-wallet-option-unavailable .sl-wallet-name,
 .sl-modal .sl-wallet-option-unavailable .sl-wallet-desc {
-  color: #8a95a3;
+  color: var(--text-faint);
 }
 
 .sl-modal .sl-wallet-install a {
-  color: #16a36f;
+  color: var(--success);
 }
 
 .sl-modal .sl-wallet-missing {
-  color: #8a95a3;
+  color: var(--text-faint);
 }
 
 .sl-modal .sl-wallet-install a:hover {
-  color: #0f7d54;
+  color: var(--emerald-hover);
 }
 
-/* Light-theme segmented switch + hint inside the white modal card. */
+/* Light-theme segmented switch + hint inside the modal card. */
 .sl-modal .sl-role-switch {
-  background: #eef1f5;
-  border-color: #e2e7ee;
+  background: var(--surface-2);
+  border-color: var(--border);
 }
 
 .sl-modal .sl-role-option {
-  color: #8a95a3;
+  color: var(--text-faint);
 }
 
 .sl-modal .sl-role-option:hover:not(.sl-role-option-active) {
-  color: var(--navy);
-  background: rgba(16, 35, 63, 0.06);
+  color: var(--text);
+  background: var(--navy-soft);
 }
 
 .sl-modal .sl-role-option:focus-visible {
-  box-shadow: 0 0 0 3px rgba(16, 35, 63, 0.25);
+  box-shadow: var(--focus-ring);
 }
 
 .sl-modal .sl-role-option-active {
-  background: #ffffff;
-  color: var(--navy);
+  background: var(--surface);
+  color: var(--text);
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
 }
 
 .sl-modal .sl-network-hint {
-  color: #8a5a08;
+  color: var(--warning);
 }
 
 .sl-wallet-list {
@@ -1577,6 +1650,13 @@ select.sl-input {
   height: 36px;
   padding: 0 14px;
   font-size: var(--text-sm);
+}
+
+.sl-theme-toggle {
+  width: 36px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
 }
 
 .sl-wallet-group {
@@ -2742,9 +2822,9 @@ select.sl-input {
   gap: var(--sp-4);
   flex-wrap: wrap;
   padding: var(--sp-3) var(--sp-4);
-  background: #fff8e1;
-  border-bottom: 1px solid #f0d27a;
-  color: #7a5c00;
+  background: var(--warning-soft);
+  border-bottom: 1px solid var(--warning-border);
+  color: var(--warning);
 }
 
 .sl-demo-banner-body {
@@ -2852,4 +2932,13 @@ select.sl-input {
     width: 100%;
     justify-content: space-between;
   }
+}
+
+/* ════════════════ Dark-theme component tweaks ════════════════
+   Token swaps cover nearly everything; these few component rules can't be
+   expressed purely as token overrides. */
+
+:root[data-theme='dark'] .sl-stepper-step.completed .sl-stepper-node {
+  background: var(--emerald);
+  border-color: var(--emerald);
 }
