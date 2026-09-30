@@ -141,11 +141,11 @@ Credit score ≥ threshold, reputation score ≥ threshold, lender credit score 
 
 ## Preprod Testers (wallet addresses self-reported via form)
 
-All **67 / 50** required Preprod wallet addresses are listed in [USERS.md](USERS.md) — one address per numbered row, no names or emails, in the Preprod format `mn_addr_preprod1...`. We cannot prove on-chain who used the app, so no claim of individual verification is implied.
+**67 wallet addresses** were self-reported by testers through the feedback form, against a target of 50, and are listed in [USERS.md](USERS.md) — one address per numbered row, in the Preprod format `mn_addr_preprod1...`. [USERS.md](USERS.md) itself lists addresses only, without names or emails; the tester names are in the User Feedback Summary table below. This is a list of form submissions, not proof of individual on-chain activity: we cannot prove on-chain who used the app, so no claim of individual verification is implied.
 
-### How to verify a user's wallet on-chain
+### About wallet address verification
 
-The addresses in [USERS.md](USERS.md) are **unshielded** Preprod addresses (Midnight convention: `mn_addr_preprod1...`; shielded addresses use `mn_shield-addr_preprod1...`). The only explorer link in this repo is the [1AM Explorer — Preprod contract](https://explorer.1am.xyz/contract/c66f441b1f70de899670a1f37cd6d9edee24420e0cde121276d8d003a395c381?network=preprod) page. A reviewer opens that page and checks whether a given address has activity in the contract's transaction history. This repo does **not** include a per-address explorer search URL, and per-user on-chain activity is not documented anywhere — those are the missing pieces.
+The addresses in [USERS.md](USERS.md) were submitted by testers through the feedback form. They are **unshielded** Preprod addresses (Midnight convention: `mn_addr_preprod1...`; shielded addresses use `mn_shield-addr_preprod1...`). The 1AM Explorer at `explorer.1am.xyz` has no per-address lookup, so we cannot offer a per-address on-chain check and cannot confirm from public chain data that a given address belongs to a given tester. For reference, the deployed Preprod contract is here: [1AM Explorer — Preprod contract](https://explorer.1am.xyz/contract/c66f441b1f70de899670a1f37cd6d9edee24420e0cde121276d8d003a395c381?network=preprod).
 
 ---
 
@@ -652,8 +652,8 @@ Ideas from the original proposal that are not yet built. These are distinct from
 
 ## Level 5 — User Validation
 
-- Target: 50 Preprod users
-- Current: 67 / 50 (see [USERS.md](USERS.md))
+- Target: 50 Preprod testers
+- Current: 67 self-reported wallet addresses (see [USERS.md](USERS.md))
 - See [docs/FEEDBACK.md](docs/FEEDBACK.md) for the feedback log and changes made in response
 
 ---

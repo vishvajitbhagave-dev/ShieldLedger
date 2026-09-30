@@ -1,5 +1,5 @@
-# Preprod Users — Level 5
-Target: 50 Preprod tester wallet addresses (self-reported via the feedback form)
+# Preprod Testers — Level 5
+Target: 50 Preprod tester wallet addresses
 
 This is the single list for the Level 5 user count — the README "Preprod Testers" section and the "Level 5 — User Validation" status line both point here. Addresses are Preprod unshielded (`mn_addr_preprod1...`), one per feedback-form user row in the README "User Feedback Summary" table. Addresses are self-reported by testers via the form; presence here is not proof of individual on-chain activity.
 
@@ -73,4 +73,4 @@ This is the single list for the Level 5 user count — the README "Preprod Teste
 | 66 | mn_addr_preprod1qxfvktg5zgcq7mu4z9jg0pzame4eyxzh9527zqyfzqjzxej3fw3sh6298d |
 | 67 | mn_addr_preprod1guapunlwwf9hlwehcxx3cf5z3m7n00csrx5gadya3req8pmyx0gs778lt9 |
 
-Current count: 67 / 50
+Current count: 67 self-reported addresses (target: 50)
