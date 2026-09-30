@@ -129,6 +129,7 @@ Credit score ≥ threshold, reputation score ≥ threshold, lender credit score 
 | **Product X Profile** | https://x.com/ShieldLedger |
 | **Feedback Form** | https://docs.google.com/forms/d/e/1FAIpQLSf2KQdtBEXqYsQzVzULJf2vXowjDfCLM7aKmb8SVQnKsOaNtg/viewform?usp=header |
 | **Feedback Responses (spreadsheet)** | https://docs.google.com/spreadsheets/d/13vO7Yoa064Kdkiq8DVWSJIchTBVrI2n2KFUz_RljIR8/edit?usp=sharing |
+| **User Feedback Log** | [docs/FEEDBACK.md](docs/FEEDBACK.md) |
 | **Security Audit** | [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md) |
 | **Architecture Document** | [docs/architecture.md](docs/architecture.md) |
 | **Usage Guide** | [docs/USAGE.md](docs/USAGE.md) |
@@ -155,6 +156,17 @@ The addresses in [USERS.md](USERS.md) are **unshielded** Preprod addresses (Midn
 🔗 **Feedback Form:** https://docs.google.com/forms/d/e/1FAIpQLSf2KQdtBEXqYsQzVzULJf2vXowjDfCLM7aKmb8SVQnKsOaNtg/viewform?usp=header
 
 📊 **Feedback Responses (spreadsheet):** https://docs.google.com/spreadsheets/d/13vO7Yoa064Kdkiq8DVWSJIchTBVrI2n2KFUz_RljIR8/edit?usp=sharing
+
+### How We Ran This Feedback Loop
+
+🔗 **Full feedback log, triage method, and outcome breakdown: [docs/FEEDBACK.md](docs/FEEDBACK.md)**
+
+67 tester submissions were received between 2026-08-30 and 2026-09-29. Each was triaged by
+kind (bug, UI/UX or clarity complaint, feature request, or positive/no-action), then either fixed
+and CI-verified against a commit, deferred to the [Future Ideas / Roadmap](#future-ideas--roadmap)
+section below, or explicitly recorded as not-actioned. **15 submissions produced a shipped code
+change**; the remainder are accounted for in the outcome table in `docs/FEEDBACK.md`, so nothing
+was silently dropped.
 
 ### User Feedback Summary
 
@@ -268,7 +280,9 @@ The addresses in [USERS.md](USERS.md) are **unshielded** Preprod addresses (Midn
 ## Community Contribution
 
 - **Product X Profile:** https://x.com/ShieldLedger
-- **[PLACEHOLDER — link to an X/Twitter post announcing ShieldLedger once published]**
+  - **Post 1:** https://x.com/ShieldLedger/status/2092207601937187208
+  - **Post 2:** https://x.com/ShieldLedger/status/2092216417634701602
+  - **Post 3:** https://x.com/ShieldLedger/status/2092217936513765428
 - **Open Source:** full codebase at [github.com/vishvajitbhagave-dev/ShieldLedger](https://github.com/vishvajitbhagave-dev/ShieldLedger)
 
 ---
@@ -649,6 +663,7 @@ Ideas from the original proposal that are not yet built. These are distinct from
 - [Architecture Document](docs/architecture.md)
 - [Security Audit](docs/SECURITY_AUDIT.md)
 - [Usage Guide](docs/USAGE.md)
+- [User Feedback Log](docs/FEEDBACK.md)
 - [Production Runbook](docs/production.md)
 - [Monitoring & Analytics](docs/monitoring.md)
 - [Trust & Data Provenance](docs/TRUST_AND_DATA_PROVENANCE.md)
@@ -667,7 +682,8 @@ Ideas from the original proposal that are not yet built. These are distinct from
 
 - **Product X Profile:** https://x.com/ShieldLedger
 - **GitHub:** [github.com/vishvajitbhagave-dev/ShieldLedger](https://github.com/vishvajitbhagave-dev/ShieldLedger)
-- **[PLACEHOLDER — add personal contact details: developer email, LinkedIn, Twitter/X handle, etc.]**
+- **Email:** <vishvajitbhagave@gmail.com>
+- **LinkedIn:** https://www.linkedin.com/in/vishvajit-bhagave-86b343323
 
 ---
 

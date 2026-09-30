@@ -3,6 +3,45 @@
 ## Feedback Collection Method
 Feedback is collected via a public Google Form linked from the README: https://docs.google.com/forms/d/e/1FAIpQLSf2KQdtBEXqYsQzVzULJf2vXowjDfCLM7aKmb8SVQnKsOaNtg/viewform?usp=header
 
+## How We Ran This Feedback Loop
+
+The form asks for a name, a Preprod wallet address, which roles were exercised, a star rating,
+and a free-text comment. **67 tester submissions** were received between 2026-08-30 and
+2026-09-29 and are reproduced verbatim in the log below.
+
+Each submission was then handled as follows:
+
+- **Triaged** by reading the free-text comment and sorting it into one of four kinds: a bug
+  report, a UI/UX or clarity complaint, a feature request, or positive/no-action feedback.
+  Bugs and clarity complaints were prioritised first, since they blocked use of an existing
+  flow; feature requests were assessed for scope and only scheduled once the core flows were
+  stable.
+- **Fixed** by building the change, then **CI-verified** — every shipped item below is tied to a
+  commit and its green CI run, so no improvement was marked done on the strength of a local run.
+- **Recorded** as either shipped (with the commit hash), deferred to the Roadmap, or explicitly
+  not-actioned, so that nothing silently disappeared.
+
+How the 67 submissions broke down:
+
+| Outcome | Count |
+|---------|-------|
+| Led to a shipped code change (commit hash recorded) | 15 |
+| Feature request recorded, not yet scheduled | 25 |
+| No written feedback beyond a star rating | 19 |
+| Positive or too brief to act on | 6 |
+| Investigated, could not reproduce on the current build | 1 |
+| Routed straight to the Roadmap, nothing shipped | 1 |
+| **Total** | **67** |
+
+Three of the 15 shipped changes also produced a follow-up idea that was deferred rather than
+built — which is why the Roadmap lists **6 ideas from 4 submissions**. Requests that were
+recorded but have neither shipped nor been scheduled are left visible in the table above rather
+than dropped, so the deferred backlog is auditable.
+
+**What we did not do:** we did not attach on-chain proof of individual tester activity. The
+addresses are self-reported through the form, and presence in this log is not evidence that a
+given address transacted. See the "Preprod Testers" section of the README.
+
 ## Raw Feedback Log
 | # | User | Feedback Summary | Date |
 |---|------|-----------------|------|
