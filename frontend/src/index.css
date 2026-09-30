@@ -2842,6 +2842,75 @@ select.sl-input {
   color: var(--text);
 }
 
+/* ── Onboarding "How it works in this app" card ──────────────────────────── */
+
+.sl-onboarding {
+  margin-top: var(--sp-5);
+}
+
+.sl-onboarding-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.sl-onboarding-title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--fw-bold);
+  color: var(--text);
+}
+
+.sl-onboarding-close {
+  margin-left: auto;
+}
+
+.sl-onboarding-summary {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+}
+
+.sl-onboarding-steps {
+  margin: 0;
+  padding-left: var(--sp-6);
+}
+
+.sl-onboarding-step + .sl-onboarding-step {
+  margin-top: var(--sp-2);
+}
+
+.sl-onboarding-step-title {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: var(--fw-bold);
+  color: var(--text);
+}
+
+.sl-onboarding-step-text {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.sl-onboarding-sealed {
+  margin: 0;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--navy);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.sl-onboarding-actions {
+  display: flex;
+  flex-wrap: wrap;
+}
+
 /* ── Demo Mode banner ─────────────────────────────────────────────────────── */
 
 .sl-demo-banner {

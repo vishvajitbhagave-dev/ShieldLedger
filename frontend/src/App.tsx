@@ -12,6 +12,7 @@ import { ErrorBoundary } from './components/ErrorBoundary.js';
 import { ErrorBanner } from './components/ErrorBanner.js';
 import { LenderPortfolio } from './components/LenderPortfolio.js';
 import { NextStepsCard } from './components/NextStepsCard.js';
+import { HowItWorksCard } from './components/HowItWorksCard.js';
 import { RateTrendChart } from './components/RateTrendChart.js';
 import { Profile } from './components/Profile.js';
 import { Settings } from './components/Settings.js';
@@ -301,6 +302,8 @@ const HomeDashboard: React.FC<{
       />
 
       <NextStepsCard role={heldRole} ledgerState={state} />
+
+      <HowItWorksCard role={heldRole} />
 
       <div className="sl-hero">
         <div className="sl-hero-content">
