@@ -9,6 +9,8 @@ import { EmptyState } from './EmptyState.js';
 import { ConnectingState, SkeletonRow } from './LoadingPlaceholders.js';
 import { buildMarketDepth } from '../bid-depth.js';
 import { unixSecondsToDmy } from '../time.js';
+import { statusBadgeClass } from '../invoice-status.js';
+import { HIGHLIGHT_MS, isWithinHighlightWindow } from '../highlight.js';
 import * as ShieldLedger from '../../../contracts/managed/shield-ledger/contract/index.js';
 
 const toHex = (bytes: Uint8Array): string =>
@@ -40,7 +42,7 @@ const TransferredBadge: React.FC<{ settled?: boolean }> = ({ settled }) => (
 // placeholder (skeleton) renders so tables keep their full structure while the
 // live ledger stream connects.
 const HEADERS = {
-  invoices: ['Nullifier', 'Commitment', 'Credit (ZK-proof)', 'Reputation (ZK-proof)', 'Claimed', 'Buyer-verified', 'Financed by', 'Amount', 'Rate', 'Due'],
+  invoices: ['Nullifier', 'Commitment', 'Credit (ZK-proof)', 'Reputation (ZK-proof)', 'Face amount (tNight)', 'Buyer-verified', 'Financed by', 'Financed amount (tNight)', 'Rate', 'Due'],
   bids: ['Invoice', 'Lender (pseudonym)', 'Commitment (terms hidden)'],
   bestBids: ['Invoice', 'Lender (pseudonym)', 'Amount', 'Rate', 'Due', 'Whole'],
   insuranceClaims: ['Invoice', 'Paid out', 'Claimed at'],
@@ -74,6 +76,10 @@ const SkeletonTable: React.FC<{ headers: readonly string[] }> = ({ headers }) =>
 export const LedgerView: React.FC = () => {
   const { state, error, retry } = useLedgerState();
   const [firstSeen, setFirstSeen] = useState<Record<string, number>>({});
+  // Clock the highlight checks read from; bumped by the expiry timer below so
+  // rows actually re-render and drop the `sl-row-highlight` class once the
+  // window passes (otherwise the tint would persist forever).
+  const [now, setNow] = useState(() => Date.now());
 
   // Track when elements are first seen in ledger state to trigger flash highlight animation
   useEffect(() => {
@@ -142,12 +148,23 @@ export const LedgerView: React.FC = () => {
     });
   }, [state]);
 
-  const isHighlighted = (key: string): boolean => {
-    const time = firstSeen[key];
-    if (!time) return false;
-    // Highlight if first seen in the last 4 seconds
-    return Date.now() - time < 4000;
-  };
+  const isHighlighted = (key: string): boolean => isWithinHighlightWindow(firstSeen[key], now);
+
+  // Re-render once the next remaining highlight expires, so its row stops being
+  // tinted. The timer is armed only while a highlight is still active and is
+  // torn down whenever `firstSeen` changes or the previous timer fires.
+  useEffect(() => {
+    let nextExpiry: number | null = null;
+    for (const seenAt of Object.values(firstSeen)) {
+      const expiresAt = seenAt + HIGHLIGHT_MS;
+      if (expiresAt > now && (nextExpiry === null || expiresAt < nextExpiry)) {
+        nextExpiry = expiresAt;
+      }
+    }
+    if (nextExpiry === null) return;
+    const handle = window.setTimeout(() => setNow(Date.now()), Math.max(0, nextExpiry - now));
+    return () => window.clearTimeout(handle);
+  }, [firstSeen, now]);
 
   const ready = state !== null;
 
@@ -236,7 +253,7 @@ export const LedgerView: React.FC = () => {
                           ) : inv.transferred ? (
                             <TransferredBadge />
                           ) : (
-                            <span className="sl-meta">— (bidding)</span>
+                            <span className={statusBadgeClass('Bidding')}>Bidding</span>
                           )}
                         </td>
                         <td className="u-td-strong">{inv.amount.toString()}</td>
