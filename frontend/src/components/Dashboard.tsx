@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLedgerState } from '../use-ledger-state.js';
 import { computeDashboardMetrics } from '../dashboard-metrics.js';
@@ -41,31 +41,57 @@ export const Dashboard: React.FC = () => {
 
   const noData = m !== null && m.totalInvoices === 0;
 
+  const [exportNotice, setExportNotice] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+
+  useEffect(() => {
+    if (!exportNotice) return;
+    const timer = window.setTimeout(() => setExportNotice(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [exportNotice]);
+
+  // Triggers a browser download of the given blob. Revoking the object URL is
+  // deliberately deferred so a slow download isn't cancelled mid-flight, and
+  // a failure inside the click path is rethrown for the caller to surface.
+  const deliverBlobDownload = (blob: Blob, filename: string): void => {
+    const url = URL.createObjectURL(blob);
+    try {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (e) {
+      console.error('export failed:', e);
+      throw e;
+    } finally {
+      window.setTimeout(() => URL.revokeObjectURL(url), 2000);
+    }
+  };
+
   const exportAuditTrail = (): void => {
     if (!state) return;
-    const report = generateAuditReport(state);
-    const url = URL.createObjectURL(auditReportBlob(report));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = auditReportFilename();
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    track('audit_export', { invoices: report.summary.invoicesRegistered });
+    try {
+      const report = generateAuditReport(state);
+      deliverBlobDownload(auditReportBlob(report), auditReportFilename());
+      setExportNotice({ kind: 'ok', text: 'Audit trail exported (JSON).' });
+      track('audit_export', { invoices: report.summary.invoicesRegistered });
+    } catch (e) {
+      console.error('audit export failed:', e);
+      setExportNotice({ kind: 'error', text: 'Audit export failed — please try again.' });
+    }
   };
 
   const exportCsvForAccounting = (): void => {
     if (!state) return;
-    const url = URL.createObjectURL(invoicesCsvBlob(state));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = invoicesCsvFilename();
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    track('csv_export', { invoices: state.invoices.length });
+    try {
+      deliverBlobDownload(invoicesCsvBlob(state), invoicesCsvFilename());
+      setExportNotice({ kind: 'ok', text: 'CSV exported for accounting.' });
+      track('csv_export', { invoices: state.invoices.length });
+    } catch (e) {
+      console.error('csv export failed:', e);
+      setExportNotice({ kind: 'error', text: 'CSV export failed — please try again.' });
+    }
   };
 
   return (
@@ -96,6 +122,17 @@ export const Dashboard: React.FC = () => {
           </>
         }
       />
+
+      {exportNotice && (
+        <p className={exportNotice.kind === 'ok' ? 'sl-success u-mb-0' : 'sl-error u-mb-0'} role="status">
+          {exportNotice.text}
+        </p>
+      )}
+      {noData && (
+        <p className="sl-meta u-mb-0" role="note">
+          The export buttons stay disabled until the first invoice is registered on-chain.
+        </p>
+      )}
 
       {error && <ErrorBanner error={describeError('ledgerStream', error)} onRetry={retry} />}
       {!state && !error && (

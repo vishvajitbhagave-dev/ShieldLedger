@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useShieldLedger } from '../context.js';
 import {
   loadRegisteredInvoices,
@@ -12,7 +12,15 @@ import {
   getDemoApi,
 } from '../lib/demo-ledger.js';
 import { useLedgerState } from '../use-ledger-state.js';
-import { invoiceStatusOf, isAuctionResolved, isOpenInvoice, isInsuranceClaimed } from '../invoice-status.js';
+import {
+  invoiceStatusOf,
+  isAuctionResolved,
+  isOpenInvoice,
+  isInsuranceClaimed,
+  statusBadgeClass,
+  type InvoiceStatus,
+} from '../invoice-status.js';
+import { actionProgressLabel, actionCompletedLabel } from '../action-labels.js';
 import type { InvoiceView } from '../shield-ledger-types.js';
 import type { ReputationView } from '../../../src/reputation.js';
 import { insuranceContribution } from '../../../src/insurance.js';
@@ -429,6 +437,13 @@ export const InvoiceFinancing: React.FC = () => {
   const [form, setForm] = useState<FormState>(initialForm);
   const [message, setMessage] = useState<Notice | null>(null);
   const [working, setWorking] = useState<string | null>(null);
+  // Bottom-of-page notices can render off-screen; scroll them into view.
+  const noticeRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (working !== null || message !== null) {
+      noticeRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [working, message]);
   const [invoices, setInvoices] = useState<RegisteredInvoice[]>(() =>
     demo ? demoLoadRegisteredInvoices() : loadRegisteredInvoices(scope),
   );
@@ -504,7 +519,7 @@ export const InvoiceFinancing: React.FC = () => {
     setWorking(label);
     try {
       await op();
-      setMessage({ ok: true, text: `${label} succeeded` });
+      setMessage({ ok: true, text: actionCompletedLabel(label) });
       if (!demo) track(label, { outcome: 'success', role: role ?? 'sme' });
     } catch (e) {
       console.error(`${label} failed:`, e);
@@ -758,7 +773,13 @@ export const InvoiceFinancing: React.FC = () => {
             },
           ];
 
-  const statusOf = (inv: RegisteredInvoice): string => invoiceStatusOf(inv, ledgerState?.invoices ?? []);
+  const statusOf = (inv: RegisteredInvoice): InvoiceStatus =>
+    invoiceStatusOf(inv, ledgerState?.invoices ?? []);
+
+  // "Await Confirmation" is complete once the corporate buyer actually verified
+  // the invoice on-chain — NOT merely because it was submitted locally.
+  const isBuyerConfirmed = (inv: RegisteredInvoice): boolean =>
+    (ledgerState?.invoices ?? []).some((i) => i.nullifier === inv.nullifier && i.buyerVerified);
 
   const settleNullifier = form.settleNullifier.trim();
   const settleReady = settleNullifier !== '' && resolved(settleNullifier);
@@ -895,7 +916,7 @@ export const InvoiceFinancing: React.FC = () => {
             {smeSteps.map((step, idx) => {
               const isCompleted =
                 (step.key === 'register' && invoices.length > 0) ||
-                (step.key === 'verify' && invoices.some((i) => statusOf(i) !== 'Unconfirmed')) ||
+                (step.key === 'verify' && invoices.some((i) => isBuyerConfirmed(i))) ||
                 (step.key === 'bid' && invoices.some((i) => resolved(i.nullifier)));
               const isActive = activeSmeStep === step.key;
               const stepIcon = isCompleted ? (
@@ -1065,7 +1086,7 @@ export const InvoiceFinancing: React.FC = () => {
                           <td className="u-td-strong">{inv.amount} tNight</td>
                           <td>{unixSecondsToDmy(BigInt(inv.dueDate))}</td>
                           <td>
-                            <span className={`sl-badge ${statusOf(inv) === 'Financed' ? '' : 'sl-badge-warn'}`}>
+                            <span className={statusBadgeClass(statusOf(inv))}>
                               {statusOf(inv)}
                             </span>
                           </td>
@@ -1978,28 +1999,35 @@ export const InvoiceFinancing: React.FC = () => {
       </>
       )}
 
-      {working !== null && (
-        <div className="sl-working">
-          <span className="sl-loading-spinner sl-loading-spinner-sm" aria-hidden="true" />
-          <span>
-            {demo ? (
-              <>
-                <strong>{working}</strong> simulated — no wallet approval required.
-              </>
-            ) : (
-              <>
-                <strong>{working}</strong> in progress… (proof generation can take 30–60s) — when
-                ready, approve in Lace.
-              </>
-            )}
-          </span>
-        </div>
-      )}
+      <div ref={noticeRef}>
+        {working !== null && (
+          <div className="sl-working" role="status">
+            <span className="sl-loading-spinner sl-loading-spinner-sm" aria-hidden="true" />
+            <span>
+              {demo ? (
+                <>
+                  <strong>{actionProgressLabel(working)}…</strong> simulated — no wallet approval
+                  required.
+                </>
+              ) : (
+                <>
+                  <strong>{actionProgressLabel(working)}…</strong> in progress — proof generation
+                  can take 30–60s, then approve in Lace.
+                </>
+              )}
+            </span>
+          </div>
+        )}
 
-      {message && message.ok && <div className="sl-success u-mb-0">{message.text}</div>}
-      {message && !message.ok && (
-        <ErrorBanner error={message.error} onDismiss={() => setMessage(null)} onReconnect={reconnectWallet} />
-      )}
+        {message && message.ok && (
+          <div className="sl-success u-mb-0" role="status">
+            {message.text}
+          </div>
+        )}
+        {message && !message.ok && (
+          <ErrorBanner error={message.error} onDismiss={() => setMessage(null)} onReconnect={reconnectWallet} />
+        )}
+      </div>
     </div>
   );
 };

@@ -4,6 +4,7 @@ import {
   isAuctionResolved,
   isOpenInvoice,
   isInsuranceClaimed,
+  statusBadgeClass,
 } from '../frontend/src/invoice-status';
 
 const REGISTERED = { nullifier: 'a'.repeat(64) };
@@ -72,5 +73,19 @@ describe('isInsuranceClaimed', () => {
 
   it('is false when no claim was paid at all', () => {
     expect(isInsuranceClaimed('b'.repeat(64), [])).toBe(false);
+  });
+});
+
+describe('statusBadgeClass', () => {
+  it('maps Registered to the neutral informational badge', () => {
+    expect(statusBadgeClass('Registered')).toBe('sl-badge');
+  });
+
+  it('maps Bidding to the warning badge', () => {
+    expect(statusBadgeClass('Bidding')).toBe('sl-badge sl-badge-warn');
+  });
+
+  it('maps Settled to the success badge', () => {
+    expect(statusBadgeClass('Settled')).toBe('sl-badge sl-badge-success');
   });
 });

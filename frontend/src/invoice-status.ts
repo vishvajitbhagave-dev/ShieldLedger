@@ -25,6 +25,22 @@ export function isOpenInvoice(invoice: InvoiceSnapshot): boolean {
   return invoice.lender === null;
 }
 
+/**
+ * CSS badge class for an invoice's status chip on the SME page, using the
+ * existing badge palette in the same tone the Public Ledger uses — neutral
+ * for "not live yet", amber for an active auction, green once financed.
+ */
+export function statusBadgeClass(status: InvoiceStatus): string {
+  switch (status) {
+    case 'Registered':
+      return 'sl-badge';
+    case 'Bidding':
+      return 'sl-badge sl-badge-warn';
+    case 'Settled':
+      return 'sl-badge sl-badge-success';
+  }
+}
+
 /** Minimal view of one running best bid (matches BestBidView). */
 export interface BestBidSnapshot {
   readonly nullifier: string;
