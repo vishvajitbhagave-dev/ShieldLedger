@@ -125,7 +125,7 @@ Credit score ≥ threshold, reputation score ≥ threshold, lender credit score 
 |----------|------|
 | **Landing / Intro Page** (external-facing entry) | https://vishvajitbhagave-dev.github.io/ShieldLedger/landing.html |
 | **Live Demo (Midnight Preprod)** | https://vishvajitbhagave-dev.github.io/ShieldLedger/ |
-| **Demo Video** (wallet connect + a successful circuit call on the Preview testnet) | https://drive.google.com/file/d/1VFMtWUn_rTVSr8cfy7wJNeSbAMppjFbi/view?usp=drive_link |
+| **Demo Video** (full flow on Preprod: auction, reveal, settlement, pool, insurance, secondary market) | https://drive.google.com/file/d/1VFMtWUn_rTVSr8cfy7wJNeSbAMppjFbi/view?usp=drive_link |
 | **Product X Profile** | https://x.com/ShieldLedger |
 | **Feedback Form** | https://docs.google.com/forms/d/e/1FAIpQLSf2KQdtBEXqYsQzVzULJf2vXowjDfCLM7aKmb8SVQnKsOaNtg/viewform?usp=header |
 | **Feedback Responses (spreadsheet)** | https://docs.google.com/spreadsheets/d/13vO7Yoa064Kdkiq8DVWSJIchTBVrI2n2KFUz_RljIR8/edit?usp=sharing |
