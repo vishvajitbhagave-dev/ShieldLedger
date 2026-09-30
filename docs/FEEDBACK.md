@@ -1,4 +1,4 @@
-# User Feedback — Level 5
+# User Feedback — Level 6
 
 ## Feedback Collection Method
 Feedback is collected via a public Google Form linked from the README: https://docs.google.com/forms/d/e/1FAIpQLSf2KQdtBEXqYsQzVzULJf2vXowjDfCLM7aKmb8SVQnKsOaNtg/viewform?usp=header
@@ -6,8 +6,8 @@ Feedback is collected via a public Google Form linked from the README: https://d
 ## How We Ran This Feedback Loop
 
 The form asks for a name, a Preprod wallet address, which roles were exercised, a star rating,
-and a free-text comment. **67 tester submissions** were received between 2026-08-30 and
-2026-09-29 and are reproduced verbatim in the log below.
+and a free-text comment. **70 tester submissions** were received between 2026-08-30 and
+2026-09-30 and are reproduced verbatim in the log below.
 
 Each submission was then handled as follows:
 
@@ -21,7 +21,7 @@ Each submission was then handled as follows:
 - **Recorded** as either shipped (with the commit hash), deferred to the Roadmap, or explicitly
   not-actioned, so that nothing silently disappeared.
 
-How the 67 submissions broke down:
+How the 70 submissions broke down:
 
 | Outcome | Count |
 |---------|-------|
@@ -30,11 +30,12 @@ How the 67 submissions broke down:
 | No written feedback beyond a star rating | 19 |
 | Positive or too brief to act on | 6 |
 | Investigated, could not reproduce on the current build | 1 |
-| Routed straight to the Roadmap, nothing shipped | 1 |
-| **Total** | **67** |
+| Routed straight to the Roadmap, nothing shipped | 4 |
+| **Total** | **70** |
 
 Three of the 15 shipped changes also produced a follow-up idea that was deferred rather than
-built — which is why the Roadmap lists **6 ideas from 4 submissions**. Requests that were
+built, and three later submissions (Elijah Negasi, Afsana Inamdar, Laxmi Joshi) each added one
+further idea — which is why the Roadmap lists **9 ideas from 7 submissions**. Requests that were
 recorded but have neither shipped nor been scheduled are left visible in the table above rather
 than dropped, so the deferred backlog is auditable.
 
@@ -112,6 +113,9 @@ given address transacted. See the "Preprod Testers" section of the README.
 | 65 | janvi pinjan | tested as SME (Business raising financing), rated 5/5 — "Caching layer for faster dashboard loads" | 2026-09-28 |
 | 66 | Prathmesh Sonawane | tested as SME (Business raising financing), Lender (Investor), Buyer (Invoice verifier), rated 5/5 — "SMS alerts for critical events (settlement, default)" | 2026-09-29 |
 | 67 | Tanishq Sonawane | tested as SME (Business raising financing), rated 4/5 — "—" | 2026-09-29 |
+| 68 | Elijah Negasi | tested as SME (Business raising financing), Lender (Investor), Buyer (Invoice verifier), rated 4/5 — "Contact or support ticket system" | 2026-09-30 |
+| 69 | Afsana Inamdar | tested as SME, Lender, Buyer, rated 4/5 — "Saved filters/views for frequent users" | 2026-09-30 |
+| 70 | Laxmi Joshi | tested as SME (Business raising financing), rated 4/5 — "Account verification badges (verified SME, verified lender)" | 2026-09-30 |
 
 ## What We Heard (Themes)
 
@@ -126,6 +130,9 @@ given address transacted. See the "Preprod Testers" section of the README.
 - **Exports** — exportable PDF/CSV reports for accounting (Diksha Ughade).
 - **Theming and device support** — dark/light mode and a mobile-responsive / native app version (Tooba).
 - **Ideas logged for the roadmap** — AI chat assistant (Vidhi Patil), customizable dashboard widgets (Yogi Patil), native mobile app (Tooba), in-platform messaging and live chat (Rachana Shinde).
+- **Support and contact tooling** — a support ticket system (Elijah Negasi), alongside the already-logged live chat support request (Rachana Shinde).
+- **Personalised views for repeat users** — saved filters/views for frequent users (Afsana Inamdar).
+- **Verified identity** — account verification badges for verified SME / verified lender (Laxmi Joshi); noted as a trust signal the current self-reported credit score cannot yet back.
 
 ## What We Changed
 | Feedback | Improvement Made | Commit |

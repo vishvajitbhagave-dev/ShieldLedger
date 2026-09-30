@@ -123,7 +123,7 @@ Credit score ≥ threshold, reputation score ≥ threshold, lender credit score 
 |----------|------|
 | **Landing / Intro Page** (external-facing entry) | https://vishvajitbhagave-dev.github.io/ShieldLedger/landing.html |
 | **Live Demo (Midnight Preprod)** | https://vishvajitbhagave-dev.github.io/ShieldLedger/ |
-| **Demo Video** (full flow on **Preprod** — the network used for this Level 5 submission: auction, reveal, settlement, pool, insurance, secondary market) | https://drive.google.com/file/d/1VFMtWUn_rTVSr8cfy7wJNeSbAMppjFbi/view?usp=drive_link |
+| **Demo Video** (full flow on **Preprod** — the network used for this Level 6 submission: auction, reveal, settlement, pool, insurance, secondary market) | https://drive.google.com/file/d/1VFMtWUn_rTVSr8cfy7wJNeSbAMppjFbi/view?usp=drive_link |
 | **Product X Profile** | https://x.com/ShieldLedger |
 | **Feedback Form** | https://docs.google.com/forms/d/e/1FAIpQLSf2KQdtBEXqYsQzVzULJf2vXowjDfCLM7aKmb8SVQnKsOaNtg/viewform?usp=header |
 | **Feedback Responses (spreadsheet)** | https://docs.google.com/spreadsheets/d/13vO7Yoa064Kdkiq8DVWSJIchTBVrI2n2KFUz_RljIR8/edit?usp=sharing |
@@ -139,7 +139,7 @@ Credit score ≥ threshold, reputation score ≥ threshold, lender credit score 
 
 ## Preprod Testers (wallet addresses self-reported via form)
 
-**67 wallet addresses** were self-reported by testers through the feedback form, against a target of 50, and are listed in [USERS.md](USERS.md) — one address per numbered row, in the Preprod format `mn_addr_preprod1...`. [USERS.md](USERS.md) itself lists addresses only, without names or emails; the tester names are in the User Feedback Summary table below. This is a list of form submissions, not proof of individual on-chain activity: we cannot prove on-chain who used the app, so no claim of individual verification is implied.
+**70 wallet addresses** were self-reported by testers through the feedback form, against a target of 70, and are listed in [USERS.md](USERS.md) — one address per numbered row, in the Preprod format `mn_addr_preprod1...`. [USERS.md](USERS.md) itself lists addresses only, without names or emails; the tester names are in the User Feedback Summary table below. This is a list of form submissions, not proof of individual on-chain activity: we cannot prove on-chain who used the app, so no claim of individual verification is implied.
 
 ### About wallet address verification
 
@@ -159,7 +159,7 @@ The addresses in [USERS.md](USERS.md) were submitted by testers through the feed
 
 🔗 **Full feedback log, triage method, and outcome breakdown: [docs/FEEDBACK.md](docs/FEEDBACK.md)**
 
-67 tester submissions were received between 2026-08-30 and 2026-09-29. Each was triaged by
+70 tester submissions were received between 2026-08-30 and 2026-09-30. Each was triaged by
 kind (bug, UI/UX or clarity complaint, feature request, or positive/no-action), then either fixed
 and CI-verified against a commit, deferred to the [Future Ideas / Roadmap](#future-ideas--roadmap)
 section below, or explicitly recorded as not-actioned. **15 submissions produced a shipped code
@@ -237,6 +237,9 @@ was silently dropped.
 | 65 | janvi pinjan | mn_addr_preprod1tjjmdxn7fdsne9ggcv4pfakt2eal4jcal5sn0a0v4p2td7fd5tvqnu0stf | tested as SME (Business raising financing), rated 5/5 — "Caching layer for faster dashboard loads" | — |
 | 66 | Prathmesh Sonawane | mn_addr_preprod1qxfvktg5zgcq7mu4z9jg0pzame4eyxzh9527zqyfzqjzxej3fw3sh6298d | tested as SME (Business raising financing), Lender (Investor), Buyer (Invoice verifier), rated 5/5 — "SMS alerts for critical events (settlement, default)" | — |
 | 67 | Tanishq Sonawane | mn_addr_preprod1guapunlwwf9hlwehcxx3cf5z3m7n00csrx5gadya3req8pmyx0gs778lt9 | tested as SME (Business raising financing), rated 4/5 — "—" | — |
+| 68 | Elijah Negasi | mn_addr_preprod1njjcpc5cvy8hvxxrs9488k2epc8qhrv4na7jxpt724qw846cvnkqwzrqay | tested as SME (Business raising financing), Lender (Investor), Buyer (Invoice verifier), rated 4/5 — "Contact or support ticket system" | — |
+| 69 | Afsana Inamdar | mn_addr_preprod1hlkf0wjkgjpueh0xyw0892c456a3k2ahdamfdzx4hrxa67k8g50sjy60gk | tested as SME, Lender, Buyer, rated 4/5 — "Saved filters/views for frequent users" | — |
+| 70 | Laxmi Joshi | mn_addr_preprod1j5ymf2at55gtvhhtfjt758dk0plgazd7trfupr0yz0cm6fw45m2svv54cg | tested as SME (Business raising financing), rated 4/5 — "Account verification badges (verified SME, verified lender)" | — |
 
 ### Improvements Implemented Based on Feedback
 
@@ -272,6 +275,9 @@ was silently dropped.
 - **Mobile card-list view for data tables** — replace horizontal-scroll tables (Public Ledger, Invoice Financing) with a stacked card layout on small screens for easier mobile browsing. Identified during mobile responsiveness audit; optional polish, not required (current tables are functional via horizontal scroll).
 - **In-platform messaging between SME and Buyer** — a way for SMEs and Buyers to message each other inside ShieldLedger. Requested by tester Rachana Shinde. Not yet scoped — needs message storage, delivery and identity handling, and must be designed carefully so it doesn't weaken ShieldLedger's privacy goals.
 - **Live chat support during business hours** — a live support channel users can reach during business hours. Requested by tester Rachana Shinde. Not yet scoped — needs a staffed support process and possibly a third-party chat tool, so it's an operations decision as much as a coding one.
+- **Contact / support ticket system** — an in-platform way to raise a ticket and contact the team, so issues have a tracked home instead of living in a feedback form or email thread. Requested by tester Elijah Negasi. Not yet built — overlaps with the "live chat support" idea above and needs a ticket backend, identity handling, and a staffed response process before it can be scoped, so the two are being assessed together rather than shipping a contact form alone.
+- **Saved filters / views for frequent users** — let repeat users save their own filter and view combinations (e.g. open invoices they bid on, their settled pool positions) and switch between them. Requested by tester Afsana Inamdar. Not yet built — per-user saved views need persistence and identity-scoping decisions across both the shared ledger and wallet-private state, so it is not yet scoped and must not weaken the privacy model.
+- **Verified SME / lender account badges** — show a verified SME or verified lender badge on a counterparty. Requested by tester Laxmi Joshi. Not yet built — a badge implies a real identity/credential source, and no such data source exists in the system today; the existing credit score is self-reported (see [Known Limitations](#known-limitations)), so labelling anyone "verified" would be a claim the current build cannot back.
 
 ---
 
@@ -377,7 +383,7 @@ The core contract (`contracts/shield-ledger.compact`) is written in Compact. Eve
 | **Preview Contract (archived)** | `18737084144f6482d529fdb8fa357966c9c2eb2c3734d1753f4b42648a4dc4a6` — pre-existing tester data, no longer the active default (see note below). |
 | **Preprod Contract Address** | `c66f441b1f70de899670a1f37cd6d9edee24420e0cde121276d8d003a395c381` |
 | **Preprod Contract (archived)** | `a503d5c086f8ab42f3a650fa0c4b67e31ac37c7eb997c8513c3dccf38de8c925` — pre-existing tester data, no longer the active default (see note below). |
-| **Networks** | The DApp supports **both** networks, switchable in-app (see the environment table below). **Preprod** is the network used for this Level 5 submission and for the demo video. **Preview** is also deployed and is the network used for the [End-to-End Verification](#end-to-end-verification-preview-network-evidence) transaction IDs: [1AM Explorer — Preview](https://explorer.1am.xyz/contract/2bce4c7dea4edcdf1465496efd2c0af97cc6986bbed016569fe5733813b94be3?network=preview) / [1AM Explorer — Preprod](https://explorer.1am.xyz/contract/c66f441b1f70de899670a1f37cd6d9edee24420e0cde121276d8d003a395c381?network=preprod) |
+| **Networks** | The DApp supports **both** networks, switchable in-app (see the environment table below). **Preprod** is the network used for this Level 6 submission and for the demo video. **Preview** is also deployed and is the network used for the [End-to-End Verification](#end-to-end-verification-preview-network-evidence) transaction IDs: [1AM Explorer — Preview](https://explorer.1am.xyz/contract/2bce4c7dea4edcdf1465496efd2c0af97cc6986bbed016569fe5733813b94be3?network=preview) / [1AM Explorer — Preprod](https://explorer.1am.xyz/contract/c66f441b1f70de899670a1f37cd6d9edee24420e0cde121276d8d003a395c381?network=preprod) |
 
 > **Preview re-deployment (2026-09-24).** The active Preview default was re-deployed as `2bce4c7d…3b94be3` so the live ledger matches the current contract logic. The previous instance `18737084…a4dc4a6` is **archived**: the invoices and bids testers created on it are **not lost** (they remain on-chain and are still readable if you join that address manually via `#/?contract=18737084144f6482d529fdb8fa357966c9c2eb2c3734d1753f4b42648a4dc4a6`), but they do **not** appear on the new default. Going forward all new users (including anyone re-testing) use the new default.
 
@@ -385,8 +391,8 @@ The core contract (`contracts/shield-ledger.compact`) is written in Compact. Eve
 
 | Environment | Status | Details |
 | --- | --- | --- |
-| Midnight **Preview** (testnet) | **Active** | Live contract + funded test tokens from the [Preview faucet](https://faucet.preview.midnight.network/). Supported and switchable in-app, but **not** the network used for this Level 5 submission. |
-| Midnight **Preprod** (testnet) | **Active** | Live contract + DApp (GitHub Pages demo); funded test tokens from the [Preprod faucet](https://midnight-tmnight-preprod.nethermind.dev/). **This is the network used for the Level 5 submission, the demo video, and all 67 tester submissions.** |
+| Midnight **Preview** (testnet) | **Active** | Live contract + funded test tokens from the [Preview faucet](https://faucet.preview.midnight.network/). Supported and switchable in-app, but **not** the network used for this Level 6 submission. |
+| Midnight **Preprod** (testnet) | **Active** | Live contract + DApp (GitHub Pages demo); funded test tokens from the [Preprod faucet](https://midnight-tmnight-preprod.nethermind.dev/). **This is the network used for the Level 6 submission, the demo video, and all 70 tester submissions.** |
 | Midnight **Mainnet** | Not deployed | Requires Midnight mainnet tooling; nothing deployed there. |
 
 ### What goes on-chain per-flow
@@ -418,7 +424,7 @@ The core contract (`contracts/shield-ledger.compact`) is written in Compact. Eve
 
 ### End-to-End Verification (Preview Network Evidence)
 
-> The transaction IDs below are from the **Preview** network and are included as **additional evidence** that the end-to-end flow settles on-chain. They are *not* the network used for this Level 5 submission — Preprod is (see the [network table](#live-demo) above and the [contract addresses](#smart-contract) below). Preprod is the network used for the demo video and for all 67 tester submissions.
+> The transaction IDs below are from the **Preview** network and are included as **additional evidence** that the end-to-end flow settles on-chain. They are *not* the network used for this Level 6 submission — Preprod is (see the [Live Demo link](#important-links) above and the [contract addresses](#smart-contract) below). Preprod is the network used for the demo video and for all 70 tester submissions.
 
 | Flow | TxID | Block |
 | --- | --- | --- |
@@ -648,10 +654,10 @@ Ideas from the original proposal that are not yet built. These are distinct from
 
 ---
 
-## Level 5 — User Validation
+## Level 6 — User Validation
 
-- Target: 50 Preprod testers
-- Current: 67 self-reported wallet addresses (see [USERS.md](USERS.md))
+- Target: 70 Preprod testers
+- Current: 70 self-reported wallet addresses (see [USERS.md](USERS.md))
 - See [docs/FEEDBACK.md](docs/FEEDBACK.md) for the feedback log and changes made in response
 
 ---
