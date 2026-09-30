@@ -222,7 +222,7 @@ properties about them, and only the proven bound or boolean is made public.
 ShieldLedger is currently deployed on the **Midnight Preview** and **Preprod**
 testnets with a working contract (`contracts/shield-ledger.compact`), a
 multi-contract escrow (`contracts/escrow.compact`), a CLI, and a React/Vite
-browser DApp. 136 tests pass in the simulator suite. The following is a concrete
+browser DApp. 461 tests pass in the simulator suite. The following is a concrete
 plan for reaching a Mainnet-ready state by Level 6.
 
 ### What is already built (Preprod/Preview)
@@ -241,9 +241,9 @@ plan for reaching a Mainnet-ready state by Level 6.
 - **Browser DApp** with SME, Buyer, and Lender role workflows, Lace wallet
   integration, live ledger streaming via `state$`, mobile-responsive UI.
 - **CLI** with interactive and non-interactive modes, all nine menu options.
-- **Test suite** — 136 tests across 9 suites (auction, escrow, buyer
+- **Test suite** — 461 tests across 35 test files (contract, escrow, buyer
   verification, inter-contract, reputation, private keys, invoice status,
-  invoice nullifier, error messages, CLI args).
+  invoice nullifier, error messages, CLI args, and frontend analytics).
 - **CI/CD** — GitHub Actions: contract tests, typecheck, DApp build, GitHub
   Pages deployment.
 - **E2E smoke check** — `npm run test:e2e` reads on-chain state from the

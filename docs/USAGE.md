@@ -6,19 +6,20 @@ This guide walks you through the DApp step by step. No technical background requ
 
 ## What You Need
 
-1. **Midnight Lace wallet** — a browser extension (like MetaMask, but for Midnight). Install it from [lace.io](https://lace.io/) and create or import a wallet.
-2. **Test tokens** — ShieldLedger runs on the Midnight Preview testnet, which uses free test tokens (tNight and tDUST). Get them from the [Preview faucet](https://faucet.preview.midnight.network/).
+1. **A Midnight wallet** — the Midnight Lace browser extension (like MetaMask, but for Midnight) or the 1AM wallet. Install Lace from [lace.io](https://lace.io/) and create or import a wallet.
+2. **Test tokens** — ShieldLedger runs on the Midnight **Preprod** testnet by default (the connect screen has a Preview ⇄ Preprod toggle), which uses free test tokens (tNight and tDUST). Get Preprod tokens from the [Preprod faucet](https://midnight-tmnight-preprod.nethermind.dev/).
 3. **A browser** — Chrome, Edge, or any Chromium-based browser. Open the [ShieldLedger DApp](https://vishvajitbhagave-dev.github.io/ShieldLedger/).
-4. **A running proof-server** — the DApp connects to a local proof-server at `localhost:6300`. If you are using the hosted version, this is pre-configured. If running locally, start it with `npm run proof-server:start`.
+4. **A proof-server (only when developing locally)** — the DApp normally uses the provider URLs the connected wallet reports via its configuration (see `frontend/.env`). To run the app locally you may need a local proof-server: start it with `npm run proof-server:start`, or point `VITE_PROOF_SERVER_URL` at your own server.
 
 ## Step-by-Step Guide
 
 ### Step 1: Connect Your Wallet
 
 1. Open the [ShieldLedger DApp](https://vishvajitbhagave-dev.github.io/ShieldLedger/).
-2. Click **Connect with Lace**.
-3. If your Lace wallet is locked, the DApp will show a waiting message and automatically retry once you unlock it.
-4. Once connected, you will see the main dashboard with a **Live** badge and your wallet balance.
+2. Confirm the network is **Preprod** (or switch to **Preview** with the toggle shown before you pick a wallet).
+3. Click **Connect Wallet** and choose **Lace** (or **1AM**) from the wallet picker.
+4. If your wallet is locked, the DApp will show a waiting message and automatically retry once you unlock it.
+5. Once connected, you will see the main dashboard with a **Live** badge and your wallet balance.
 
 ### Step 2: Register an Invoice (SME Role)
 
@@ -216,14 +217,14 @@ Your Lace wallet extension is locked. Unlock it in the Lace extension popup. The
 
 ### "Proof server unreachable" or connection error
 
-The DApp needs a proof-server running at `localhost:6300` to generate zero-knowledge proofs.
+The DApp generates proofs against the proof-server URL it gets from the connected wallet's configuration. On the hosted DApp no URL is baked into the build, so the wallet-reported prover is used — if it is unreachable, proof generation fails with this error.
 
-- **If using Docker locally:** Run `npm run proof-server:start` to start the proof-server container.
-- **If using the hosted DApp:** The proof-server URL is pre-configured. If you see this error, the server may be temporarily down — try again in a minute.
+- **If running locally:** Run `npm run proof-server:start` (Docker) to start a local proof-server, or set `VITE_PROOF_SERVER_URL` and rebuild.
+- **If using the hosted DApp:** no URL is pre-configured — the wallet supplies the prover. Check the wallet's configured prover/network and try again; a transient wallet-reported prover outage shows this error.
 
 ### "Insufficient balance" when registering or bidding
 
-You need tNight tokens to pay transaction fees. Get free test tokens from the [Preview faucet](https://faucet.preview.midnight.network/). Paste your wallet address (shown in Lace) and request tokens.
+You need tNight tokens to pay transaction fees. Get free Preprod test tokens from the [Preprod faucet](https://midnight-tmnight-preprod.nethermind.dev/). Paste your wallet address (shown in Lace) and request tokens.
 
 ### Transaction takes a long time (30–60 seconds)
 

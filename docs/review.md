@@ -7,7 +7,7 @@ document: update it whenever the codebase changes materially.
 
 | # | Requirement | Status | Evidence |
 | --- | --- | --- | --- |
-| 1 | Fully functional production-ready MVP | ✅ | Two contracts + CLI + browser DApp, 131 tests, live `preview` deployment, end-to-end check (`scripts/e2e-check.ts`) |
+| 1 | Fully functional production-ready MVP | ✅ | Two contracts + CLI + browser DApp, 461 tests, live `preview` deployment, end-to-end check (`scripts/e2e-check.ts`) |
 | 2 | Stable frontend & smart-contract architecture | ✅ | Multi-contract design with a tested off-chain communication layer; strict TS; single-version WASM override; env-driven config; gitignored secrets |
 | 3 | Mobile responsive UI | ✅ | Breakpoints at 1140/720/480px, stacking forms, scrollable tables, 44px touch targets on small screens, `prefers-reduced-motion` support |
 | 4 | Proper loading states and error handling | ✅ | `working…`/busy states, per-action spinner, dismissible error banner, wallet-locked retry, `ErrorBoundary`, ledger-stream error badge, user-facing error mapping (`lib/errorMessages.ts`) |
@@ -38,9 +38,9 @@ Each is documented in `architecture.md`.
 
 ## Product quality
 
-- 131 tests across 9 suites (contract logic, CLI args, error messages,
+- 461 tests across 35 test files (contract logic, CLI args, error messages,
   reputation, inter-contract, buyer verification, private keys, invoice status,
-  nullifiers).
+  nullifiers, and frontend analytics).
 - User-facing error mapping turns raw circuit `failed assert` output into
   actionable messages.
 - The DApp covers the full financing lifecycle for all three roles with a
