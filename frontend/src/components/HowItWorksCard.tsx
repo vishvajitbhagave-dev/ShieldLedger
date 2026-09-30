@@ -10,7 +10,7 @@ import { onboardingCopyFor, isOnboardingDismissed, dismissOnboarding } from '../
  * browser. Storage is wrapped in try/catch so a blocked storage never breaks
  * the app. No tracking, no wallet data — role-only, purely local.
  */
-export const HowItWorksCard: React.FC<{ role: Role }> = ({ role }) => {
+export const HowItWorksCard: React.FC<{ role: Role; onStartTour?: () => void }> = ({ role, onStartTour }) => {
   const [dismissed, setDismissed] = useState<boolean>(() => isOnboardingDismissed(role));
 
   if (dismissed) return null;
@@ -47,6 +47,11 @@ export const HowItWorksCard: React.FC<{ role: Role }> = ({ role }) => {
       </ol>
       <p className="sl-onboarding-sealed">{copy.sealedBidLine}</p>
       <div className="sl-onboarding-actions">
+        {onStartTour != null && (
+          <button type="button" className="sl-button sl-button-secondary" onClick={onStartTour}>
+            Take a tour
+          </button>
+        )}
         <button type="button" className="sl-button" onClick={close}>
           Got it
         </button>

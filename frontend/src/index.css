@@ -2911,6 +2911,124 @@ select.sl-input {
   flex-wrap: wrap;
 }
 
+/* ── Guided "Take a tour" spotlight ───────────────────────────────────────── */
+
+.sl-tour {
+  --tour-shade: rgba(15, 23, 42, 0.55);
+  --tour-ring: rgba(15, 157, 107, 0.55);
+}
+
+:root[data-theme='dark'] .sl-tour {
+  --tour-shade: rgba(2, 6, 16, 0.62);
+  --tour-ring: rgba(21, 176, 126, 0.65);
+}
+
+.sl-tour-panel {
+  position: fixed;
+  z-index: 2400;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+}
+
+.sl-tour-hole {
+  position: fixed;
+  z-index: 2401;
+  pointer-events: none;
+  border-radius: var(--radius);
+  box-shadow:
+    0 0 0 3px var(--tour-ring),
+    0 0 0 9999px var(--tour-shade);
+  transition:
+    top 0.25s ease,
+    left 0.25s ease,
+    width 0.25s ease,
+    height 0.25s ease;
+}
+
+.sl-tour-card {
+  position: fixed;
+  z-index: 2402;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  padding: var(--sp-4) var(--sp-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-xl);
+  color: var(--text);
+}
+
+.sl-tour-card:focus {
+  outline: none;
+}
+
+.sl-tour-card::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--surface);
+  transform: rotate(45deg);
+}
+
+.sl-tour-card[data-placement='bottom']::after {
+  top: -6px;
+  left: 50%;
+  margin-left: -5px;
+  border-left: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+}
+
+.sl-tour-card[data-placement='top']::after {
+  bottom: -6px;
+  left: 50%;
+  margin-left: -5px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.sl-tour-loading {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+}
+
+.sl-tour-step {
+  margin: 0 0 var(--sp-1);
+  font-size: var(--text-caption);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--emerald);
+}
+
+.sl-tour-title {
+  margin: 0 0 var(--sp-1);
+  font-size: var(--text-lg);
+  font-weight: var(--fw-bold);
+  color: var(--text);
+}
+
+.sl-tour-body {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.sl-tour-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+}
+
+.sl-tour-actions .sl-button {
+  margin-left: auto;
+}
+
 /* ── Demo Mode banner ─────────────────────────────────────────────────────── */
 
 .sl-demo-banner {

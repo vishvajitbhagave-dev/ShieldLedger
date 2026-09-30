@@ -880,7 +880,7 @@ export const InvoiceFinancing: React.FC = () => {
         onAction={hero.onAction}
         disabled={busy || working !== null}
       />
-      <div className="sl-actions">
+      <div className="sl-actions" data-tour="finance-actions">
         {actions.map((a) => (
           <ActionCard key={a.key} active={a.active} icon={a.icon} label={a.label} onClick={a.onClick} disabled={busy || working !== null} />
         ))}
@@ -890,7 +890,7 @@ export const InvoiceFinancing: React.FC = () => {
       {role === 'sme' && (
         <>
           {/* Stepper Progress Indicator */}
-          <div className="sl-stepper">
+          <div className="sl-stepper" data-tour="stepper">
             <div className="sl-stepper-track" />
             {smeSteps.map((step, idx) => {
               const isCompleted =
@@ -919,6 +919,7 @@ export const InvoiceFinancing: React.FC = () => {
             <>
               <form
                 className="sl-stage"
+                data-tour="register-form"
                 onSubmit={(e) => {
                   e.preventDefault();
                   if (!api) return;
@@ -1234,7 +1235,7 @@ export const InvoiceFinancing: React.FC = () => {
       {role === 'buyer' && (
         <>
           {/* Stepper Progress Indicator */}
-          <div className="sl-stepper">
+          <div className="sl-stepper" data-tour="stepper">
             <div className="sl-stepper-track" />
             {buyerSteps.map((step, idx) => {
               const isCompleted =
@@ -1401,7 +1402,7 @@ export const InvoiceFinancing: React.FC = () => {
       {role === 'lender' && (
         <>
           {/* Stepper Progress Indicator */}
-          <div className="sl-stepper">
+          <div className="sl-stepper" data-tour="stepper">
             <div className="sl-stepper-track" />
             {lenderSteps.map((step, idx) => {
               const isCompleted =

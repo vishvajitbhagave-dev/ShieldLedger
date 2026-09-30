@@ -95,7 +95,7 @@ export const LenderPortfolio: React.FC = () => {
 
   if (myPseudonym === undefined) {
     return (
-      <div className="sl-panel sl-panel-elevated">
+      <div className="sl-panel sl-panel-elevated" data-tour="portfolio">
         <PageHeader title={PAGE_TITLE} subtitle={PAGE_SUBTITLE} />
         {error && <ErrorBanner error={describeError('ledgerStream', error)} onRetry={retry} />}
         {!error && (
@@ -110,7 +110,7 @@ export const LenderPortfolio: React.FC = () => {
 
   if (myPseudonym === null) {
     return (
-      <div className="sl-panel sl-panel-elevated">
+      <div className="sl-panel sl-panel-elevated" data-tour="portfolio">
         <PageHeader title={PAGE_TITLE} subtitle={PAGE_SUBTITLE} />
         {error && <ErrorBanner error={describeError('ledgerStream', error)} onRetry={retry} />}
         <EmptyState
@@ -133,7 +133,7 @@ export const LenderPortfolio: React.FC = () => {
   const pools = portfolio?.positions.filter((p) => p.kind === 'pool') ?? [];
 
   return (
-    <div className="sl-panel sl-panel-elevated">
+    <div className="sl-panel sl-panel-elevated" data-tour="portfolio">
       <PageHeader title={PAGE_TITLE} subtitle={PAGE_SUBTITLE} />
       {error && <ErrorBanner error={describeError('ledgerStream', error)} onRetry={retry} />}
       <div className="u-flex u-mb-1">

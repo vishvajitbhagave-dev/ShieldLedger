@@ -176,7 +176,7 @@ export const LedgerView: React.FC = () => {
         <p className="sl-meta">— invoices · — sealed bids · — leading bids · insurance pool = — tNight</p>
       )}
 
-      <section className="sl-stage">
+      <section className="sl-stage" data-tour="ledger">
         <h3 className="sl-section-title">Invoices</h3>
         <p className="sl-note">
           ZK-proof bounds only — scores stay private; <strong>✓</strong> = a buyer verified it.

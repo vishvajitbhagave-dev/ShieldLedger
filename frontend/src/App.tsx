@@ -13,6 +13,7 @@ import { ErrorBanner } from './components/ErrorBanner.js';
 import { LenderPortfolio } from './components/LenderPortfolio.js';
 import { NextStepsCard } from './components/NextStepsCard.js';
 import { HowItWorksCard } from './components/HowItWorksCard.js';
+import { TourOverlay } from './components/TourOverlay.js';
 import { RateTrendChart } from './components/RateTrendChart.js';
 import { Profile } from './components/Profile.js';
 import { Settings } from './components/Settings.js';
@@ -214,7 +215,8 @@ const HomeDashboard: React.FC<{
   ledgerError: string | null;
   demo: boolean;
   enterDemo: () => void;
-}> = ({ role, clearRole, walletInfo, deploymentAddress, deployed, streamStatus, ledgerError, demo, enterDemo }) => {
+  onStartTour: () => void;
+}> = ({ role, clearRole, walletInfo, deploymentAddress, deployed, streamStatus, ledgerError, demo, enterDemo, onStartTour }) => {
   const { state, error, retry } = useLedgerState();
   const navigate = useNavigate();
   const heldRole = role;
@@ -303,9 +305,9 @@ const HomeDashboard: React.FC<{
 
       <NextStepsCard role={heldRole} ledgerState={state} />
 
-      <HowItWorksCard role={heldRole} />
+      <HowItWorksCard role={heldRole} onStartTour={onStartTour} />
 
-      <div className="sl-hero">
+      <div className="sl-hero" data-tour="hero">
         <div className="sl-hero-content">
           <span className="sl-hero-label">{heroLabel}</span>
           <div className="sl-hero-number-line">
@@ -320,7 +322,7 @@ const HomeDashboard: React.FC<{
       </div>
 
       <h3 className="sl-section-title">Quick actions</h3>
-      <div className="sl-actions">
+      <div className="sl-actions" data-tour="quick-actions">
         {quickActions.map((qa) => {
           const Icon = qa.Icon;
           return (
@@ -475,6 +477,7 @@ const Body: React.FC = () => {
   const navigate = useNavigate();
   const [lastUpdate, setLastUpdate] = useState<number | null>(null);
   const [roleGate, setRoleGate] = useState(false);
+  const [tourRole, setTourRole] = useState<Role | null>(null);
 
   // Re-establish a dropped wallet session straight from the error banner.
   const reconnectWallet = () => {
@@ -531,7 +534,7 @@ const Body: React.FC = () => {
             </div>
             <div className="sl-header-actions">
               {(deployed || demo) && role != null && (
-                <div className="sl-role-switch" role="group" aria-label="Your role">
+                <div className="sl-role-switch" role="group" aria-label="Your role" data-tour="role-switch">
                   {ROLE_DEFS.map((option) => (
                     <button
                       key={option.value}
@@ -572,7 +575,7 @@ const Body: React.FC = () => {
           </div>
 
           {(deployed || demo) && (
-            <nav className="sl-nav" aria-label="Section">
+            <nav className="sl-nav" aria-label="Section" data-tour="nav">
               <Link
                 className={location.pathname === '/' ? 'sl-nav-item sl-nav-active' : 'sl-nav-item'}
                 to="/"
@@ -626,6 +629,10 @@ const Body: React.FC = () => {
 
       <WalletConnect />
 
+      {tourRole !== null && (
+        <TourOverlay key={tourRole} role={tourRole} onClose={() => setTourRole(null)} />
+      )}
+
       {showApp && (
         <Routes>
           <Route
@@ -674,6 +681,7 @@ const Body: React.FC = () => {
                     ledgerError={ledgerError}
                     demo={demo}
                     enterDemo={enterDemo}
+                    onStartTour={() => setTourRole(role)}
                   />
                 )}
               </div>
