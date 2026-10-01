@@ -1347,6 +1347,37 @@ select.sl-input {
   margin: 0 auto;
 }
 
+/* The gate renders before any wallet is connected, so it has no app header.
+   Surface the theme toggle here — a first-time visitor's first screen. */
+.sl-gate-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.sl-gate-head p {
+  margin: 0;
+}
+
+/* The toggle is styled for the navy header; give it a visible bordered
+   treatment when it sits on the surface-colored gate panel. */
+.sl-gate .sl-theme-toggle {
+  flex: none;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.sl-gate .sl-theme-toggle:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--navy);
+  color: var(--navy);
+}
+
 /* ════════════════ Wallet picker modal ════════════════ */
 
 .sl-modal-backdrop {
